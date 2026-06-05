@@ -1,0 +1,16 @@
+# Supabase local development config
+# Apply migrations: npx supabase db push (requires Supabase CLI + project link)
+
+project_id = "agency-os"
+
+[api]
+enabled = true
+
+[db]
+major_version = 15
+
+[functions.calculate-weekly-performance-scores]
+verify_jwt = false
+
+[functions.calculate-weekly-performance-scores.cron]
+schedule = "0 0 * * 0"
