@@ -1,7 +1,7 @@
 import { createLeadFormAction, getAssignableUsers } from "@/lib/crm/actions";
 import { requireUserProfile } from "@/lib/auth/session";
 import { LEAD_STAGES, LEAD_STAGE_LABELS } from "@/lib/types/crm";
-import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -85,7 +85,7 @@ export async function CreateLeadForm() {
             <Textarea id="notes" name="notes" rows={3} />
           </div>
           <div className="md:col-span-2">
-            <Button type="submit">Create lead</Button>
+            <SubmitButton loadingText="Creating lead...">Create lead</SubmitButton>
           </div>
         </form>
       </CardContent>

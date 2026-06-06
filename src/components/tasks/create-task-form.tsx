@@ -1,6 +1,6 @@
 import { createTaskFormAction, getAssignableMembers } from "@/lib/tasks/actions";
 import { requireUserProfile } from "@/lib/auth/session";
-import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -80,7 +80,7 @@ export async function CreateTaskForm() {
             </select>
           </div>
           <div className="md:col-span-2">
-            <Button type="submit">Create task</Button>
+            <SubmitButton loadingText="Creating task...">Create task</SubmitButton>
           </div>
         </form>
       </CardContent>
