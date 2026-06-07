@@ -1,5 +1,6 @@
 import { requireUserProfile } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
+import Link from "next/link";
 import { CreateReportForm } from "@/components/reports/create-report-form";
 import { ReportsList } from "@/components/reports/reports-list";
 import { AdminReportsView } from "@/components/reports/admin-reports-view";
@@ -28,6 +29,12 @@ export default async function ReportsPage() {
 
   return (
     <div className="space-y-12">
+      <div className="mb-6 flex items-center gap-4">
+        <Link href="/targets" className="hover:underline">Targets</Link>
+        <Link href="/performance" className="hover:underline">Performance</Link>
+        <Link href="/attendance" className="hover:underline">Attendance</Link>
+        {!isMember && <Link href="/admin/users" className="hover:underline">Admin Users</Link>}
+      </div>
       <section>
         <h2 className="mb-6 text-2xl font-bold">Daily Reports</h2>
         <div className="grid gap-8 lg:grid-cols-3">
