@@ -24,6 +24,10 @@ export async function Header() {
             <Link href="/crm" className="hover:text-foreground">
               CRM
             </Link>
+            <Link href="/reports" className="hover:text-foreground">
+              Reports
+            </Link>
+            
           </nav>
         </div>
         <div className="flex items-center gap-4">
