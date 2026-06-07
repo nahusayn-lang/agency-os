@@ -6,12 +6,47 @@ import { getFounderCommitmentForWeek } from "@/lib/founder-commitment/actions";
 import { FounderCommitmentReadonly } from "@/components/dashboard/founder-commitment-readonly";
 import { getLatestPerformanceScoreForUser } from "@/lib/performance/actions";
 import { PerformanceScoreSection } from "@/components/performance/performance-score-section";
+import { createClient } from "@/lib/supabase/server";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
 export default async function EmployeeDashboardPage() {
   const profile = await requireRole("member");
   const weekStart = getWeekStartDateString();
   const commitment = await getFounderCommitmentForWeek(weekStart);
   const ownScore = await getLatestPerformanceScoreForUser(profile.id);
+
+  const supabase = createClient();
+
+  // 1. Today's Tasks (Active assigned tasks)
+  const { count: todaysTasks } = await supabase
+    .from("tasks")
+    .select("*", { count: "exact", head: true })
+    .eq("assigned_to", profile.id)
+    .not("status", "in", '("completed","approved")');
+
+  // 2. Weekly Target %
+  const startOfWeek = new Date(weekStart);
+  const endOfWeek = new Date(startOfWeek);
+  endOfWeek.setDate(startOfWeek.getDate() + 7);
+
+  const { data: targets } = await supabase
+    .from("weekly_targets")
+    .select("completion_percentage")
+    .eq("user_id", profile.id)
+    .gte("created_at", startOfWeek.toISOString())
+    .lt("created_at", endOfWeek.toISOString())
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const weeklyTargetPercent = targets?.completion_percentage ?? 0;
+
+  // 3. Unread Messages Count (Unread notifications)
+  const { count: unreadCount } = await supabase
+    .from("notifications")
+    .select("*", { count: "exact", head: true })
+    .eq("user_id", profile.id)
+    .eq("is_read", false);
 
   return (
     <div className="space-y-8">
@@ -20,6 +55,42 @@ export default async function EmployeeDashboardPage() {
           {getRoleDisplayName("member")} Dashboard
         </h1>
         <p className="text-muted-foreground">Welcome, {profile.name}</p>
+      </div>
+
+      {/* Metrics Grid */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Today&apos;s Tasks</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{todaysTasks ?? 0}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Weekly Target %</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{weeklyTargetPercent}%</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Performance Score</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{ownScore?.total_score ?? "—"}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Unread Messages</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{unreadCount ?? 0}</div>
+          </CardContent>
+        </Card>
       </div>
 
       <FounderCommitmentReadonly

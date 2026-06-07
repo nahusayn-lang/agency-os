@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireUserProfile } from "@/lib/auth/session";
 import { getDashboardPathForRole } from "@/lib/auth/roles";
 import { LogoutButton } from "@/components/logout-button";
+import { NotificationBell } from "@/components/notification-bell";
 
 export async function Header() {
   const profile = await requireUserProfile();
@@ -24,6 +25,9 @@ export async function Header() {
             <Link href="/crm" className="hover:text-foreground">
               CRM
             </Link>
+            <Link href="/messages" className="hover:text-foreground">
+              Messages
+            </Link>
             <Link href="/reports" className="hover:text-foreground">
               Reports
             </Link>
@@ -31,6 +35,7 @@ export async function Header() {
           </nav>
         </div>
         <div className="flex items-center gap-4">
+          <NotificationBell userId={profile.id} />
           <span className="text-sm text-muted-foreground">{profile.name}</span>
           <LogoutButton />
         </div>

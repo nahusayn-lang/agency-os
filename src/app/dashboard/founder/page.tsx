@@ -7,6 +7,7 @@ import { getAllGodModeOverrides } from "@/lib/performance/actions";
 import { WeeklyCommitmentCard } from "@/components/dashboard/weekly-commitment-card";
 import { OverrideHistoryTable } from "@/components/dashboard/override-history-table";
 import { TeamProfilesList } from "@/components/dashboard/team-profiles-list";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
 export default async function FounderDashboardPage() {
   const profile = await requireRole("super_admin");
@@ -35,6 +36,36 @@ export default async function FounderDashboardPage() {
 
   const actorNames = new Map((actors ?? []).map((a) => [a.id, a.name]));
 
+  // Load dashboard metrics
+  const { count: totalLeads } = await supabase
+    .from("leads")
+    .select("*", { count: "exact", head: true });
+
+  const { count: activeLeads } = await supabase
+    .from("leads")
+    .select("*", { count: "exact", head: true })
+    .not("stage", "in", '("deal_won","deal_lost")');
+
+  const { count: dealsClosed } = await supabase
+    .from("leads")
+    .select("*", { count: "exact", head: true })
+    .eq("stage", "deal_won");
+
+  const { data: wonLeads } = await supabase
+    .from("leads")
+    .select("deal_value")
+    .eq("stage", "deal_won");
+  
+  const revenueGenerated = (wonLeads ?? []).reduce(
+    (sum, lead) => sum + (lead.deal_value ?? 0),
+    0
+  );
+
+  const { count: lostDeals } = await supabase
+    .from("leads")
+    .select("*", { count: "exact", head: true })
+    .eq("stage", "deal_lost");
+
   return (
     <div className="space-y-8">
       <div>
@@ -42,6 +73,50 @@ export default async function FounderDashboardPage() {
           {getRoleDisplayName("super_admin")} Dashboard
         </h1>
         <p className="text-muted-foreground">Welcome, {profile.name}</p>
+      </div>
+
+      {/* Metrics Grid */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Leads</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{totalLeads ?? 0}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Active Leads</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{activeLeads ?? 0}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Deals Closed</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{dealsClosed ?? 0}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Revenue Generated</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">${revenueGenerated.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Lost Deals</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{lostDeals ?? 0}</div>
+          </CardContent>
+        </Card>
       </div>
 
       <WeeklyCommitmentCard
