@@ -30,14 +30,14 @@ export async function createWeeklyTargetAction(formData: FormData): Promise<{ er
   if (error || !target) return { error: error?.message ?? "Failed to create weekly target." };
 
   await recordWeeklyTargetAudit(supabase, { userId: profile.id, targetId: target.id, action: "target_assigned", newCompletion: 0 });
-  revalidatePath("/reports");
+  revalidatePath("/targets");
   return { success: true };
 }
 
 export async function createWeeklyTargetFormAction(formData: FormData): Promise<void> {
   const result = await createWeeklyTargetAction(formData);
-  if (result?.error) redirect(`/reports?error=${encodeURIComponent(result.error)}`);
-  redirect("/reports");
+  if (result?.error) redirect(`/targets?error=${encodeURIComponent(result.error)}`);
+  redirect("/targets");
 }
 
 export async function updateWeeklyTargetCompletionAction(targetId: string, completionPercentage: number): Promise<{ error?: string; success?: boolean }> {
@@ -53,7 +53,7 @@ export async function updateWeeklyTargetCompletionAction(targetId: string, compl
   if (error) return { error: error.message };
 
   await recordWeeklyTargetAudit(supabase, { userId: profile.id, targetId, action: "completion_updated", oldCompletion: currentTarget.completion_percentage, newCompletion: completionPercentage });
-  revalidatePath("/reports");
+  revalidatePath("/targets");
   return { success: true };
 }
 
@@ -66,7 +66,7 @@ export async function updateWeeklyTargetNotesAction(targetId: string, adminNotes
   if (error) return { error: error.message };
 
   await recordWeeklyTargetAudit(supabase, { userId: profile.id, targetId, action: "admin_notes_updated" });
-  revalidatePath("/reports");
+  revalidatePath("/targets");
   return { success: true };
 }
 

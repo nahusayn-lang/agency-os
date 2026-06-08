@@ -44,7 +44,7 @@ export default function SidebarClient({ profile }: { profile: { id: string; name
 
               <Link href="/attendance" onClick={() => setOpen(false)} className="block px-2 py-1 rounded hover:bg-accent/5">Attendance</Link>
               <Link href="/performance" onClick={() => setOpen(false)} className="block px-2 py-1 rounded hover:bg-accent/5">Performance</Link>
-              <Link href="/weekly-targets" onClick={() => setOpen(false)} className="block px-2 py-1 rounded hover:bg-accent/5">Weekly Targets</Link>
+              <Link href="/targets" onClick={() => setOpen(false)} className="block px-2 py-1 rounded hover:bg-accent/5">Weekly Targets</Link>
 
               <div className="border-t border-border my-3" />
 

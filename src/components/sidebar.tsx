@@ -32,7 +32,7 @@ export default async function Sidebar() {
           <div className="flex flex-col space-y-1">
             <Link href="/attendance" className="px-2 py-1 rounded hover:bg-accent/5">Attendance</Link>
             <Link href="/performance" className="px-2 py-1 rounded hover:bg-accent/5">Performance</Link>
-            <Link href="/weekly-targets" className="px-2 py-1 rounded hover:bg-accent/5">Weekly Targets</Link>
+            <Link href="/targets" className="px-2 py-1 rounded hover:bg-accent/5">Weekly Targets</Link>
           </div>
 
           <div className="border-t border-border my-3" />
