@@ -13,6 +13,16 @@ function isUserRole(value: string): value is UserRole {
 export async function middleware(request: NextRequest) {
   const { supabase, user, supabaseResponse } = await updateSession(request);
   const { pathname } = request.nextUrl;
+  const searchParams = request.nextUrl.searchParams;
+
+  const hasRecoveryIndicator = () => {
+    // Detect query-based recovery flows: ?type=recovery, ?code=..., ?access_token=..., ?refresh_token=...
+    if (searchParams.get("type") === "recovery") return true;
+    if (searchParams.get("code")) return true;
+    if (searchParams.get("access_token")) return true;
+    if (searchParams.get("refresh_token")) return true;
+    return false;
+  };
 
   const isLoginPage = pathname === "/login";
   const isDashboard = pathname.startsWith("/dashboard");
@@ -22,11 +32,19 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith("/crm");
   const isRoot = pathname === "/";
 
+  // Allow the root page to be handled client-side so fragments (#access_token=...)
+  // can be inspected by the browser. Server-side redirects lose fragments.
+  if (isRoot) {
+    return supabaseResponse;
+  }
+
   if (!user) {
     if (isLoginPage) {
       return supabaseResponse;
     }
-    if (isAppRoute || isRoot) {
+    // If this request appears to be part of a recovery flow, allow it
+    // to proceed so the client can finish the password reset flow.
+    if ((isAppRoute || isRoot) && !hasRecoveryIndicator()) {
       return NextResponse.redirect(new URL("/login", request.url));
     }
     return supabaseResponse;
@@ -63,6 +81,11 @@ export async function middleware(request: NextRequest) {
   const dashboardPath = getDashboardPathForRole(role);
 
   if (isLoginPage || isRoot) {
+    // Prevent redirecting authenticated users away from recovery flows.
+    if (hasRecoveryIndicator()) {
+      return supabaseResponse;
+    }
+
     return NextResponse.redirect(new URL(dashboardPath, request.url));
   }
 

@@ -10,6 +10,15 @@ export async function GET(request: Request) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (!error) {
+      // If this callback was part of a recovery flow, forward the
+      // original search params to `/reset-password` so the client can
+      // establish the session and allow the user to set a new password.
+      const isRecovery = searchParams.get("type") === "recovery";
+      if (isRecovery) {
+        const qs = searchParams.toString();
+        return NextResponse.redirect(`${origin}/reset-password?${qs}`);
+      }
+
       return NextResponse.redirect(`${origin}/`);
     }
   }
