@@ -8,6 +8,7 @@ import { getLatestPerformanceScoreForUser } from "@/lib/performance/actions";
 import { PerformanceScoreSection } from "@/components/performance/performance-score-section";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import WorkSessionCard from "@/components/dashboard/work-session-card";
 
 export default async function EmployeeDashboardPage() {
   const profile = await requireRole("member");
@@ -92,6 +93,8 @@ export default async function EmployeeDashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      <WorkSessionCard />
 
       <FounderCommitmentReadonly
         weekStart={weekStart}

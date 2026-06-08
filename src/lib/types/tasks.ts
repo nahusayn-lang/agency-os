@@ -3,6 +3,7 @@ export type TaskPriority = "low" | "medium" | "high" | "urgent";
 export type TaskStatus =
   | "pending"
   | "in_progress"
+  | "paused"
   | "waiting_review"
   | "revision_required"
   | "approved"
@@ -18,6 +19,8 @@ export interface Task {
   assigned_to: string;
   status: TaskStatus;
   proof_url: string | null;
+  estimated_hours?: number | null;
+  total_time_spent_seconds?: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -48,6 +51,7 @@ export interface TaskWithUsers extends Task {
 export const TASK_STATUSES: TaskStatus[] = [
   "pending",
   "in_progress",
+  "paused",
   "waiting_review",
   "revision_required",
   "approved",
@@ -65,6 +69,7 @@ export const TASK_STATUS_LABELS: Record<TaskStatus, string> = {
   pending: "Pending",
   in_progress: "In Progress",
   waiting_review: "Waiting Review",
+  paused: "Paused",
   revision_required: "Revision Required",
   approved: "Approved",
   completed: "Completed",

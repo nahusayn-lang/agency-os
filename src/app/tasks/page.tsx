@@ -61,9 +61,12 @@ export default async function TasksPage() {
         </div>
       </div>
 
-      {canManageTasks(profile.role) && <CreateTaskForm />}
-
-      <div className="rounded-xl border">
+      {canManageTasks(profile.role) ? (
+        <div>
+          <CreateTaskForm />
+        </div>
+      ) : (
+        <div className="rounded-xl border">
         <Table>
           <TableHeader>
             <TableRow>
@@ -114,6 +117,7 @@ export default async function TasksPage() {
           </TableBody>
         </Table>
       </div>
+      )}
     </div>
   );
 }

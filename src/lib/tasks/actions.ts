@@ -92,6 +92,8 @@ export async function createTaskAction(formData: FormData) {
   const priority = String(formData.get("priority") ?? "") as TaskPriority;
   const deadline = String(formData.get("deadline") ?? "").trim();
   const assignedTo = String(formData.get("assigned_to") ?? "").trim();
+  const estimatedHoursRaw = String(formData.get("estimated_hours") ?? "").trim();
+  const estimated_hours = estimatedHoursRaw ? Number(estimatedHoursRaw) : null;
 
   if (!title || !assignedTo) {
     return { error: "Title and assignee are required." };
@@ -115,6 +117,7 @@ export async function createTaskAction(formData: FormData) {
       description: description || null,
       priority: priority || "medium",
       deadline: deadline ? new Date(deadline).toISOString() : null,
+      estimated_hours,
       assigned_by: profile.id,
       assigned_to: assignedTo,
       status: "pending",
@@ -163,7 +166,7 @@ export async function createTaskAction(formData: FormData) {
 export async function updateTaskStatusAction(
   taskId: string,
   newStatus: TaskStatus,
-  options?: { forceClose?: boolean; overrideReason?: string }
+  options?: { forceClose?: boolean; overrideReason?: string; rejectionReason?: string }
 ) {
   const profile = await requireUserProfile();
   const supabase = createClient();
@@ -232,6 +235,42 @@ export async function updateTaskStatusAction(
     return {
       error: err instanceof Error ? err.message : "Failed to record activity.",
     };
+  }
+
+  // If founder rejected a submission, increment strike for assignee and record reason
+  if (
+    profile.role === "super_admin" &&
+    oldStatus === "waiting_review" &&
+    newStatus === "revision_required"
+  ) {
+    const reason = options?.rejectionReason?.trim() ?? null;
+    if (!reason) {
+      // rejection requires a reason
+      return { error: "Rejection reason is required." };
+    }
+
+    // increment strikes for the assignee (fallback approach)
+    // read current strikes
+    const { data: userRow } = await supabase
+      .from("users")
+      .select("id, strikes")
+      .eq("id", task.assigned_to)
+      .single();
+
+    const currentStrikes = (userRow?.strikes as number) ?? 0;
+    await supabase
+      .from("users")
+      .update({ strikes: currentStrikes + 1 })
+      .eq("id", task.assigned_to);
+
+    // record audit_log with rejection reason
+    await supabase.from("audit_log").insert({
+      user_id: profile.id,
+      action: "task_rejected",
+      entity_type: "task",
+      entity_id: taskId,
+      reason,
+    });
   }
 
   const notifyIds = new Set([task.assigned_to]);
@@ -329,6 +368,108 @@ export async function setTaskProofUrlAction(taskId: string, proofUrl: string) {
   });
 
   revalidatePath(`/tasks/${taskId}`);
+  return { success: true };
+}
+
+export async function submitTaskAction(
+  taskId: string,
+  completionNote: string,
+  optionalLink?: string,
+  totalTimeSeconds?: number
+) {
+  const profile = await requireUserProfile();
+  const supabase = createClient();
+
+  const { data: task, error: fetchError } = await supabase
+    .from("tasks")
+    .select("id, status, assigned_to, assigned_by, proof_url, title")
+    .eq("id", taskId)
+    .single();
+
+  if (fetchError || !task) {
+    return { error: "Task not found." };
+  }
+
+  if (task.assigned_to !== profile.id) {
+    return { error: "Only assignee may submit the task." };
+  }
+
+  if (!task.proof_url) {
+    return { error: "Proof is required before submitting." };
+  }
+
+  const noteTrim = String(completionNote ?? "").trim();
+  if (!noteTrim) {
+    return { error: "Completion note is required." };
+  }
+
+  // Update task status to waiting_review (Submitted)
+  const { error: updateError } = await supabase
+    .from("tasks")
+    .update({ status: "waiting_review" })
+    .eq("id", taskId);
+
+  if (updateError) {
+    return { error: updateError.message };
+  }
+
+  // Record activity
+  await supabase.from("task_activity").insert({
+    task_id: taskId,
+    performed_by: profile.id,
+    action: "submitted",
+    old_status: task.status,
+    new_status: "waiting_review",
+  });
+
+  // Insert completion note as a comment, include optional link and time
+  const parts = [noteTrim];
+  if (optionalLink) parts.push(`Link: ${optionalLink}`);
+  if (typeof totalTimeSeconds === "number") {
+    parts.push(`Total time (seconds): ${totalTimeSeconds}`);
+  }
+
+  await supabase.from("task_comments").insert({
+    task_id: taskId,
+    user_id: profile.id,
+    message: parts.join("\n"),
+  });
+
+  await supabase.from("audit_log").insert({
+    user_id: profile.id,
+    action: "task_submitted",
+    entity_type: "task",
+    entity_id: taskId,
+    reason: null,
+  });
+
+  revalidatePath("/tasks");
+  revalidatePath(`/tasks/${taskId}`);
+
+  // Notify founders (super_admin role)
+  const { data: founders } = await supabase
+    .from("users")
+    .select("id, email")
+    .eq("role", "super_admin")
+    .eq("is_active", true);
+
+  for (const f of founders ?? []) {
+    if (f?.email) {
+      await sendTaskNotification({
+        to: f.email,
+        subject: "Task submitted for review",
+        taskTitle: task.title,
+        message: `${profile.name} submitted the task for review.`,
+      });
+    }
+    await supabase.from("notifications").insert({
+      user_id: f.id,
+      title: "Task submitted for review",
+      message: `${profile.name} submitted task: ${task.title}`,
+      link: `/tasks/${taskId}`,
+    });
+  }
+
   return { success: true };
 }
 

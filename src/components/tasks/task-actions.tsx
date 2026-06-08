@@ -34,19 +34,24 @@ export function TaskActions({
   const [error, setError] = useState<string | null>(null);
   const [overrideOpen, setOverrideOpen] = useState(false);
   const [overrideReason, setOverrideReason] = useState("");
+  const [rejectOpen, setRejectOpen] = useState(false);
+  const [rejectReason, setRejectReason] = useState("");
 
-  function transition(to: TaskStatus, options?: { forceClose?: boolean }) {
+  function transition(to: TaskStatus, options?: { forceClose?: boolean; rejectionReason?: string }) {
     setError(null);
     startTransition(async () => {
       const result = await updateTaskStatusAction(taskId, to, {
         forceClose: options?.forceClose,
         overrideReason: options?.forceClose ? overrideReason : undefined,
+        rejectionReason: options?.rejectionReason,
       });
       if (result?.error) {
         setError(result.error);
       } else {
         setOverrideOpen(false);
         setOverrideReason("");
+        setRejectOpen(false);
+        setRejectReason("");
       }
     });
   }
@@ -86,13 +91,55 @@ export function TaskActions({
             >
               Approve
             </Button>
-            <Button
-              variant="outline"
-              disabled={pending}
-              onClick={() => transition("revision_required")}
-            >
-              Request revision
-            </Button>
+            {role === "super_admin" ? (
+              <>
+                <Dialog open={rejectOpen} onOpenChange={setRejectOpen}>
+                  <Button
+                    variant="outline"
+                    disabled={pending}
+                    onClick={() => setRejectOpen(true)}
+                  >
+                    Reject
+                  </Button>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Reject submission</DialogTitle>
+                      <DialogDescription>
+                        Provide a reason for the rejection. This will add a
+                        strike and return the task to the assignee.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-2">
+                      <Label htmlFor="reject-reason">Reason</Label>
+                      <Textarea
+                        id="reject-reason"
+                        value={rejectReason}
+                        onChange={(e) => setRejectReason(e.target.value)}
+                        rows={4}
+                        required
+                      />
+                    </div>
+                    <DialogFooter>
+                      <Button
+                        variant="destructive"
+                        disabled={pending || !rejectReason.trim()}
+                        onClick={() => transition("revision_required", { rejectionReason: rejectReason })}
+                      >
+                        Confirm reject
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </>
+            ) : (
+              <Button
+                variant="outline"
+                disabled={pending}
+                onClick={() => transition("revision_required")}
+              >
+                Request revision
+              </Button>
+            )}
           </>
         )}
         {status === "approved" && (

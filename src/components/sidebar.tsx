@@ -22,6 +22,7 @@ export default async function Sidebar() {
           <div className="flex flex-col space-y-1">
             <Link href={dashboardPath} className="px-2 py-1 rounded hover:bg-accent/5">Dashboard</Link>
             <Link href="/tasks" className="px-2 py-1 rounded hover:bg-accent/5">Tasks</Link>
+            <Link href="/my-tasks" className="px-2 py-1 rounded hover:bg-accent/5">My Tasks</Link>
             <Link href="/crm" className="px-2 py-1 rounded hover:bg-accent/5">CRM</Link>
             <Link href="/messages" className="px-2 py-1 rounded hover:bg-accent/5">Messages</Link>
             <Link href="/reports" className="px-2 py-1 rounded hover:bg-accent/5">Reports</Link>

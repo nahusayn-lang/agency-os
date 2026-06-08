@@ -3,7 +3,8 @@ import type { UserRole } from "@/lib/types/database";
 
 const MEMBER_TRANSITIONS: Partial<Record<TaskStatus, TaskStatus[]>> = {
   pending: ["in_progress"],
-  in_progress: ["waiting_review"],
+  in_progress: ["waiting_review", "paused"],
+  paused: ["in_progress"],
   revision_required: ["in_progress"],
 };
 
