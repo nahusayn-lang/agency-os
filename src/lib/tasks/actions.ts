@@ -191,6 +191,38 @@ export async function updateTaskStatusAction(
     return { error: "This status transition is not allowed." };
   }
 
+  // If moving a task to in_progress, ensure only one active task exists by pausing others
+  if (newStatus === "in_progress") {
+    try {
+      const { data: otherTasks } = await supabase
+        .from("tasks")
+        .select("id, status")
+        .eq("assigned_to", profile.id)
+        .eq("status", "in_progress")
+        .neq("id", taskId);
+
+      for (const ot of (otherTasks ?? [])) {
+        await supabase.from("tasks").update({ status: "paused" }).eq("id", ot.id);
+        await supabase.from("task_activity").insert({
+          task_id: ot.id,
+          performed_by: profile.id,
+          action: "auto_paused",
+          old_status: "in_progress",
+          new_status: "paused",
+        });
+        await supabase.from("audit_log").insert({
+          user_id: profile.id,
+          action: "auto_pause_other_task",
+          entity_type: "task",
+          entity_id: ot.id,
+          reason: `Auto-paused due to starting task ${taskId}`,
+        });
+      }
+    } catch (e) {
+      console.error("Failed to auto-pause other tasks:", e);
+    }
+  }
+
   if (options?.forceClose) {
     if (profile.role !== "super_admin") {
       return { error: "Only founders can force-close tasks." };

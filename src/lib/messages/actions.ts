@@ -5,6 +5,7 @@ import "server-only";
 import { revalidatePath } from "next/cache";
 import { requireUserProfile } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
+import { recordLogoutAttendance } from "@/lib/services/attendance-service";
 
 export async function getActiveUsers() {
   const supabase = createClient();
@@ -81,13 +82,99 @@ export async function updateLeaveRequestStatusAction(
   }
 
   const supabase = createClient();
-  const { error } = await supabase
-    .from("messages")
-    .update({ status })
-    .eq("id", messageId);
 
+  // fetch message to determine sender and type
+  const { data: messageRow, error: fetchError } = await supabase
+    .from("messages")
+    .select("id, sender_id, title, content, type")
+    .eq("id", messageId)
+    .single();
+
+  if (fetchError || !messageRow) {
+    return { error: fetchError?.message ?? "Message not found." };
+  }
+
+  // Emergency requests must be reviewed by founders only
+  if (messageRow.title === "Emergency checkout request" && profile.role !== "super_admin") {
+    return { error: "Only founders can review emergency checkout requests." };
+  }
+
+  const { error } = await supabase.from("messages").update({ status }).eq("id", messageId);
   if (error) {
     return { error: error.message };
+  }
+
+  // Special handling: if this was an emergency-style request (we create them as leave_request),
+  // allow founders to approve => perform logout for the requester, or reject => apply a strike.
+  if (messageRow.type === "leave_request") {
+    // approved -> attempt to perform logout for the sender
+    if (status === "approved") {
+      try {
+        const { data: userRow } = await supabase
+          .from("users")
+          .select("id, shift_end, email, name")
+          .eq("id", messageRow.sender_id)
+          .single();
+
+        const shiftEnd = (userRow?.shift_end as string) ?? "23:59:59";
+        // record logout attendance for the requester
+        try {
+          await recordLogoutAttendance(messageRow.sender_id, shiftEnd);
+        } catch (e) {
+          // ignore logout errors but continue
+          console.error("Failed to record logout for emergency approval:", e);
+        }
+
+        // audit log and notify the user
+        await supabase.from("audit_log").insert({
+          user_id: profile.id,
+          action: "emergency_checkout_approved",
+          entity_type: "messages",
+          entity_id: messageId,
+          reason: `Approved emergency checkout for ${messageRow.sender_id}`,
+        });
+
+        await supabase.from("notifications").insert({
+          user_id: messageRow.sender_id,
+          title: "Emergency checkout approved",
+          message: `Your emergency checkout request was approved by ${profile.name}. You have been checked out.`,
+          link: "/dashboard",
+        });
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    // rejected -> increment strike and notify
+    if (status === "rejected") {
+      try {
+        const { data: userRow } = await supabase
+          .from("users")
+          .select("id, strikes, email, name")
+          .eq("id", messageRow.sender_id)
+          .single();
+
+        const currentStrikes = (userRow?.strikes as number) ?? 0;
+        await supabase.from("users").update({ strikes: currentStrikes + 1 }).eq("id", messageRow.sender_id);
+
+        await supabase.from("audit_log").insert({
+          user_id: profile.id,
+          action: "emergency_checkout_rejected",
+          entity_type: "messages",
+          entity_id: messageId,
+          reason: "Rejected by founder",
+        });
+
+        await supabase.from("notifications").insert({
+          user_id: messageRow.sender_id,
+          title: "Emergency checkout rejected",
+          message: "Your emergency checkout request was rejected and a strike was applied.",
+          link: "/dashboard",
+        });
+      } catch (e) {
+        console.error(e);
+      }
+    }
   }
 
   revalidatePath("/messages");

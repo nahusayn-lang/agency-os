@@ -156,6 +156,18 @@ export default async function TaskDetailPage({ params }: TaskDetailPageProps) {
                 <dt className="text-muted-foreground">Created</dt>
                 <dd>{new Date(task.created_at).toLocaleString()}</dd>
               </div>
+              <div>
+                <dt className="text-muted-foreground">Total recorded time</dt>
+                <dd>
+                  {(() => {
+                    const secs = (task.total_time_spent_seconds as number) ?? 0;
+                    const h = Math.floor(secs / 3600);
+                    const m = Math.floor((secs % 3600) / 60);
+                    const s = secs % 60;
+                    return `${h}h ${m}m ${s}s`;
+                  })()}
+                </dd>
+              </div>
             </dl>
           </section>
 

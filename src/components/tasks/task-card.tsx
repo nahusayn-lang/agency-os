@@ -51,7 +51,28 @@ export function TaskCard({ task, assignerName, assignerRole }: TaskCardProps) {
   }, [running, task.id]);
 
   function startTimer() {
-    // inform server to set in_progress
+    // If another task is running elsewhere, attempt to auto-pause it and persist its elapsed time
+    const existing = window.localStorage.getItem("running_task");
+    if (existing && existing !== task.id) {
+      try {
+        const raw = window.localStorage.getItem("running_task_elapsed");
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (parsed && parsed.taskId && parsed.taskId === existing && typeof parsed.elapsed === "number") {
+            // send pause for previous task
+            fetch("/api/tasks/perform", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ action: "pause", taskId: parsed.taskId, note: "Auto-pause: starting another task", totalTimeSeconds: parsed.elapsed }),
+            }).catch(() => {});
+          }
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    // inform server to set this task in_progress
     fetch("/api/tasks/perform", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -59,7 +80,15 @@ export function TaskCard({ task, assignerName, assignerRole }: TaskCardProps) {
     }).then(() => {
       setRunning(true);
       window.localStorage.setItem("running_task", task.id);
-      timerRef.current = window.setInterval(() => setElapsed((s) => s + 1), 1000);
+      timerRef.current = window.setInterval(() => {
+        setElapsed((s) => {
+          const next = s + 1;
+          try {
+            window.localStorage.setItem("running_task_elapsed", JSON.stringify({ taskId: task.id, elapsed: next }));
+          } catch {}
+          return next;
+        });
+      }, 1000);
     });
   }
 
@@ -70,6 +99,7 @@ export function TaskCard({ task, assignerName, assignerRole }: TaskCardProps) {
     }
     setRunning(false);
     window.localStorage.removeItem("running_task");
+    window.localStorage.removeItem("running_task_elapsed");
   }
 
   async function handlePause() {

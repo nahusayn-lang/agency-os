@@ -1,6 +1,7 @@
 import { requireUserProfile } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import React from "react";
+import WorkSessionCardClient from "./work-session-card-client";
 
 export default async function WorkSessionCard() {
   const profile = await requireUserProfile();
@@ -32,37 +33,11 @@ export default async function WorkSessionCard() {
   return (
     <section className="rounded-xl border p-6">
       <h2 className="mb-2 text-lg font-medium">Work session</h2>
-      <div className="space-y-2">
-        <div>Checked in: {isCheckedIn ? new Date(checkInTime!).toLocaleString() : "No"}</div>
-        {isCheckedIn && <div>Current session: <span id="ws-duration">calculating…</span></div>}
-        <div>Working status: {isCheckedIn ? (isBlocked ? "Blocked" : "Working") : "Not started"}</div>
-      </div>
-
-      <div className="mt-4 flex gap-2">
-        {!isCheckedIn && (
-          <form action="/api/attendance/checkin" method="POST">
-            <button className="btn" type="submit">Check In</button>
-          </form>
-        )}
-
-        {isCheckedIn && (
-          <form action="/api/attendance/checkout" method="POST">
-            <button className="btn" type="submit" disabled={isBlocked}>Check Out</button>
-          </form>
-        )}
-      </div>
-
-      {isBlocked && (
-        <div className="mt-4">
-          <label htmlFor="emergency_note">Emergency note</label>
-          <form action="/api/requests/emergency" method="POST" className="mt-2">
-            <input id="emergency_note" name="note" className="w-full rounded border p-2" />
-            <div className="mt-2">
-              <button className="btn" type="submit">Send Approval Request</button>
-            </div>
-          </form>
-        </div>
-      )}
+      <WorkSessionCardClient
+        isCheckedIn={isCheckedIn}
+        checkInTime={checkInTime}
+        isBlocked={isBlocked}
+      />
     </section>
   );
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireUserProfile } from "@/lib/auth/session";
 import { updateTaskStatusAction, addTaskCommentAction, submitTaskAction } from "@/lib/tasks/actions";
+import { createClient } from "@/lib/supabase/server";
 
 export async function POST(req: Request) {
   await requireUserProfile();
@@ -24,11 +25,27 @@ export async function POST(req: Request) {
       const msgParts = [String(note).trim()];
       if (typeof totalTimeSeconds === "number") msgParts.push(`Time chunk (s): ${totalTimeSeconds}`);
       const c = await addTaskCommentAction(taskId, msgParts.join("\n"));
+      // persist total time chunk to task
+      if (typeof totalTimeSeconds === "number") {
+        const supabase = createClient();
+        const { data: t } = await supabase.from("tasks").select("total_time_spent_seconds").eq("id", taskId).single();
+        const current = (t?.total_time_spent_seconds as number) ?? 0;
+        await supabase.from("tasks").update({ total_time_spent_seconds: current + totalTimeSeconds }).eq("id", taskId);
+      }
+
       const s = await updateTaskStatusAction(taskId, "paused");
       return NextResponse.json({ success: true, comment: c, status: s });
     }
     if (action === "submit") {
       const result = await submitTaskAction(taskId, String(note ?? "").trim(), optionalLink, totalTimeSeconds);
+
+      // persist total time chunk to task on submit as well
+      if (typeof totalTimeSeconds === "number") {
+        const supabase = createClient();
+        const { data: t } = await supabase.from("tasks").select("total_time_spent_seconds").eq("id", taskId).single();
+        const current = (t?.total_time_spent_seconds as number) ?? 0;
+        await supabase.from("tasks").update({ total_time_spent_seconds: current + totalTimeSeconds }).eq("id", taskId);
+      }
       return NextResponse.json(result);
     }
 

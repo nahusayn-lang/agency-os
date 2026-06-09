@@ -19,11 +19,22 @@ export async function POST(req: Request) {
       .eq("is_active", true);
 
     for (const f of founders ?? []) {
+      // create a leave_request message so founders can approve/reject in the Messages UI
+      await supabase.from("messages").insert({
+        sender_id: profile.id,
+        recipient_id: f.id,
+        title: "Emergency checkout request",
+        content: `User ${profile.name} requests checkout: ${note}`,
+        type: "leave_request",
+        status: "pending",
+      });
+
+      // also add a short notification
       await supabase.from("notifications").insert({
         user_id: f.id,
         title: "Emergency checkout request",
         message: `User ${profile.name} requests checkout: ${note}`,
-        link: "/dashboard",
+        link: "/messages",
       });
     }
 
