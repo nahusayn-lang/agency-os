@@ -8,11 +8,13 @@ import { Input } from "@/components/ui/input";
 interface ProofUploadProps {
   taskId: string;
   currentProofUrl: string | null;
+  onUploadComplete?: (url: string) => void;
 }
 
-export function ProofUpload({ taskId, currentProofUrl }: ProofUploadProps) {
+export function ProofUpload({ taskId, currentProofUrl, onUploadComplete }: ProofUploadProps) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [uploadedUrl, setUploadedUrl] = useState<string | null>(currentProofUrl);
 
   function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -45,6 +47,9 @@ export function ProofUpload({ taskId, currentProofUrl }: ProofUploadProps) {
 
       if (result?.error) {
         setError(result.error);
+      } else {
+        setUploadedUrl(proofUrl);
+        onUploadComplete?.(proofUrl);
       }
     });
   }
@@ -53,14 +58,14 @@ export function ProofUpload({ taskId, currentProofUrl }: ProofUploadProps) {
     <div className="space-y-2">
       <Input type="file" accept="image/*,application/pdf" onChange={handleUpload} disabled={pending} />
       {pending && <p className="text-sm text-muted-foreground">Uploading…</p>}
-      {currentProofUrl && (
+      {uploadedUrl && (
         <a
-          href={currentProofUrl}
+          href={uploadedUrl}
           target="_blank"
           rel="noopener noreferrer"
           className="text-sm text-primary hover:underline"
         >
-          View current proof
+          ✓ Screenshot uploaded — View
         </a>
       )}
       {error && <p className="text-sm text-destructive">{error}</p>}

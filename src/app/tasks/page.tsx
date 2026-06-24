@@ -25,8 +25,9 @@ export default async function TasksPage() {
   const { data: tasks, error } = await supabase
     .from("tasks")
     .select(
-      "id, title, priority, status, deadline, assigned_to, assigned_by, created_at"
+      "id, title, status, deadline, assigned_to, assigned_by, created_at"
     )
+    .or(`assigned_to.eq.${profile.id},assigned_by.eq.${profile.id}`)
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -41,12 +42,24 @@ export default async function TasksPage() {
     userIds.add(task.assigned_by);
   }
 
-  const { data: users } = await supabase
-    .from("users")
-    .select("id, name")
-    .in("id", Array.from(userIds));
+  const { data: users } = userIds.size
+    ? await supabase
+        .from("users")
+        .select("id, name")
+        .in("id", Array.from(userIds))
+    : { data: [] };
 
   const userMap = new Map((users ?? []).map((u) => [u.id, u.name]));
+
+  const statusVariantMap: Record<TaskStatus, "default" | "secondary" | "destructive" | "outline"> = {
+    pending: "secondary",
+    in_progress: "default",
+    paused: "destructive",
+    waiting_review: "secondary",
+    revision_required: "destructive",
+    approved: "default",
+    completed: "secondary",
+  };
 
   return (
     <div className="space-y-8">
@@ -54,25 +67,23 @@ export default async function TasksPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Tasks</h1>
           <p className="text-sm text-muted-foreground">
-            {canManageTasks(profile.role)
-              ? "All team tasks"
-              : "Your assigned tasks"}
+            Tasks assigned by or to you.
           </p>
         </div>
       </div>
 
-      {canManageTasks(profile.role) ? (
+      {canManageTasks(profile.role) && (
         <div>
           <CreateTaskForm />
         </div>
-      ) : (
-        <div className="rounded-xl border">
+      )}
+
+      <div className="rounded-xl border">
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead>Title</TableHead>
-              <TableHead>Assignee</TableHead>
-              <TableHead>Priority</TableHead>
+              <TableHead>Assigned to</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Deadline</TableHead>
             </TableRow>
@@ -80,13 +91,16 @@ export default async function TasksPage() {
           <TableBody>
             {(tasks ?? []).length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center text-muted-foreground">
+                <TableCell colSpan={4} className="text-center text-muted-foreground">
                   No tasks yet.
                 </TableCell>
               </TableRow>
             ) : (
               (tasks ?? []).map((task) => (
-                <TableRow key={task.id}>
+                <TableRow
+                  key={task.id}
+                  className="hover:bg-muted/50 transition-colors"
+                >
                   <TableCell>
                     <Link
                       href={`/tasks/${task.id}`}
@@ -96,20 +110,27 @@ export default async function TasksPage() {
                     </Link>
                   </TableCell>
                   <TableCell>
-                    {userMap.get(task.assigned_to) ?? "Unknown"}
+                    <Link
+                      href={`/tasks/${task.id}`}
+                      className="text-muted-foreground hover:text-foreground"
+                    >
+                      {userMap.get(task.assigned_to) ?? "Unknown"}
+                    </Link>
                   </TableCell>
                   <TableCell>
-                    <Badge variant="outline">
-                      {TASK_PRIORITY_LABELS[task.priority as TaskPriority]}
+                    <Badge variant={statusVariantMap[task.status as TaskStatus]}>
+                      {TASK_STATUS_LABELS[task.status as TaskStatus]}
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    {TASK_STATUS_LABELS[task.status as TaskStatus]}
-                  </TableCell>
-                  <TableCell>
-                    {task.deadline
-                      ? new Date(task.deadline).toLocaleDateString()
-                      : "—"}
+                    <Link
+                      href={`/tasks/${task.id}`}
+                      className="hover:underline"
+                    >
+                      {task.deadline
+                        ? new Date(task.deadline).toLocaleDateString()
+                        : "—"}
+                    </Link>
                   </TableCell>
                 </TableRow>
               ))
@@ -117,7 +138,6 @@ export default async function TasksPage() {
           </TableBody>
         </Table>
       </div>
-      )}
     </div>
   );
 }

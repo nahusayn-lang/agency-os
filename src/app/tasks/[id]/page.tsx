@@ -54,9 +54,38 @@ export default async function TaskDetailPage({ params }: TaskDetailPageProps) {
     .select("id, name")
     .in("id", Array.from(userIds));
 
-  const userMap = new Map((users ?? []).map((u) => [u.id, u.name]));
+  const completionComment = (comments ?? [])
+    .slice()
+    .reverse()
+    .find((comment) => comment.user_id === task.assigned_to);
+
+  const pauseHistory = (activity ?? [])
+    .filter((entry) => entry.action === "pause")
+    .map((entry) => {
+      const comment = (comments ?? []).find(
+        (c) =>
+          c.user_id === entry.performed_by &&
+          Math.abs(new Date(c.created_at).getTime() - new Date(entry.created_at).getTime()) <
+            30000
+      );
+      return {
+        ...entry,
+        reason: comment?.message?.split("\n")[0] ?? null,
+      };
+    });
 
   const isAssignee = task.assigned_to === profile.id;
+  const isReviewer = profile.role === "admin" || profile.role === "super_admin";
+
+  const statusVariantMap: Record<TaskStatus, "default" | "secondary" | "destructive" | "outline"> = {
+    pending: "secondary",
+    in_progress: "default",
+    paused: "destructive",
+    waiting_review: "secondary",
+    revision_required: "destructive",
+    approved: "default",
+    completed: "secondary",
+  };
 
   return (
     <div className="space-y-8">
@@ -71,7 +100,7 @@ export default async function TaskDetailPage({ params }: TaskDetailPageProps) {
           <Badge variant="outline">
             {TASK_PRIORITY_LABELS[task.priority as TaskPriority]}
           </Badge>
-          <Badge>
+          <Badge variant={statusVariantMap[task.status as TaskStatus]}>
             {TASK_STATUS_LABELS[task.status as TaskStatus]}
           </Badge>
         </div>
@@ -87,6 +116,58 @@ export default async function TaskDetailPage({ params }: TaskDetailPageProps) {
               </p>
             </section>
           )}
+
+          <section className="rounded-xl border p-4 space-y-4">
+            <h2 className="font-medium">Submission Details</h2>
+            {task.proof_url ? (
+              <div className="space-y-3">
+                <p className="text-sm font-medium">Proof screenshot</p>
+                <a href={task.proof_url} target="_blank" rel="noopener noreferrer">
+                  <img
+                    src={task.proof_url}
+                    alt="Task proof screenshot"
+                    className="h-64 w-full rounded-xl border object-cover"
+                  />
+                </a>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">No proof screenshot uploaded.</p>
+            )}
+
+            {completionComment ? (
+              <div className="rounded-xl border bg-muted p-3">
+                <p className="text-sm font-medium">Completion note</p>
+                <p className="mt-1 text-sm whitespace-pre-wrap">
+                  {completionComment.message}
+                </p>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">No completion note available.</p>
+            )}
+
+            <div>
+              <p className="text-sm font-medium">Pause history</p>
+              {pauseHistory.length === 0 ? (
+                <p className="text-sm text-muted-foreground mt-2">No pause history recorded.</p>
+              ) : (
+                <ol className="mt-2 space-y-3">
+                  {pauseHistory.map((entry) => (
+                    <li key={entry.id} className="rounded-lg border p-3 text-sm">
+                      <p className="font-medium">
+                        {userMap.get(entry.performed_by) ?? "Unknown"}
+                      </p>
+                      <p className="text-muted-foreground">
+                        {entry.reason ?? "No pause reason provided."}
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {new Date(entry.created_at).toLocaleString()}
+                      </p>
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </div>
+          </section>
 
           <section>
             <h2 className="mb-3 font-medium">Activity</h2>
@@ -171,15 +252,17 @@ export default async function TaskDetailPage({ params }: TaskDetailPageProps) {
             </dl>
           </section>
 
-          <section className="rounded-xl border p-4 space-y-3">
-            <h2 className="font-medium">Actions</h2>
-            <TaskActions
-              taskId={params.id}
-              status={task.status as TaskStatus}
-              role={profile.role}
-              isAssignee={isAssignee}
-            />
-          </section>
+          {task.status === "waiting_review" && isReviewer && (
+            <section className="rounded-xl border p-4 space-y-3">
+              <h2 className="font-medium">Actions</h2>
+              <TaskActions
+                taskId={params.id}
+                status={task.status as TaskStatus}
+                role={profile.role}
+                isAssignee={isAssignee}
+              />
+            </section>
+          )}
 
           {isAssignee && task.status === "in_progress" && (
             <section className="rounded-xl border p-4 space-y-3">

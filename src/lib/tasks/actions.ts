@@ -291,12 +291,9 @@ export async function addTaskCommentAction(taskId: string, message: string) {
 export async function setTaskProofUrlAction(taskId: string, proofUrl: string) {
   const profile = await requireUserProfile();
 
-  if (profile.role !== "member") {
-    return { error: "Only assignees upload proof." };
-  }
-
   const supabase = createClient();
 
+  // Only check that user is the assignee — no role restriction
   const { data: task } = await supabase
     .from("tasks")
     .select("status, assigned_to")
@@ -304,7 +301,7 @@ export async function setTaskProofUrlAction(taskId: string, proofUrl: string) {
     .single();
 
   if (!task || task.assigned_to !== profile.id) {
-    return { error: "Task not found." };
+    return { error: "You are not the assignee of this task." };
   }
 
   if (task.status !== "in_progress") {
@@ -355,23 +352,19 @@ export async function submitTaskAction(
     return { error: "Task not found." };
   }
 
-  // Ensure submission note is provided
   const noteTrimmed = String(completionNote ?? "").trim();
   if (!noteTrimmed) {
     return { error: "Completion note is required." };
   }
 
-  // If an optional link (proof) was provided, persist it via existing helper
   if (optionalLink && String(optionalLink).trim()) {
     const res = await setTaskProofUrlAction(taskId, String(optionalLink).trim());
     if (res?.error) return res;
   }
 
-  // Save completion note as a comment
   const commentRes = await addTaskCommentAction(taskId, noteTrimmed);
   if (commentRes?.error) return commentRes;
 
-  // Transition status to waiting_review using canonical updater
   const statusRes = await updateTaskStatusAction(taskId, "waiting_review");
   if (statusRes?.error) return statusRes;
 
