@@ -21,6 +21,7 @@ interface TaskCardProps {
     proof_url?: string | null;
     created_at: string;
     total_time_spent_seconds?: number | null;
+    session_start_time?: string | null;
   };
   assignerName?: string;
   assignerRole?: string;
@@ -29,39 +30,48 @@ interface TaskCardProps {
 type ViewState = "idle" | "running" | "pausing" | "submitting";
 
 export function TaskCard({ task, assignerName, assignerRole }: TaskCardProps) {
-  const [view, setView] = useState<ViewState>("idle");
-  // elapsed = time in THIS session only (since last start/resume)
-  const [elapsed, setElapsed] = useState<number>(0);
-  // accumulated = total time across all sessions (from DB + current session)
+  // Agar session_start_time DB mein hai toh calculate karo kitna time already guzra
+  const sessionAlreadyElapsed = task.session_start_time
+    ? Math.floor((Date.now() - new Date(task.session_start_time).getTime()) / 1000)
+    : 0;
+
+  const [view, setView] = useState<ViewState>(
+    task.session_start_time ? "running" : "idle"
+  );
+  const [elapsed, setElapsed] = useState<number>(sessionAlreadyElapsed);
   const [accumulated, setAccumulated] = useState<number>(
     task.total_time_spent_seconds ?? 0
   );
   const timerRef = useRef<number | null>(null);
 
-  // Pause form
   const [pauseNote, setPauseNote] = useState("");
   const [pauseError, setPauseError] = useState("");
 
-  // Submit form
   const [submitNote, setSubmitNote] = useState("");
   const [optionalLink, setOptionalLink] = useState("");
   const [proofUrl, setProofUrl] = useState<string | null>(task.proof_url ?? null);
   const [submitError, setSubmitError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Agar page load pe session chal raha tha toh timer shuru karo
   useEffect(() => {
+    if (task.session_start_time) {
+      window.localStorage.setItem("running_task", task.id);
+      timerRef.current = window.setInterval(() => {
+        setElapsed((s) => s + 1);
+      }, 1000);
+    }
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, []);
+  }, [task.id, task.session_start_time]);
 
-  // Listen for another task starting — stop this one silently
+  // Doosra task start ho toh yeh band karo
   useEffect(() => {
     function onStorage(e: StorageEvent) {
       if (e.key === "running_task" && e.newValue !== task.id && view === "running") {
         clearInterval(timerRef.current!);
         timerRef.current = null;
-        // save current elapsed into accumulated
         setAccumulated((prev) => prev + elapsed);
         setElapsed(0);
         setView("idle");
@@ -97,7 +107,6 @@ export function TaskCard({ task, assignerName, assignerRole }: TaskCardProps) {
       timerRef.current = null;
     }
     window.localStorage.removeItem("running_task");
-    window.localStorage.removeItem("running_task_elapsed");
   }
 
   async function handleConfirmPause() {
@@ -106,14 +115,7 @@ export function TaskCard({ task, assignerName, assignerRole }: TaskCardProps) {
       return;
     }
     setPauseError("");
-
-    // Stop timer first
     stopTimerLocally();
-
-    // Save this session's time to accumulated
-    const sessionTime = elapsed;
-    setAccumulated((prev) => prev + sessionTime);
-    setElapsed(0); // reset session timer
 
     const res = await fetch("/api/tasks/perform", {
       method: "POST",
@@ -122,7 +124,6 @@ export function TaskCard({ task, assignerName, assignerRole }: TaskCardProps) {
         action: "pause",
         taskId: task.id,
         note: pauseNote,
-        totalTimeSeconds: sessionTime, // only send this session's time; backend adds to DB total
       }),
     });
     const data = await res.json();
@@ -130,7 +131,9 @@ export function TaskCard({ task, assignerName, assignerRole }: TaskCardProps) {
       alert(data.error);
     } else {
       setPauseNote("");
-      setView("idle"); // go back to idle — timer stays at 0, accumulated shows total
+      setElapsed(0);
+      // Naya accumulated DB se aayega next page load pe
+      window.location.reload();
     }
   }
 
@@ -146,8 +149,6 @@ export function TaskCard({ task, assignerName, assignerRole }: TaskCardProps) {
     setSubmitError("");
     setIsSubmitting(true);
 
-    const totalTime = accumulated + elapsed; // all time ever spent
-
     const res = await fetch("/api/tasks/perform", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -156,7 +157,6 @@ export function TaskCard({ task, assignerName, assignerRole }: TaskCardProps) {
         taskId: task.id,
         note: submitNote,
         optionalLink,
-        totalTimeSeconds: totalTime,
       }),
     });
     const data = await res.json();
@@ -171,6 +171,14 @@ export function TaskCard({ task, assignerName, assignerRole }: TaskCardProps) {
 
   const formatTime = (s: number) => `${Math.floor(s / 60)}m ${s % 60}s`;
   const totalDisplay = accumulated + elapsed;
+
+  const showStartResume =
+    task.status === "pending" ||
+    task.status === "revision_required" ||
+    task.status === "in_progress";
+
+  const startLabel =
+    task.status === "in_progress" || accumulated > 0 ? "Resume" : "Start";
 
   return (
     <div className="rounded-xl border p-4 space-y-3">
@@ -190,7 +198,9 @@ export function TaskCard({ task, assignerName, assignerRole }: TaskCardProps) {
         <div>Status: <span className="text-foreground">{task.status}</span></div>
         <div>
           Total time spent:{" "}
-          <span className="text-foreground font-medium">{formatTime(totalDisplay)}</span>
+          <span className="text-foreground font-medium" suppressHydrationWarning>
+            {formatTime(totalDisplay)}
+          </span>
           {view === "running" && (
             <span className="ml-2 text-xs text-green-500 animate-pulse">● Live</span>
           )}
@@ -200,12 +210,16 @@ export function TaskCard({ task, assignerName, assignerRole }: TaskCardProps) {
       {/* === IDLE STATE === */}
       {view === "idle" && (
         <div className="flex gap-2">
-          <Button size="sm" onClick={startTimer}>
-            {accumulated > 0 ? "Resume" : "Start"}
-          </Button>
-          <Button size="sm" variant="outline" onClick={() => setView("submitting")}>
-            Submit
-          </Button>
+          {showStartResume && (
+            <Button size="sm" onClick={startTimer}>
+              {startLabel}
+            </Button>
+          )}
+          {task.status === "in_progress" && (
+            <Button size="sm" variant="outline" onClick={() => setView("submitting")}>
+              Submit
+            </Button>
+          )}
         </div>
       )}
 

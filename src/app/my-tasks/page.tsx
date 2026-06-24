@@ -15,6 +15,8 @@ type TaskRow = {
   status: string;
   proof_url?: string | null;
   created_at: string;
+  total_time_spent_seconds?: number | null;
+  session_start_time?: string | null;
 };
 
 export default async function MyTasksPage() {
@@ -23,7 +25,7 @@ export default async function MyTasksPage() {
 
   const { data: tasks } = await supabase
     .from("tasks")
-    .select("id, title, description, priority, estimated_hours, deadline, assigned_by, assigned_to, status, proof_url, created_at")
+    .select("id, title, description, priority, estimated_hours, deadline, assigned_by, assigned_to, status, proof_url, created_at, total_time_spent_seconds, session_start_time")
     .eq("assigned_to", profile.id)
     .order("created_at", { ascending: false });
 
@@ -35,24 +37,93 @@ export default async function MyTasksPage() {
   const { data: users } = await supabase.from("users").select("id, name, role").in("id", Array.from(userIds));
   const userMap = new Map((users ?? []).map((u: UserInfo) => [u.id, u]));
 
+  const activeTasks = rows.filter(
+    (task) => task.status === "in_progress" || task.status === "revision_required"
+  );
+  const pendingTasks = rows.filter((task) => task.status === "pending");
+  const reviewTasks = rows.filter((task) => task.status === "waiting_review");
+  const doneTasks = rows.filter((task) =>
+    task.status === "approved" || task.status === "completed"
+  );
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-10">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">My Tasks</h1>
         <p className="text-muted-foreground">Tasks assigned to you for execution and submission.</p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        {rows.map((t) => (
-          <Card key={t.id}>
-            <TaskCard
-              task={t}
-              assignerName={userMap.get(t.assigned_by)?.name}
-              assignerRole={userMap.get(t.assigned_by)?.role}
-            />
-          </Card>
-        ))}
-      </div>
+      {activeTasks.length > 0 && (
+        <section className="space-y-4">
+          <h2 className="text-xl font-semibold">Active</h2>
+          <div className="grid gap-4 md:grid-cols-2">
+            {activeTasks.map((t) => (
+              <Card key={t.id}>
+                <TaskCard
+                  task={t}
+                  assignerName={userMap.get(t.assigned_by)?.name}
+                  assignerRole={userMap.get(t.assigned_by)?.role}
+                />
+              </Card>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {pendingTasks.length > 0 && (
+        <section className="space-y-4">
+          <h2 className="text-xl font-semibold">Pending</h2>
+          <div className="grid gap-4 md:grid-cols-2">
+            {pendingTasks.map((t) => (
+              <Card key={t.id}>
+                <TaskCard
+                  task={t}
+                  assignerName={userMap.get(t.assigned_by)?.name}
+                  assignerRole={userMap.get(t.assigned_by)?.role}
+                />
+              </Card>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {reviewTasks.length > 0 && (
+        <section className="space-y-4">
+          <h2 className="text-xl font-semibold">In Review</h2>
+          <div className="grid gap-4 md:grid-cols-2">
+            {reviewTasks.map((t) => (
+              <Card key={t.id}>
+                <TaskCard
+                  task={t}
+                  assignerName={userMap.get(t.assigned_by)?.name}
+                  assignerRole={userMap.get(t.assigned_by)?.role}
+                />
+              </Card>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {doneTasks.length > 0 && (
+        <section className="space-y-4">
+          <h2 className="text-xl font-semibold">Done</h2>
+          <div className="grid gap-4 md:grid-cols-2">
+            {doneTasks.map((t) => (
+              <Card key={t.id}>
+                <TaskCard
+                  task={t}
+                  assignerName={userMap.get(t.assigned_by)?.name}
+                  assignerRole={userMap.get(t.assigned_by)?.role}
+                />
+              </Card>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {rows.length === 0 && (
+        <p className="text-muted-foreground">Koi task assign nahi hua abhi tak.</p>
+      )}
     </div>
   );
 }

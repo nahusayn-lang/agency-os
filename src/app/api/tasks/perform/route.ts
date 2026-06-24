@@ -12,40 +12,89 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
 
+  const supabase = createClient();
+
   try {
     if (action === "start") {
+      // Session start time save karo DB mein
+      await supabase
+        .from("tasks")
+        .update({ session_start_time: new Date().toISOString() })
+        .eq("id", taskId);
+
       const res = await updateTaskStatusAction(taskId, "in_progress");
       return NextResponse.json(res);
     }
+
     if (action === "pause") {
       if (!note || !String(note).trim()) {
         return NextResponse.json({ error: "Pause note required" }, { status: 400 });
       }
-      // add a comment with the note and optional time
-      const msgParts = [String(note).trim()];
-      if (typeof totalTimeSeconds === "number") msgParts.push(`Time chunk (s): ${totalTimeSeconds}`);
-      const c = await addTaskCommentAction(taskId, msgParts.join("\n"));
-      // persist total time chunk to task
-      if (typeof totalTimeSeconds === "number") {
-        const supabase = createClient();
-        const { data: t } = await supabase.from("tasks").select("total_time_spent_seconds").eq("id", taskId).single();
-        const current = (t?.total_time_spent_seconds as number) ?? 0;
-        await supabase.from("tasks").update({ total_time_spent_seconds: current + totalTimeSeconds }).eq("id", taskId);
+
+      // Session ka time calculate karo
+      const { data: t } = await supabase
+        .from("tasks")
+        .select("total_time_spent_seconds, session_start_time")
+        .eq("id", taskId)
+        .single();
+
+      const current = (t?.total_time_spent_seconds as number) ?? 0;
+      let sessionSeconds = 0;
+
+      if (t?.session_start_time) {
+        const started = new Date(t.session_start_time).getTime();
+        const now = Date.now();
+        sessionSeconds = Math.floor((now - started) / 1000);
       }
 
-      const s = await updateTaskStatusAction(taskId, "paused");
+      const newTotal = current + sessionSeconds;
+
+      // Total time update karo aur session_start_time clear karo
+      await supabase
+        .from("tasks")
+        .update({
+          total_time_spent_seconds: newTotal,
+          session_start_time: null,
+        })
+        .eq("id", taskId);
+
+      // Comment add karo pause reason ke saath
+      const msgParts = [String(note).trim(), `Time this session: ${sessionSeconds}s`];
+      const c = await addTaskCommentAction(taskId, msgParts.join("\n"));
+
+      const s = await updateTaskStatusAction(taskId, "in_progress");
       return NextResponse.json({ success: true, comment: c, status: s });
     }
-    if (action === "submit") {
-      const result = await submitTaskAction(taskId, String(note ?? "").trim(), optionalLink);
 
-      // persist total time chunk to task on submit as well
-      if (typeof totalTimeSeconds === "number") {
-        const supabase = createClient();
-        const { data: t } = await supabase.from("tasks").select("total_time_spent_seconds").eq("id", taskId).single();
-        const current = (t?.total_time_spent_seconds as number) ?? 0;
-        await supabase.from("tasks").update({ total_time_spent_seconds: current + totalTimeSeconds }).eq("id", taskId);
+    if (action === "submit") {
+      // Session ka time calculate karo
+      const { data: t } = await supabase
+        .from("tasks")
+        .select("total_time_spent_seconds, session_start_time")
+        .eq("id", taskId)
+        .single();
+
+      const current = (t?.total_time_spent_seconds as number) ?? 0;
+      let sessionSeconds = 0;
+
+      if (t?.session_start_time) {
+        const started = new Date(t.session_start_time).getTime();
+        const now = Date.now();
+        sessionSeconds = Math.floor((now - started) / 1000);
       }
+
+      const newTotal = current + sessionSeconds;
+
+      // Final total save karo aur session clear karo
+      await supabase
+        .from("tasks")
+        .update({
+          total_time_spent_seconds: newTotal,
+          session_start_time: null,
+        })
+        .eq("id", taskId);
+
+      const result = await submitTaskAction(taskId, String(note ?? "").trim(), optionalLink);
       return NextResponse.json(result);
     }
 
