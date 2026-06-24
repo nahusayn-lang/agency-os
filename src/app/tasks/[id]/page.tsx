@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireUserProfile } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { TaskActions } from "@/components/tasks/task-actions";
 import { TaskComments } from "@/components/tasks/task-comments";
 import { ProofUpload } from "@/components/tasks/proof-upload";
@@ -49,10 +50,15 @@ export default async function TaskDetailPage({ params }: TaskDetailPageProps) {
     ...(comments ?? []).map((c) => c.user_id),
   ]);
 
-  const { data: users } = await supabase
+  // Admin client bypasses RLS so user names resolve correctly
+  // (access to this page is already gated by task-level RLS)
+  const adminClient = createAdminClient();
+  const { data: users } = await adminClient
     .from("users")
     .select("id, name")
     .in("id", Array.from(userIds));
+
+  const userMap = new Map((users ?? []).map((u) => [u.id, u.name]));
 
   const completionComment = (comments ?? [])
     .slice()

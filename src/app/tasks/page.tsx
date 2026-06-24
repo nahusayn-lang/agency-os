@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requireUserProfile } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { canManageTasks } from "@/lib/tasks/permissions";
 import { CreateTaskForm } from "@/components/tasks/create-task-form";
 import { Badge } from "@/components/ui/badge";
@@ -42,8 +43,9 @@ export default async function TasksPage() {
     userIds.add(task.assigned_by);
   }
 
+  const adminClient = createAdminClient();
   const { data: users } = userIds.size
-    ? await supabase
+    ? await adminClient
         .from("users")
         .select("id, name")
         .in("id", Array.from(userIds))

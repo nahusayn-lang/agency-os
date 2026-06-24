@@ -8,6 +8,7 @@ export default async function Sidebar() {
   const dashboardPath = getDashboardPathForRole(profile.role);
 
   const isAdmin = ["super_admin", "founder"].includes(profile.role || "");
+  const showTasksLink = ["admin", "super_admin"].includes(profile.role || "");
 
   return (
     <aside className="hidden lg:flex lg:flex-col lg:fixed lg:inset-y-0 lg:w-64 lg:py-6 lg:px-4 bg-background border-r">
@@ -21,7 +22,9 @@ export default async function Sidebar() {
         <nav className="flex-1 space-y-2 text-sm">
           <div className="flex flex-col space-y-1">
             <Link href={dashboardPath} className="px-2 py-1 rounded hover:bg-accent/5">Dashboard</Link>
-            <Link href="/tasks" className="px-2 py-1 rounded hover:bg-accent/5">Tasks</Link>
+            {showTasksLink && (
+              <Link href="/tasks" className="px-2 py-1 rounded hover:bg-accent/5">Tasks</Link>
+            )}
             <Link href="/my-tasks" className="px-2 py-1 rounded hover:bg-accent/5">My Tasks</Link>
             <Link href="/crm" className="px-2 py-1 rounded hover:bg-accent/5">CRM</Link>
             <Link href="/messages" className="px-2 py-1 rounded hover:bg-accent/5">Messages</Link>
