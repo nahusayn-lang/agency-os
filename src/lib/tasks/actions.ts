@@ -92,8 +92,6 @@ export async function createTaskAction(formData: FormData) {
   const priority = String(formData.get("priority") ?? "") as TaskPriority;
   const deadline = String(formData.get("deadline") ?? "").trim();
   const assignedTo = String(formData.get("assigned_to") ?? "").trim();
-  const estimatedHoursRaw = String(formData.get("estimated_hours") ?? "").trim();
-  const estimated_hours = estimatedHoursRaw ? Number(estimatedHoursRaw) : null;
 
   if (!title || !assignedTo) {
     return { error: "Title and assignee are required." };
@@ -117,7 +115,6 @@ export async function createTaskAction(formData: FormData) {
       description: description || null,
       priority: priority || "medium",
       deadline: deadline ? new Date(deadline).toISOString() : null,
-      estimated_hours,
       assigned_by: profile.id,
       assigned_to: assignedTo,
       status: "pending",
@@ -191,38 +188,6 @@ export async function updateTaskStatusAction(
     return { error: "This status transition is not allowed." };
   }
 
-  // If moving a task to in_progress, ensure only one active task exists by pausing others
-  if (newStatus === "in_progress") {
-    try {
-      const { data: otherTasks } = await supabase
-        .from("tasks")
-        .select("id, status")
-        .eq("assigned_to", profile.id)
-        .eq("status", "in_progress")
-        .neq("id", taskId);
-
-      for (const ot of (otherTasks ?? [])) {
-        await supabase.from("tasks").update({ status: "paused" }).eq("id", ot.id);
-        await supabase.from("task_activity").insert({
-          task_id: ot.id,
-          performed_by: profile.id,
-          action: "auto_paused",
-          old_status: "in_progress",
-          new_status: "paused",
-        });
-        await supabase.from("audit_log").insert({
-          user_id: profile.id,
-          action: "auto_pause_other_task",
-          entity_type: "task",
-          entity_id: ot.id,
-          reason: `Auto-paused due to starting task ${taskId}`,
-        });
-      }
-    } catch (e) {
-      console.error("Failed to auto-pause other tasks:", e);
-    }
-  }
-
   if (options?.forceClose) {
     if (profile.role !== "super_admin") {
       return { error: "Only founders can force-close tasks." };
@@ -267,42 +232,6 @@ export async function updateTaskStatusAction(
     return {
       error: err instanceof Error ? err.message : "Failed to record activity.",
     };
-  }
-
-  // If founder rejected a submission, increment strike for assignee and record reason
-  if (
-    profile.role === "super_admin" &&
-    oldStatus === "waiting_review" &&
-    newStatus === "revision_required"
-  ) {
-    const reason = options?.rejectionReason?.trim() ?? null;
-    if (!reason) {
-      // rejection requires a reason
-      return { error: "Rejection reason is required." };
-    }
-
-    // increment strikes for the assignee (fallback approach)
-    // read current strikes
-    const { data: userRow } = await supabase
-      .from("users")
-      .select("id, strikes")
-      .eq("id", task.assigned_to)
-      .single();
-
-    const currentStrikes = (userRow?.strikes as number) ?? 0;
-    await supabase
-      .from("users")
-      .update({ strikes: currentStrikes + 1 })
-      .eq("id", task.assigned_to);
-
-    // record audit_log with rejection reason
-    await supabase.from("audit_log").insert({
-      user_id: profile.id,
-      action: "task_rejected",
-      entity_type: "task",
-      entity_id: taskId,
-      reason,
-    });
   }
 
   const notifyIds = new Set([task.assigned_to]);
@@ -406,15 +335,15 @@ export async function setTaskProofUrlAction(taskId: string, proofUrl: string) {
 export async function submitTaskAction(
   taskId: string,
   completionNote: string,
-  optionalLink?: string,
-  totalTimeSeconds?: number
+  optionalLink?: string | null
 ) {
   const profile = await requireUserProfile();
+
   const supabase = createClient();
 
   const { data: task, error: fetchError } = await supabase
     .from("tasks")
-    .select("id, status, assigned_to, assigned_by, proof_url, title")
+    .select("id, status, assigned_to")
     .eq("id", taskId)
     .single();
 
@@ -423,84 +352,31 @@ export async function submitTaskAction(
   }
 
   if (task.assigned_to !== profile.id) {
-    return { error: "Only assignee may submit the task." };
+    return { error: "Task not found." };
   }
 
-  if (!task.proof_url) {
-    return { error: "Proof is required before submitting." };
-  }
-
-  const noteTrim = String(completionNote ?? "").trim();
-  if (!noteTrim) {
+  // Ensure submission note is provided
+  const noteTrimmed = String(completionNote ?? "").trim();
+  if (!noteTrimmed) {
     return { error: "Completion note is required." };
   }
 
-  // Update task status to waiting_review (Submitted)
-  const { error: updateError } = await supabase
-    .from("tasks")
-    .update({ status: "waiting_review" })
-    .eq("id", taskId);
-
-  if (updateError) {
-    return { error: updateError.message };
+  // If an optional link (proof) was provided, persist it via existing helper
+  if (optionalLink && String(optionalLink).trim()) {
+    const res = await setTaskProofUrlAction(taskId, String(optionalLink).trim());
+    if (res?.error) return res;
   }
 
-  // Record activity
-  await supabase.from("task_activity").insert({
-    task_id: taskId,
-    performed_by: profile.id,
-    action: "submitted",
-    old_status: task.status,
-    new_status: "waiting_review",
-  });
+  // Save completion note as a comment
+  const commentRes = await addTaskCommentAction(taskId, noteTrimmed);
+  if (commentRes?.error) return commentRes;
 
-  // Insert completion note as a comment, include optional link and time
-  const parts = [noteTrim];
-  if (optionalLink) parts.push(`Link: ${optionalLink}`);
-  if (typeof totalTimeSeconds === "number") {
-    parts.push(`Total time (seconds): ${totalTimeSeconds}`);
-  }
-
-  await supabase.from("task_comments").insert({
-    task_id: taskId,
-    user_id: profile.id,
-    message: parts.join("\n"),
-  });
-
-  await supabase.from("audit_log").insert({
-    user_id: profile.id,
-    action: "task_submitted",
-    entity_type: "task",
-    entity_id: taskId,
-    reason: null,
-  });
+  // Transition status to waiting_review using canonical updater
+  const statusRes = await updateTaskStatusAction(taskId, "waiting_review");
+  if (statusRes?.error) return statusRes;
 
   revalidatePath("/tasks");
   revalidatePath(`/tasks/${taskId}`);
-
-  // Notify founders (super_admin role)
-  const { data: founders } = await supabase
-    .from("users")
-    .select("id, email")
-    .eq("role", "super_admin")
-    .eq("is_active", true);
-
-  for (const f of founders ?? []) {
-    if (f?.email) {
-      await sendTaskNotification({
-        to: f.email,
-        subject: "Task submitted for review",
-        taskTitle: task.title,
-        message: `${profile.name} submitted the task for review.`,
-      });
-    }
-    await supabase.from("notifications").insert({
-      user_id: f.id,
-      title: "Task submitted for review",
-      message: `${profile.name} submitted task: ${task.title}`,
-      link: `/tasks/${taskId}`,
-    });
-  }
 
   return { success: true };
 }

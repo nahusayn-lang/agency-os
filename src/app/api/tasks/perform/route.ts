@@ -37,7 +37,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: true, comment: c, status: s });
     }
     if (action === "submit") {
-      const result = await submitTaskAction(taskId, String(note ?? "").trim(), optionalLink, totalTimeSeconds);
+      const result = await submitTaskAction(taskId, String(note ?? "").trim(), optionalLink);
 
       // persist total time chunk to task on submit as well
       if (typeof totalTimeSeconds === "number") {

@@ -63,10 +63,6 @@ export async function CreateTaskForm() {
             <Label htmlFor="deadline">Deadline</Label>
             <Input id="deadline" name="deadline" type="datetime-local" />
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="estimated_hours">Estimated Hours</Label>
-            <Input id="estimated_hours" name="estimated_hours" type="number" step="0.5" min="0" />
-          </div>
           <div className="space-y-2 md:col-span-2">
             <Label htmlFor="assigned_to">Assign to</Label>
             <select
