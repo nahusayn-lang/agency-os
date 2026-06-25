@@ -2,58 +2,98 @@
 import { useState } from "react";
 import Link from "next/link";
 import { LogoutButton } from "@/components/logout-button";
+import { LayoutDashboard, ClipboardList, CheckSquare, BookUser, Mail, FileText, CalendarCheck, BarChart2, Target, Users, X, Menu } from "lucide-react";
+import { getDashboardPathForRole } from "@/lib/auth/roles";
+import type { UserRole } from "@/lib/types/database";
 
 export default function SidebarClient({ profile }: { profile: { id: string; name: string; role: string; email?: string } }) {
   const [open, setOpen] = useState(false);
 
-  const isAdmin = ["super_admin", "founder"].includes(profile.role || "");
+  const isAdmin = ["super_admin", "admin"].includes(profile.role || "");
+  const showTasksLink = ["admin", "super_admin"].includes(profile.role || "");
+  const dashboardPath = getDashboardPathForRole(profile.role as UserRole);
+
+  const linkClass = "flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-white/40 hover:text-white/80 hover:bg-indigo-500/10 transition-colors";
+
+  const close = () => setOpen(false);
 
   return (
     <>
       <button
         aria-label="Open menu"
         onClick={() => setOpen(true)}
-        className="p-2 rounded hover:bg-accent/5 lg:hidden"
+        className="p-2 rounded-lg hover:bg-white/5 lg:hidden text-white/60"
       >
-        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M3 6h14M3 10h14M3 14h14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
+        <Menu size={20} />
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-50">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setOpen(false)} />
-          <aside className="absolute left-0 top-0 bottom-0 w-72 bg-background shadow-md p-4 transform transition-transform duration-200">
-            <div className="flex items-center justify-between mb-6">
-              <Link href={"/dashboard"} className="text-lg font-semibold" onClick={() => setOpen(false)}>
-                Agency OS
-              </Link>
-              <button aria-label="Close menu" onClick={() => setOpen(false)} className="p-2">
-                ✕
+        <div className="fixed inset-0 z-50 lg:hidden">
+          <div className="absolute inset-0 bg-black/60" onClick={close} />
+          <aside className="absolute left-0 top-0 bottom-0 w-72 bg-[#0d0d12] border-r border-white/[0.06] flex flex-col">
+
+            <div className="flex items-center justify-between px-4 py-5 border-b border-white/[0.06]">
+              <div className="flex items-center gap-3">
+                <div className="w-7 h-7 rounded-lg bg-indigo-500/20 flex items-center justify-center">
+                  <span className="text-indigo-300 text-xs font-bold">A</span>
+                </div>
+                <Link href={dashboardPath} onClick={close} className="text-sm font-semibold text-white">
+                  Agency OS
+                </Link>
+              </div>
+              <button aria-label="Close menu" onClick={close} className="p-1.5 rounded-lg hover:bg-white/5 text-white/40">
+                <X size={18} />
               </button>
             </div>
 
-            <nav className="space-y-2 text-sm">
-              <Link href="/dashboard" onClick={() => setOpen(false)} className="block px-2 py-1 rounded hover:bg-accent/5">Dashboard</Link>
-              <Link href="/tasks" onClick={() => setOpen(false)} className="block px-2 py-1 rounded hover:bg-accent/5">Tasks</Link>
-              <Link href="/crm" onClick={() => setOpen(false)} className="block px-2 py-1 rounded hover:bg-accent/5">CRM</Link>
-              <Link href="/messages" onClick={() => setOpen(false)} className="block px-2 py-1 rounded hover:bg-accent/5">Messages</Link>
-              <Link href="/reports" onClick={() => setOpen(false)} className="block px-2 py-1 rounded hover:bg-accent/5">Reports</Link>
+            <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+              <p className="text-[10px] text-white/25 uppercase tracking-widest px-3 pb-1">Main</p>
+              <Link href={dashboardPath} onClick={close} className={linkClass}>
+                <LayoutDashboard size={15} /> Dashboard
+              </Link>
+              {showTasksLink && (
+                <Link href="/tasks" onClick={close} className={linkClass}>
+                  <ClipboardList size={15} /> Tasks
+                </Link>
+              )}
+              <Link href="/my-tasks" onClick={close} className={linkClass}>
+                <CheckSquare size={15} /> My Tasks
+              </Link>
+              <Link href="/crm" onClick={close} className={linkClass}>
+                <BookUser size={15} /> CRM
+              </Link>
+              <Link href="/messages" onClick={close} className={linkClass}>
+                <Mail size={15} /> Messages
+              </Link>
+              <Link href="/reports" onClick={close} className={linkClass}>
+                <FileText size={15} /> Reports
+              </Link>
 
-              <div className="border-t border-border my-3" />
+              <div className="border-t border-white/[0.06] my-3" />
 
-              <Link href="/attendance" onClick={() => setOpen(false)} className="block px-2 py-1 rounded hover:bg-accent/5">Attendance</Link>
-              <Link href="/performance" onClick={() => setOpen(false)} className="block px-2 py-1 rounded hover:bg-accent/5">Performance</Link>
-              <Link href="/targets" onClick={() => setOpen(false)} className="block px-2 py-1 rounded hover:bg-accent/5">Weekly Targets</Link>
-
-              <div className="border-t border-border my-3" />
+              <p className="text-[10px] text-white/25 uppercase tracking-widest px-3 pb-1">Tracking</p>
+              <Link href="/attendance" onClick={close} className={linkClass}>
+                <CalendarCheck size={15} /> Attendance
+              </Link>
+              <Link href="/performance" onClick={close} className={linkClass}>
+                <BarChart2 size={15} /> Performance
+              </Link>
+              <Link href="/targets" onClick={close} className={linkClass}>
+                <Target size={15} /> Weekly Targets
+              </Link>
 
               {isAdmin && (
-                <Link href="/admin/users" onClick={() => setOpen(false)} className="block px-2 py-1 rounded hover:bg-accent/5">Users</Link>
+                <>
+                  <div className="border-t border-white/[0.06] my-3" />
+                  <p className="text-[10px] text-white/25 uppercase tracking-widest px-3 pb-1">Admin</p>
+                  <Link href="/admin/users" onClick={close} className={linkClass}>
+                    <Users size={15} /> Users
+                  </Link>
+                </>
               )}
             </nav>
 
-            <div className="mt-6">
+            <div className="px-3 py-4 border-t border-white/[0.06]">
               <LogoutButton />
             </div>
           </aside>

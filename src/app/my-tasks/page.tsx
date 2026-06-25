@@ -122,7 +122,7 @@ export default async function MyTasksPage() {
       )}
 
       {rows.length === 0 && (
-        <p className="text-muted-foreground">Koi task assign nahi hua abhi tak.</p>
+        <p className="text-muted-foreground">No tasks assigned yet.</p>
       )}
     </div>
   );
