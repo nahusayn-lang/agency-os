@@ -62,7 +62,7 @@ export async function POST(req: Request) {
       const msgParts = [String(note).trim(), `Time this session: ${sessionSeconds}s`];
       const c = await addTaskCommentAction(taskId, msgParts.join("\n"));
 
-      const s = await updateTaskStatusAction(taskId, "in_progress");
+      const s = await updateTaskStatusAction(taskId, "paused");
       return NextResponse.json({ success: true, comment: c, status: s });
     }
 

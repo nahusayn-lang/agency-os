@@ -11,6 +11,7 @@ const MEMBER_TRANSITIONS: Partial<Record<TaskStatus, TaskStatus[]>> = {
 const ADMIN_TRANSITIONS: Partial<Record<TaskStatus, TaskStatus[]>> = {
   pending: ["in_progress"],
   in_progress: ["waiting_review"],
+  paused: ["in_progress"],
   revision_required: ["in_progress"],
   waiting_review: ["revision_required", "approved"],
   approved: ["completed"],

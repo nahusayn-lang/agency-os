@@ -83,7 +83,6 @@ export async function updateLeaveRequestStatusAction(
 
   const supabase = createClient();
 
-  // fetch message to determine sender and type
   const { data: messageRow, error: fetchError } = await supabase
     .from("messages")
     .select("id, sender_id, title, content, type")
@@ -94,7 +93,6 @@ export async function updateLeaveRequestStatusAction(
     return { error: fetchError?.message ?? "Message not found." };
   }
 
-  // Emergency requests must be reviewed by founders only
   if (messageRow.title === "Emergency checkout request" && profile.role !== "super_admin") {
     return { error: "Only founders can review emergency checkout requests." };
   }
@@ -104,10 +102,7 @@ export async function updateLeaveRequestStatusAction(
     return { error: error.message };
   }
 
-  // Special handling: if this was an emergency-style request (we create them as leave_request),
-  // allow founders to approve => perform logout for the requester, or reject => apply a strike.
   if (messageRow.type === "leave_request") {
-    // approved -> attempt to perform logout for the sender
     if (status === "approved") {
       try {
         const { data: userRow } = await supabase
@@ -117,15 +112,19 @@ export async function updateLeaveRequestStatusAction(
           .single();
 
         const shiftEnd = (userRow?.shift_end as string) ?? "23:59:59";
-        // record logout attendance for the requester
+
         try {
           await recordLogoutAttendance(messageRow.sender_id, shiftEnd);
         } catch (e) {
-          // ignore logout errors but continue
           console.error("Failed to record logout for emergency approval:", e);
         }
 
-        // audit log and notify the user
+        // ✅ FIX: member ko actually checkout karo
+        await supabase
+          .from("users")
+          .update({ is_checked_in: false })
+          .eq("id", messageRow.sender_id);
+
         await supabase.from("audit_log").insert({
           user_id: profile.id,
           action: "emergency_checkout_approved",
@@ -145,7 +144,6 @@ export async function updateLeaveRequestStatusAction(
       }
     }
 
-    // rejected -> increment strike and notify
     if (status === "rejected") {
       try {
         const { data: userRow } = await supabase
@@ -155,7 +153,10 @@ export async function updateLeaveRequestStatusAction(
           .single();
 
         const currentStrikes = (userRow?.strikes as number) ?? 0;
-        await supabase.from("users").update({ strikes: currentStrikes + 1 }).eq("id", messageRow.sender_id);
+        await supabase
+          .from("users")
+          .update({ strikes: currentStrikes + 1 })
+          .eq("id", messageRow.sender_id);
 
         await supabase.from("audit_log").insert({
           user_id: profile.id,

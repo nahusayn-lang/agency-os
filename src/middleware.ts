@@ -16,7 +16,6 @@ export async function middleware(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
 
   const hasRecoveryIndicator = () => {
-    // Detect query-based recovery flows: ?type=recovery, ?code=..., ?access_token=..., ?refresh_token=...
     if (searchParams.get("type") === "recovery") return true;
     if (searchParams.get("code")) return true;
     if (searchParams.get("access_token")) return true;
@@ -29,11 +28,16 @@ export async function middleware(request: NextRequest) {
   const isAppRoute =
     isDashboard ||
     pathname.startsWith("/tasks") ||
-    pathname.startsWith("/crm");
+    pathname.startsWith("/crm") ||
+    pathname.startsWith("/attendance") ||
+    pathname.startsWith("/messages") ||
+    pathname.startsWith("/my-tasks") ||
+    pathname.startsWith("/reports") ||
+    pathname.startsWith("/targets") ||
+    pathname.startsWith("/performance") ||
+    pathname.startsWith("/admin");
   const isRoot = pathname === "/";
 
-  // Allow the root page to be handled client-side so fragments (#access_token=...)
-  // can be inspected by the browser. Server-side redirects lose fragments.
   if (isRoot) {
     return supabaseResponse;
   }
@@ -42,8 +46,6 @@ export async function middleware(request: NextRequest) {
     if (isLoginPage) {
       return supabaseResponse;
     }
-    // If this request appears to be part of a recovery flow, allow it
-    // to proceed so the client can finish the password reset flow.
     if ((isAppRoute || isRoot) && !hasRecoveryIndicator()) {
       return NextResponse.redirect(new URL("/login", request.url));
     }
@@ -81,11 +83,9 @@ export async function middleware(request: NextRequest) {
   const dashboardPath = getDashboardPathForRole(role);
 
   if (isLoginPage || isRoot) {
-    // Prevent redirecting authenticated users away from recovery flows.
     if (hasRecoveryIndicator()) {
       return supabaseResponse;
     }
-
     return NextResponse.redirect(new URL(dashboardPath, request.url));
   }
 
@@ -100,5 +100,18 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
- matcher: ["/", "/login", "/dashboard/:path*", "/tasks/:path*", "/crm/:path*", "/attendance/:path*", "/messages/:path*", "/my-tasks/:path*", "/reports/:path*", "/targets/:path*", "/performance/:path*", "/admin/:path*"],
+  matcher: [
+    "/",
+    "/login",
+    "/dashboard/:path*",
+    "/tasks/:path*",
+    "/crm/:path*",
+    "/attendance/:path*",
+    "/messages/:path*",
+    "/my-tasks/:path*",
+    "/reports/:path*",
+    "/targets/:path*",
+    "/performance/:path*",
+    "/admin/:path*",
+  ],
 };

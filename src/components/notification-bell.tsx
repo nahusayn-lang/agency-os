@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Bell, Check, ExternalLink } from "lucide-react";
 import Link from "next/link";
@@ -19,17 +19,15 @@ export function NotificationBell({ userId }: { userId: string }) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   useEffect(() => {
-    // Fetch initial notifications
     getLatestNotifications().then((data) => {
       if (Array.isArray(data)) {
         setNotifications(data);
       }
     });
 
-    // Subscribe to new notifications in real-time
     const channel = supabase
       .channel(`user-notifications-${userId}`)
       .on(
@@ -51,7 +49,6 @@ export function NotificationBell({ userId }: { userId: string }) {
     };
   }, [userId, supabase]);
 
-  // Close dropdown on click outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {

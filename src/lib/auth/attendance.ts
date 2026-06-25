@@ -21,10 +21,7 @@ export function isEarlyExit(shiftEnd: string, logoutTime: Date): boolean {
   return logoutTime < earlyThreshold;
 }
 
-/** Local calendar date (YYYY-MM-DD) for attendance grouping. */
+/** Local calendar date (YYYY-MM-DD) for attendance grouping. Uses IST to match India timezone. */
 export function getTodayDateString(date: Date = new Date()): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
+  return date.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
 }

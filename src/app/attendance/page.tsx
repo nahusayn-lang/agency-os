@@ -105,11 +105,16 @@ export default async function AttendancePage() {
   }
 
   // ── Admin / Founder view ──────────────────────────────────────────
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  const fromDate = thirtyDaysAgo.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+
   const { data: rows } = await admin
     .from("attendance")
     .select("id, user_id, checkin_time, checkout_time, login_time, logout_time, status, date")
+    .gte("date", fromDate)
     .order("date", { ascending: false })
-    .limit(500);
+    .limit(1000);
 
   const entries = (rows ?? []) as Array<{
     id: string;
@@ -122,7 +127,6 @@ export default async function AttendancePage() {
     date: string;
   }>;
 
-  // Fetch all active users to show absent ones too
   const { data: allUsers } = await admin
     .from("users")
     .select("id, name")
@@ -131,7 +135,6 @@ export default async function AttendancePage() {
 
   const userMap = new Map((allUsers ?? []).map((u: { id: string; name: string }) => [u.id, u.name]));
 
-  // Group by date
   const byDate = new Map<string, typeof entries>();
   for (const e of entries) {
     if (!byDate.has(e.date)) byDate.set(e.date, []);
@@ -144,7 +147,7 @@ export default async function AttendancePage() {
     <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Attendance</h1>
-        <p className="text-sm text-muted-foreground mt-1">All team members, grouped by date</p>
+        <p className="text-sm text-muted-foreground mt-1">Last 30 days — all team members</p>
       </div>
 
       {[...byDate.entries()].map(([date, dayEntries]) => {
@@ -159,7 +162,6 @@ export default async function AttendancePage() {
 
         return (
           <div key={date} className="space-y-3">
-            {/* Date header */}
             <div className="flex items-center justify-between flex-wrap gap-2">
               <div className="flex items-center gap-2">
                 <h2 className="font-semibold text-base">{fmtDate(date)}</h2>
@@ -176,7 +178,6 @@ export default async function AttendancePage() {
               </div>
             </div>
 
-            {/* Members list */}
             <ul className="divide-y divide-border rounded-xl border overflow-hidden">
               {sorted.map((r) => {
                 const checkin = r.checkin_time ?? r.login_time;
