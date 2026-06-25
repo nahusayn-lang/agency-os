@@ -23,7 +23,7 @@ export default async function EmployeeDashboardPage() {
   // Live check-in status
   const { data: userRow } = await admin
     .from("users")
-    .select("is_checked_in, last_checkin_at")
+    .select("is_checked_in, last_checkin_at, shift_start, shift_end") // ✅ Change 1
     .eq("id", profile.id)
     .single();
 
@@ -72,7 +72,12 @@ export default async function EmployeeDashboardPage() {
 
       {/* Metrics Grid — attendance card first */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <AttendanceCard isCheckedIn={isCheckedIn} lastCheckinAt={lastCheckinAt} />
+        <AttendanceCard
+          isCheckedIn={isCheckedIn}
+          lastCheckinAt={lastCheckinAt}
+          shiftStart={userRow?.shift_start ?? null}  // ✅ Change 2
+          shiftEnd={userRow?.shift_end ?? null}       // ✅ Change 2
+        />
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">

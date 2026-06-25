@@ -14,6 +14,8 @@ interface BlockedTask {
 interface AttendanceCardProps {
   isCheckedIn: boolean;
   lastCheckinAt: string | null;
+  shiftStart: string | null;
+  shiftEnd: string | null;
 }
 
 function formatDuration(ms: number): string {
@@ -24,23 +26,28 @@ function formatDuration(ms: number): string {
   return `${h}h ${String(m).padStart(2, "0")}m ${String(s).padStart(2, "0")}s`;
 }
 
-export function AttendanceCard({ isCheckedIn, lastCheckinAt }: AttendanceCardProps) {
+function fmtShiftTime(t: string | null): string {
+  if (!t) return "—";
+  const [h, m] = t.split(":").map(Number);
+  const date = new Date();
+  date.setHours(h, m, 0, 0);
+  return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: true });
+}
+
+export function AttendanceCard({ isCheckedIn, lastCheckinAt, shiftStart, shiftEnd }: AttendanceCardProps) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [blockedTasks, setBlockedTasks] = useState<BlockedTask[]>([]);
   const [elapsed, setElapsed] = useState<string>("0h 00m 00s");
 
-  // Live timer
   useEffect(() => {
     if (!isCheckedIn || !lastCheckinAt) return;
     const checkinTime = new Date(lastCheckinAt).getTime();
-
     const tick = () => {
       const diff = Date.now() - checkinTime;
       setElapsed(formatDuration(diff));
     };
-
     tick();
     const interval = setInterval(tick, 1000);
     return () => clearInterval(interval);
@@ -93,6 +100,17 @@ export function AttendanceCard({ isCheckedIn, lastCheckinAt }: AttendanceCardPro
         )}
       </CardHeader>
       <CardContent className="space-y-4">
+
+        {/* Shift time — always visible */}
+        {(shiftStart || shiftEnd) && (
+          <p className="text-xs text-muted-foreground">
+            Shift{" "}
+            <span className="text-foreground font-medium">{fmtShiftTime(shiftStart)}</span>
+            {" — "}
+            <span className="text-foreground font-medium">{fmtShiftTime(shiftEnd)}</span>
+          </p>
+        )}
+
         {isCheckedIn ? (
           <>
             <div>
@@ -123,9 +141,7 @@ export function AttendanceCard({ isCheckedIn, lastCheckinAt }: AttendanceCardPro
           </>
         )}
 
-        {error && (
-          <p className="text-xs text-destructive">{error}</p>
-        )}
+        {error && <p className="text-xs text-destructive">{error}</p>}
 
         {blockedTasks.length > 0 && (
           <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 space-y-2">

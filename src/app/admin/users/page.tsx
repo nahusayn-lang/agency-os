@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { requireUserProfile } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
-import { toggleUserActiveAction, setUserRoleAction } from "@/lib/admin/users";
+import { toggleUserActiveAction, setUserRoleAction, setShiftAction } from "@/lib/admin/users";
 
 export default async function AdminUsersPage() {
   const profile = await requireUserProfile();
@@ -46,7 +46,7 @@ export default async function AdminUsersPage() {
 
                 <form action={setUserRoleAction}>
                   <input type="hidden" name="userId" value={u.id} />
-                  <select name="role" defaultValue={u.role} className="border rounded px-2 py-1">
+                  <select name="role" defaultValue={u.role} className="border rounded px-2 py-1 bg-white text-black">
                     <option value="member">member</option>
                     <option value="admin">admin</option>
                     <option value="super_admin">super_admin</option>
@@ -55,7 +55,30 @@ export default async function AdminUsersPage() {
                 </form>
               </div>
             </div>
-            <div className="mt-2 text-sm text-muted-foreground">Shift {u.shift_start ?? "—"} — {u.shift_end ?? "—"}</div>
+
+            <div className="mt-2 text-sm text-muted-foreground">
+              Shift {u.shift_start ?? "—"} — {u.shift_end ?? "—"}
+            </div>
+
+            {profile.role === "super_admin" && (
+              <form action={setShiftAction} className="mt-3 flex items-center gap-2">
+                <input type="hidden" name="userId" value={u.id} />
+                <input
+                  type="time"
+                  name="shift_start"
+                  defaultValue={u.shift_start?.slice(0, 5) ?? "09:00"}
+                  className="border rounded px-2 py-1 text-sm bg-white text-black"
+                />
+                <span className="text-sm">to</span>
+                <input
+                  type="time"
+                  name="shift_end"
+                  defaultValue={u.shift_end?.slice(0, 5) ?? "17:00"}
+                  className="border rounded px-2 py-1 text-sm bg-white text-black"
+                />
+                <button type="submit" className="btn text-sm">Save shift</button>
+              </form>
+            )}
           </div>
         ))}
       </div>

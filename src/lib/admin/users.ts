@@ -40,3 +40,22 @@ export async function setUserRoleAction(formData: FormData): Promise<void> {
 
   revalidatePath("/admin/users");
 }
+
+export async function setShiftAction(formData: FormData): Promise<void> {
+  const profile = await requireUserProfile();
+  if (profile.role !== "super_admin") {
+    throw new Error("Not authorized");
+  }
+
+  const id = String(formData.get("userId") ?? "");
+  const shift_start = String(formData.get("shift_start") ?? "").trim();
+  const shift_end = String(formData.get("shift_end") ?? "").trim();
+
+  if (!id || !shift_start || !shift_end) throw new Error("Missing parameters");
+
+  const admin = createAdminClient();
+  const { error } = await admin.from("users").update({ shift_start, shift_end }).eq("id", id);
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/admin/users");
+}
