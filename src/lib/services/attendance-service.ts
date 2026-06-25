@@ -24,9 +24,10 @@ export async function recordLoginAttendance(
 
   const { data, error } = await admin
     .from("attendance")
-    .insert({
+   .insert({
       user_id: userId,
       login_time: loginTime.toISOString(),
+      checkin_time: loginTime.toISOString(),
       status,
       date,
     })
