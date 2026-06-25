@@ -401,3 +401,72 @@ export async function getAssignableMembers() {
 
   return data ?? [];
 }
+export async function cannotCompleteTaskAction(taskId: string, reason: string) {
+  const profile = await requireUserProfile();
+  const trimmed = reason.trim();
+
+  if (!trimmed) {
+    return { error: "Reason is required." };
+  }
+
+  const supabase = createClient();
+
+  const { data: task, error: fetchError } = await supabase
+    .from("tasks")
+    .select("id, status, assigned_to, title")
+    .eq("id", taskId)
+    .single();
+
+  if (fetchError || !task) {
+    return { error: "Task not found." };
+  }
+
+  if (task.assigned_to !== profile.id) {
+    return { error: "You are not the assignee of this task." };
+  }
+
+  if (task.status !== "in_progress") {
+    return { error: "Task must be in progress to report cannot complete." };
+  }
+
+  // Save reason as a comment prefixed so admin can see it clearly
+  const { error: commentError } = await supabase.from("task_comments").insert({
+    task_id: taskId,
+    user_id: profile.id,
+    message: `[Cannot Complete] ${trimmed}`,
+  });
+
+  if (commentError) {
+    return { error: commentError.message };
+  }
+
+  // Move to revision_required so admin sees it in their queue
+  const { error: updateError } = await supabase
+    .from("tasks")
+    .update({ status: "revision_required" })
+    .eq("id", taskId);
+
+  if (updateError) {
+    return { error: updateError.message };
+  }
+
+  await supabase.from("task_activity").insert({
+    task_id: taskId,
+    performed_by: profile.id,
+    action: "cannot_complete",
+    old_status: "in_progress",
+    new_status: "revision_required",
+  });
+
+  await supabase.from("audit_log").insert({
+    user_id: profile.id,
+    action: "task_cannot_complete",
+    entity_type: "task",
+    entity_id: taskId,
+    reason: trimmed,
+  });
+
+  revalidatePath("/tasks");
+  revalidatePath(`/tasks/${taskId}`);
+  return { success: true };
+}

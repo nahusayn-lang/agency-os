@@ -17,6 +17,13 @@ interface TaskDetailPageProps {
   params: { id: string };
 }
 
+/** Strip "Time chunk (s): X" suffix from completion notes / comments */
+function stripTimeChunk(text: string): string {
+  return text
+    .replace(/\s*Time chunk \(s\):\s*\d+/gi, "")
+    .trim();
+}
+
 export default async function TaskDetailPage({ params }: TaskDetailPageProps) {
   const profile = await requireUserProfile();
   const supabase = createClient();
@@ -51,7 +58,6 @@ export default async function TaskDetailPage({ params }: TaskDetailPageProps) {
   ]);
 
   // Admin client bypasses RLS so user names resolve correctly
-  // (access to this page is already gated by task-level RLS)
   const adminClient = createAdminClient();
   const { data: users } = await adminClient
     .from("users")
@@ -76,7 +82,7 @@ export default async function TaskDetailPage({ params }: TaskDetailPageProps) {
       );
       return {
         ...entry,
-        reason: comment?.message?.split("\n")[0] ?? null,
+        reason: comment?.message ? stripTimeChunk(comment.message.split("\n")[0]) : null,
       };
     });
 
@@ -144,7 +150,7 @@ export default async function TaskDetailPage({ params }: TaskDetailPageProps) {
               <div className="rounded-xl border bg-muted p-3">
                 <p className="text-sm font-medium">Completion note</p>
                 <p className="mt-1 text-sm whitespace-pre-wrap">
-                  {completionComment.message}
+                  {stripTimeChunk(completionComment.message)}
                 </p>
               </div>
             ) : (

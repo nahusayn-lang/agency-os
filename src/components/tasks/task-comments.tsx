@@ -15,6 +15,13 @@ interface TaskCommentsProps {
   }>;
 }
 
+/** Strip "Time chunk (s): X" suffix from comment messages */
+function stripTimeChunk(text: string): string {
+  return text
+    .replace(/\s*Time chunk \(s\):\s*\d+/gi, "")
+    .trim();
+}
+
 export function TaskComments({ taskId, comments }: TaskCommentsProps) {
   const [message, setMessage] = useState("");
   const [pending, startTransition] = useTransition();
@@ -40,7 +47,7 @@ export function TaskComments({ taskId, comments }: TaskCommentsProps) {
         ) : (
           comments.map((comment) => (
             <li key={comment.id} className="rounded-lg border p-3">
-              <p className="text-sm">{comment.message}</p>
+              <p className="text-sm">{stripTimeChunk(comment.message)}</p>
               <p className="mt-1 text-xs text-muted-foreground">
                 {comment.user.name} ·{" "}
                 {new Date(comment.created_at).toLocaleString()}

@@ -7,7 +7,9 @@ import { FounderCommitmentReadonly } from "@/components/dashboard/founder-commit
 import { getLatestPerformanceScoreForUser } from "@/lib/performance/actions";
 import { PerformanceScoreSection } from "@/components/performance/performance-score-section";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { AttendanceCard } from "@/components/dashboard/attendance-card";
 
 export default async function EmployeeDashboardPage() {
   const profile = await requireRole("member");
@@ -16,15 +18,26 @@ export default async function EmployeeDashboardPage() {
   const ownScore = await getLatestPerformanceScoreForUser(profile.id);
 
   const supabase = createClient();
+  const admin = createAdminClient();
 
-  // 1. Today's Tasks (Active assigned tasks)
+  // Live check-in status
+  const { data: userRow } = await admin
+    .from("users")
+    .select("is_checked_in, last_checkin_at")
+    .eq("id", profile.id)
+    .single();
+
+  const isCheckedIn = userRow?.is_checked_in ?? false;
+  const lastCheckinAt = userRow?.last_checkin_at ?? null;
+
+  // Today's Tasks (Active assigned tasks)
   const { count: todaysTasks } = await supabase
     .from("tasks")
     .select("*", { count: "exact", head: true })
     .eq("assigned_to", profile.id)
     .not("status", "in", '("completed","approved")');
 
-  // 2. Weekly Target %
+  // Weekly Target %
   const startOfWeek = new Date(weekStart);
   const endOfWeek = new Date(startOfWeek);
   endOfWeek.setDate(startOfWeek.getDate() + 7);
@@ -41,7 +54,7 @@ export default async function EmployeeDashboardPage() {
 
   const weeklyTargetPercent = targets?.completion_percentage ?? 0;
 
-  // 3. Unread Messages Count (Unread notifications)
+  // Unread notifications
   const { count: unreadCount } = await supabase
     .from("notifications")
     .select("*", { count: "exact", head: true })
@@ -57,16 +70,19 @@ export default async function EmployeeDashboardPage() {
         <p className="text-muted-foreground">Welcome, {profile.name}</p>
       </div>
 
-      {/* Metrics Grid */}
+      {/* Metrics Grid — attendance card first */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <AttendanceCard isCheckedIn={isCheckedIn} lastCheckinAt={lastCheckinAt} />
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Today&apos;s Tasks</CardTitle>
+            <CardTitle className="text-sm font-medium">Active Tasks</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{todaysTasks ?? 0}</div>
           </CardContent>
         </Card>
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Weekly Target %</CardTitle>
@@ -75,20 +91,13 @@ export default async function EmployeeDashboardPage() {
             <div className="text-2xl font-bold">{weeklyTargetPercent}%</div>
           </CardContent>
         </Card>
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Performance Score</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{ownScore?.total_score ?? "—"}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Unread Messages</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{unreadCount ?? 0}</div>
           </CardContent>
         </Card>
       </div>
