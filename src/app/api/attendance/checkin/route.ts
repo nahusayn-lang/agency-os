@@ -13,7 +13,6 @@ export async function POST() {
     const now = new Date();
     const today = getTodayDateString(now);
 
-    // Get shift start for status calc
     const { data: userRow } = await supabase
       .from("users")
       .select("shift_start, is_checked_in")
@@ -27,7 +26,6 @@ export async function POST() {
     const shiftStart = userRow?.shift_start ?? "00:00:00";
     const status = getLoginAttendanceStatus(shiftStart, now);
 
-    // Check if attendance record already exists for today
     const { data: existing } = await admin
       .from("attendance")
       .select("id")
@@ -36,13 +34,11 @@ export async function POST() {
       .maybeSingle();
 
     if (existing) {
-      // Update existing record
       await admin
         .from("attendance")
         .update({ checkin_time: now.toISOString(), login_time: now.toISOString(), status })
         .eq("id", existing.id);
     } else {
-      // Insert new record
       await admin.from("attendance").insert({
         user_id: profile.id,
         checkin_time: now.toISOString(),
@@ -52,7 +48,6 @@ export async function POST() {
       });
     }
 
-    // Mark user as live
     await admin
       .from("users")
       .update({ is_checked_in: true, last_checkin_at: now.toISOString() })

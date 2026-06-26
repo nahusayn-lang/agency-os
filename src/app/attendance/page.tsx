@@ -9,9 +9,27 @@ const STATUS_CONFIG: Record<string, { label: string; dot: string; badge: string 
   absent:     { label: "Absent",     dot: "bg-red-500",     badge: "bg-red-500/10 text-red-400 border-red-500/20" },
 };
 
+const PAST_PRESENT_CONFIG = {
+  dot: "bg-[#d97757]",
+  badge: "bg-[#d97757]/10 text-[#d97757] border-[#d97757]/20",
+};
+
+function getStatusConfig(status: string, isToday: boolean) {
+  const s = STATUS_CONFIG[status] ?? { label: status, dot: "bg-muted", badge: "bg-muted text-muted-foreground border-border" };
+  if (status === "present" && !isToday) {
+    return { ...s, dot: PAST_PRESENT_CONFIG.dot, badge: PAST_PRESENT_CONFIG.badge };
+  }
+  return s;
+}
+
 function fmtTime(ts: string | null): string {
   if (!ts) return "—";
-  return new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: true });
+  return new Date(ts).toLocaleTimeString("en-IN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+    timeZone: "Asia/Kolkata",
+  });
 }
 
 function fmtDate(d: string): string {
@@ -73,8 +91,8 @@ export default async function AttendancePage() {
             {entries.map((r) => {
               const checkin = r.checkin_time ?? r.login_time;
               const checkout = r.checkout_time ?? r.logout_time;
-              const s = STATUS_CONFIG[r.status] ?? { label: r.status, dot: "bg-muted", badge: "bg-muted text-muted-foreground border-border" };
               const today = isToday(r.date);
+              const s = getStatusConfig(r.status, today);
 
               return (
                 <li key={r.id} className={`rounded-xl border p-4 ${today ? "border-emerald-500/30 bg-emerald-950/10" : ""}`}>
@@ -104,7 +122,6 @@ export default async function AttendancePage() {
     );
   }
 
-  // ── Admin / Founder view ──────────────────────────────────────────
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
   const fromDate = thirtyDaysAgo.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
@@ -156,7 +173,7 @@ export default async function AttendancePage() {
           (a, b) => statusOrder.indexOf(a.status) - statusOrder.indexOf(b.status)
         );
 
-        const presentCount = dayEntries.filter((e) => e.status === "present").length;
+        const presentCount = dayEntries.filter((e) => e.status !== "absent").length;
         const lateCount = dayEntries.filter((e) => e.status === "late").length;
         const absentCount = dayEntries.filter((e) => e.status === "absent").length;
 
@@ -182,7 +199,7 @@ export default async function AttendancePage() {
               {sorted.map((r) => {
                 const checkin = r.checkin_time ?? r.login_time;
                 const checkout = r.checkout_time ?? r.logout_time;
-                const s = STATUS_CONFIG[r.status] ?? { label: r.status, dot: "bg-muted", badge: "bg-muted text-muted-foreground border-border" };
+                const s = getStatusConfig(r.status, today);
 
                 return (
                   <li key={r.id} className="flex items-center justify-between gap-4 px-4 py-3 flex-wrap">
