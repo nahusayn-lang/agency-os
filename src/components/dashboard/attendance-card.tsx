@@ -16,6 +16,7 @@ interface AttendanceCardProps {
   lastCheckinAt: string | null;
   shiftStart: string | null;
   shiftEnd: string | null;
+  checkedOutToday?: boolean;
 }
 
 function formatDuration(ms: number): string {
@@ -34,7 +35,7 @@ function fmtShiftTime(t: string | null): string {
   return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: true });
 }
 
-export function AttendanceCard({ isCheckedIn, lastCheckinAt, shiftStart, shiftEnd }: AttendanceCardProps) {
+export function AttendanceCard({ isCheckedIn, lastCheckinAt, shiftStart, shiftEnd, checkedOutToday }: AttendanceCardProps) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -86,7 +87,7 @@ export function AttendanceCard({ isCheckedIn, lastCheckinAt, shiftStart, shiftEn
   }
 
   return (
-    <Card className={`border-2 ${isCheckedIn ? "border-emerald-500/40 bg-emerald-950/20" : "border-border"}`}>
+    <Card className={`border-2 ${isCheckedIn ? "border-emerald-500/40 bg-emerald-950/20" : checkedOutToday ? "border-emerald-500/20" : "border-border"}`}>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-sm font-medium">Attendance</CardTitle>
         {isCheckedIn && (
@@ -101,7 +102,6 @@ export function AttendanceCard({ isCheckedIn, lastCheckinAt, shiftStart, shiftEn
       </CardHeader>
       <CardContent className="space-y-4">
 
-        {/* Shift time — always visible */}
         {(shiftStart || shiftEnd) && (
           <p className="text-xs text-muted-foreground">
             Shift{" "}
@@ -127,6 +127,8 @@ export function AttendanceCard({ isCheckedIn, lastCheckinAt, shiftStart, shiftEn
               {pending ? "Checking out…" : "Check Out"}
             </Button>
           </>
+        ) : checkedOutToday ? (
+          <p className="text-sm text-emerald-400 font-medium">Attendance marked for today ✓</p>
         ) : (
           <>
             <p className="text-sm text-muted-foreground">You are not checked in today.</p>

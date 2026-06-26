@@ -10,6 +10,7 @@ import { OverrideHistoryTable } from "@/components/dashboard/override-history-ta
 import { TeamProfilesList } from "@/components/dashboard/team-profiles-list";
 import { AttendanceCard } from "@/components/dashboard/attendance-card";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { getTodayDateString } from "@/lib/auth/attendance";
 
 export default async function FounderDashboardPage() {
   const profile = await requireRole("super_admin");
@@ -20,15 +21,25 @@ export default async function FounderDashboardPage() {
   const supabase = createClient();
   const admin = createAdminClient();
 
-  // Live check-in status
   const { data: userRow } = await admin
     .from("users")
-    .select("is_checked_in, last_checkin_at, shift_start, shift_end") // ✅ Change 1
+    .select("is_checked_in, last_checkin_at, shift_start, shift_end")
     .eq("id", profile.id)
     .single();
 
   const isCheckedIn = userRow?.is_checked_in ?? false;
   const lastCheckinAt = userRow?.last_checkin_at ?? null;
+
+  // Aaj ka attendance record hai ya nahi
+  const today = getTodayDateString();
+  const { data: todayAttendance } = await admin
+    .from("attendance")
+    .select("id")
+    .eq("user_id", profile.id)
+    .eq("date", today)
+    .maybeSingle();
+
+  const checkedOutToday = !isCheckedIn && !!todayAttendance;
 
   const { data: teamMembers } = await supabase
     .from("users")
@@ -65,8 +76,9 @@ export default async function FounderDashboardPage() {
         <AttendanceCard
           isCheckedIn={isCheckedIn}
           lastCheckinAt={lastCheckinAt}
-          shiftStart={userRow?.shift_start ?? null}  // ✅ Change 2
-          shiftEnd={userRow?.shift_end ?? null}       // ✅ Change 2
+          shiftStart={userRow?.shift_start ?? null}
+          shiftEnd={userRow?.shift_end ?? null}
+          checkedOutToday={checkedOutToday}
         />
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
