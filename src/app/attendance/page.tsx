@@ -96,10 +96,10 @@ export default async function AttendancePage() {
 
               return (
                 <li key={r.id} className={`rounded-xl border p-4 ${today ? "border-emerald-500/30 bg-emerald-950/10" : ""}`}>
-                  <div className="flex items-start justify-between gap-3 flex-wrap">
-                    <div>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className={`h-2 w-2 rounded-full ${s.dot}`} />
+                        <span className={`h-2 w-2 rounded-full shrink-0 ${s.dot}`} />
                         <span className="font-medium text-sm">{fmtDate(r.date)}</span>
                         {today && <span className="text-xs text-emerald-400 font-medium">Today</span>}
                       </div>
@@ -179,8 +179,8 @@ export default async function AttendancePage() {
 
         return (
           <div key={date} className="space-y-3">
-            <div className="flex items-center justify-between flex-wrap gap-2">
-              <div className="flex items-center gap-2">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <div className="flex items-center gap-2 flex-wrap">
                 <h2 className="font-semibold text-base">{fmtDate(date)}</h2>
                 {today && (
                   <span className="text-xs bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-full font-medium">
@@ -188,7 +188,7 @@ export default async function AttendancePage() {
                   </span>
                 )}
               </div>
-              <div className="flex gap-3 text-xs text-muted-foreground">
+              <div className="flex gap-3 text-xs text-muted-foreground shrink-0">
                 <span className="text-emerald-400">{presentCount} present</span>
                 {lateCount > 0 && <span className="text-yellow-400">{lateCount} late</span>}
                 {absentCount > 0 && <span className="text-red-400">{absentCount} absent</span>}
@@ -202,26 +202,22 @@ export default async function AttendancePage() {
                 const s = getStatusConfig(r.status, today);
 
                 return (
-                  <li key={r.id} className="flex items-center justify-between gap-4 px-4 py-3 flex-wrap">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <span className={`h-2 w-2 rounded-full shrink-0 ${s.dot}`} />
-                      <span className="font-medium text-sm truncate">
-                        {userMap.get(r.user_id) ?? "Unknown"}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-4 flex-wrap ml-5">
-                      <span className="text-xs text-muted-foreground">
-                        In <span className="text-foreground font-medium">{fmtTime(checkin)}</span>
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        Out <span className="text-foreground font-medium">{fmtTime(checkout)}</span>
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        <span className="text-foreground font-medium">{calcDuration(checkin, checkout)}</span>
-                      </span>
-                      <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full border ${s.badge}`}>
+                  <li key={r.id} className="px-4 py-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className={`h-2 w-2 rounded-full shrink-0 ${s.dot}`} />
+                        <span className="font-medium text-sm truncate">
+                          {userMap.get(r.user_id) ?? "Unknown"}
+                        </span>
+                      </div>
+                      <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full border shrink-0 ${s.badge}`}>
                         {s.label}
                       </span>
+                    </div>
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground mt-1.5 pl-4">
+                      <span>In <span className="text-foreground font-medium">{fmtTime(checkin)}</span></span>
+                      <span>Out <span className="text-foreground font-medium">{fmtTime(checkout)}</span></span>
+                      <span className="text-foreground font-medium">{calcDuration(checkin, checkout)}</span>
                     </div>
                   </li>
                 );
