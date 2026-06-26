@@ -137,25 +137,6 @@ export default async function TaskDetailPage({ params }: TaskDetailPageProps) {
             )}
           </section>
 
-          {/* Proof */}
-          {task.proof_url && (
-            <section className="rounded-xl border p-4">
-              <h2 className="mb-3 font-medium">Proof Screenshot</h2>
-
-              <a
-                href={task.proof_url}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <img
-                  src={task.proof_url}
-                  alt="Task proof"
-                  className="h-64 w-full rounded-xl border object-cover hover:opacity-90 transition-opacity"
-                />
-              </a>
-            </section>
-          )}
-
           {/* Comments */}
           <section className="rounded-xl border p-4">
             <h2 className="mb-3 font-medium">Comments</h2>
