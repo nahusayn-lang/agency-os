@@ -8,6 +8,7 @@ import { getFounderCommitmentForWeek } from "@/lib/founder-commitment/actions";
 import { FounderCommitmentReadonly } from "@/components/dashboard/founder-commitment-readonly";
 import { AttendanceCard } from "@/components/dashboard/attendance-card";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { getTodayDateString } from "@/lib/auth/attendance";
 
 export default async function ManagerDashboardPage() {
   const profile = await requireRole("admin");
@@ -17,7 +18,6 @@ export default async function ManagerDashboardPage() {
   const supabase = createClient();
   const admin = createAdminClient();
 
-  // Live check-in status
   const { data: userRow } = await admin
     .from("users")
     .select("is_checked_in, last_checkin_at, shift_start, shift_end")
@@ -28,6 +28,16 @@ export default async function ManagerDashboardPage() {
   const lastCheckinAt = userRow?.last_checkin_at ?? null;
   const shiftStart = userRow?.shift_start ?? null;
   const shiftEnd = userRow?.shift_end ?? null;
+
+  const today = getTodayDateString();
+  const { data: todayAttendance } = await admin
+    .from("attendance")
+    .select("id")
+    .eq("user_id", profile.id)
+    .eq("date", today)
+    .maybeSingle();
+
+  const checkedOutToday = !isCheckedIn && !!todayAttendance;
 
   const { data: members } = await supabase
     .from("users")
@@ -61,6 +71,7 @@ export default async function ManagerDashboardPage() {
           lastCheckinAt={lastCheckinAt}
           shiftStart={shiftStart}
           shiftEnd={shiftEnd}
+          checkedOutToday={checkedOutToday}
         />
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">

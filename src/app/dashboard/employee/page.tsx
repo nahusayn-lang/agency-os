@@ -10,6 +10,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { AttendanceCard } from "@/components/dashboard/attendance-card";
+import { getTodayDateString } from "@/lib/auth/attendance";
 
 export default async function EmployeeDashboardPage() {
   const profile = await requireRole("member");
@@ -20,7 +21,6 @@ export default async function EmployeeDashboardPage() {
   const supabase = createClient();
   const admin = createAdminClient();
 
-  // Live check-in status
   const { data: userRow } = await admin
     .from("users")
     .select("is_checked_in, last_checkin_at, shift_start, shift_end")
@@ -30,14 +30,22 @@ export default async function EmployeeDashboardPage() {
   const isCheckedIn = userRow?.is_checked_in ?? false;
   const lastCheckinAt = userRow?.last_checkin_at ?? null;
 
-  // Today's Tasks (Active assigned tasks)
+  const today = getTodayDateString();
+  const { data: todayAttendance } = await admin
+    .from("attendance")
+    .select("id")
+    .eq("user_id", profile.id)
+    .eq("date", today)
+    .maybeSingle();
+
+  const checkedOutToday = !isCheckedIn && !!todayAttendance;
+
   const { count: todaysTasks } = await supabase
     .from("tasks")
     .select("*", { count: "exact", head: true })
     .eq("assigned_to", profile.id)
     .not("status", "in", '("completed","approved")');
 
-  // Weekly Target %
   const startOfWeek = new Date(weekStart);
   const endOfWeek = new Date(startOfWeek);
   endOfWeek.setDate(startOfWeek.getDate() + 7);
@@ -54,7 +62,6 @@ export default async function EmployeeDashboardPage() {
 
   const weeklyTargetPercent = targets?.completion_percentage ?? 0;
 
-  // Unread notifications count (fire and forget — used by notification bell)
   await supabase
     .from("notifications")
     .select("*", { count: "exact", head: true })
@@ -70,13 +77,13 @@ export default async function EmployeeDashboardPage() {
         <p className="text-muted-foreground">Welcome, {profile.name}</p>
       </div>
 
-      {/* Metrics Grid — attendance card first */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <AttendanceCard
           isCheckedIn={isCheckedIn}
           lastCheckinAt={lastCheckinAt}
           shiftStart={userRow?.shift_start ?? null}
           shiftEnd={userRow?.shift_end ?? null}
+          checkedOutToday={checkedOutToday}
         />
 
         <Card>
