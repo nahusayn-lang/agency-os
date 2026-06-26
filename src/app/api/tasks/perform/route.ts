@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 export async function POST(req: Request) {
   await requireUserProfile();
   const body = await req.json();
-  const { action, taskId, note, optionalLink, totalTimeSeconds } = body ?? {};
+  const { action, taskId, note, optionalLink } = body ?? {};
 
   if (!action || !taskId) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });

@@ -15,7 +15,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import type { TaskStatus } from "@/lib/types/tasks";
 import type { UserRole } from "@/lib/types/database";
-import { getAllowedTransitions } from "@/lib/tasks/transitions";
 
 interface TaskActionsProps {
   taskId: string;
@@ -196,7 +195,6 @@ export function TaskActions({ taskId, status, role, isAssignee }: TaskActionsPro
             )}
           </>
         )}
-        {/* Cannot-complete tasks show in waiting_review with a note — admin sees reassign option */}
         {status === "revision_required" && (
           <Button disabled={pending} onClick={() => transition("in_progress")}>
             Reassign / resume

@@ -14,10 +14,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  TASK_PRIORITY_LABELS,
   TASK_STATUS_LABELS,
 } from "@/lib/tasks/labels";
-import type { TaskPriority, TaskStatus } from "@/lib/types/tasks";
+import type { TaskStatus } from "@/lib/types/tasks";
 
 export default async function TasksPage() {
   const profile = await requireUserProfile();

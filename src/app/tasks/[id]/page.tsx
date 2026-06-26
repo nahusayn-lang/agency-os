@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireUserProfile } from "@/lib/auth/session";
@@ -77,8 +78,8 @@ export default async function TaskDetailPage({ params }: TaskDetailPageProps) {
       const comment = (comments ?? []).find(
         (c) =>
           c.user_id === entry.performed_by &&
-          Math.abs(new Date(c.created_at).getTime() - new Date(entry.created_at).getTime()) <
-            30000
+          Math.abs(new Date(c.created_at).getTime() - new Date(entry.created_at).getTime()) 
+            <30000
       );
       return {
         ...entry,
@@ -135,9 +136,11 @@ export default async function TaskDetailPage({ params }: TaskDetailPageProps) {
               <div className="space-y-3">
                 <p className="text-sm font-medium">Proof screenshot</p>
                 <a href={task.proof_url} target="_blank" rel="noopener noreferrer">
-                  <img
+                  <Image
                     src={task.proof_url}
                     alt="Task proof screenshot"
+                    width={800}
+                    height={256}
                     className="h-64 w-full rounded-xl border object-cover"
                   />
                 </a>

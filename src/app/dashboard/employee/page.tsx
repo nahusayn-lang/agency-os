@@ -23,7 +23,7 @@ export default async function EmployeeDashboardPage() {
   // Live check-in status
   const { data: userRow } = await admin
     .from("users")
-    .select("is_checked_in, last_checkin_at, shift_start, shift_end") // ✅ Change 1
+    .select("is_checked_in, last_checkin_at, shift_start, shift_end")
     .eq("id", profile.id)
     .single();
 
@@ -54,8 +54,8 @@ export default async function EmployeeDashboardPage() {
 
   const weeklyTargetPercent = targets?.completion_percentage ?? 0;
 
-  // Unread notifications
-  const { count: unreadCount } = await supabase
+  // Unread notifications count (fire and forget — used by notification bell)
+  await supabase
     .from("notifications")
     .select("*", { count: "exact", head: true })
     .eq("user_id", profile.id)
@@ -75,8 +75,8 @@ export default async function EmployeeDashboardPage() {
         <AttendanceCard
           isCheckedIn={isCheckedIn}
           lastCheckinAt={lastCheckinAt}
-          shiftStart={userRow?.shift_start ?? null}  // ✅ Change 2
-          shiftEnd={userRow?.shift_end ?? null}       // ✅ Change 2
+          shiftStart={userRow?.shift_start ?? null}
+          shiftEnd={userRow?.shift_end ?? null}
         />
 
         <Card>
