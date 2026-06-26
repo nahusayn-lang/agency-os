@@ -8,7 +8,7 @@ export default async function Sidebar() {
   const profile = await requireUserProfile();
   const dashboardPath = getDashboardPathForRole(profile.role);
 
-  const isAdmin = ["super_admin", "admin"].includes(profile.role || "");
+  const isFounder = profile.role === "super_admin";
   const showTasksLink = ["admin", "super_admin"].includes(profile.role || "");
 
   const linkClass = "flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-white/40 hover:text-white/80 hover:bg-indigo-500/10 transition-colors";
@@ -61,7 +61,7 @@ export default async function Sidebar() {
             <Target size={15} /> Weekly Targets
           </Link>
 
-          {isAdmin && (
+          {isFounder && (
             <>
               <div className="border-t border-white/[0.06] my-3" />
               <p className="text-[10px] text-white/25 uppercase tracking-widest px-3 pb-1">Admin</p>
