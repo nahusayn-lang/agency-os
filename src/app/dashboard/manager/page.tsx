@@ -20,12 +20,14 @@ export default async function ManagerDashboardPage() {
   // Live check-in status
   const { data: userRow } = await admin
     .from("users")
-    .select("is_checked_in, last_checkin_at")
+    .select("is_checked_in, last_checkin_at, shift_start, shift_end")
     .eq("id", profile.id)
     .single();
 
   const isCheckedIn = userRow?.is_checked_in ?? false;
   const lastCheckinAt = userRow?.last_checkin_at ?? null;
+  const shiftStart = userRow?.shift_start ?? null;
+  const shiftEnd = userRow?.shift_end ?? null;
 
   const { data: members } = await supabase
     .from("users")
@@ -54,7 +56,12 @@ export default async function ManagerDashboardPage() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <AttendanceCard isCheckedIn={isCheckedIn} lastCheckinAt={lastCheckinAt} />
+        <AttendanceCard
+          isCheckedIn={isCheckedIn}
+          lastCheckinAt={lastCheckinAt}
+          shiftStart={shiftStart}
+          shiftEnd={shiftEnd}
+        />
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Pending Tasks</CardTitle>
