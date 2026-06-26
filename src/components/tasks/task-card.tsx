@@ -290,7 +290,6 @@ export function TaskCard({ task, assignerName, assignerRole }: TaskCardProps) {
             <Label htmlFor={`submit-note-${task.id}`}>Completion note (required)</Label>
             <Textarea
               id={`submit-note-${task.id}`}
-              placeholder="Kya kiya? Kaise complete hua?"
               value={submitNote}
               onChange={(e) => setSubmitNote(e.target.value)}
               rows={2}
