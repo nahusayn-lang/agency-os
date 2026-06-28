@@ -13,27 +13,23 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  TASK_STATUS_LABELS,
-} from "@/lib/tasks/labels";
+import { TASK_STATUS_LABELS } from "@/lib/tasks/labels";
 import type { TaskStatus } from "@/lib/types/tasks";
 
 export default async function TasksPage() {
   const profile = await requireUserProfile();
   const supabase = createClient();
 
+  const isFounder = profile.role === "super_admin";
+
   const { data: tasks, error } = await supabase
     .from("tasks")
-    .select(
-      "id, title, status, deadline, assigned_to, assigned_by, created_at"
-    )
+    .select("id, title, status, deadline, assigned_to, assigned_by, created_at")
     .or(`assigned_to.eq.${profile.id},assigned_by.eq.${profile.id}`)
     .order("created_at", { ascending: false });
 
   if (error) {
-    return (
-      <p className="text-destructive">Failed to load tasks: {error.message}</p>
-    );
+    return <p className="text-destructive">Failed to load tasks: {error.message}</p>;
   }
 
   const userIds = new Set<string>();
@@ -44,10 +40,7 @@ export default async function TasksPage() {
 
   const adminClient = createAdminClient();
   const { data: users } = userIds.size
-    ? await adminClient
-        .from("users")
-        .select("id, name")
-        .in("id", Array.from(userIds))
+    ? await adminClient.from("users").select("id, name").in("id", Array.from(userIds))
     : { data: [] };
 
   const userMap = new Map((users ?? []).map((u) => [u.id, u.name]));
@@ -79,66 +72,54 @@ export default async function TasksPage() {
         </div>
       )}
 
-      <div className="rounded-xl border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Title</TableHead>
-              <TableHead>Assigned to</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Deadline</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {(tasks ?? []).length === 0 ? (
+      {isFounder && (
+        <div className="rounded-xl border">
+          <Table>
+            <TableHeader>
               <TableRow>
-                <TableCell colSpan={4} className="text-center text-muted-foreground">
-                  No tasks yet.
-                </TableCell>
+                <TableHead>Title</TableHead>
+                <TableHead>Assigned to</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Deadline</TableHead>
               </TableRow>
-            ) : (
-              (tasks ?? []).map((task) => (
-                <TableRow
-                  key={task.id}
-                  className="hover:bg-muted/50 transition-colors"
-                >
-                  <TableCell>
-                    <Link
-                      href={`/tasks/${task.id}`}
-                      className="font-medium hover:underline"
-                    >
-                      {task.title}
-                    </Link>
-                  </TableCell>
-                  <TableCell>
-                    <Link
-                      href={`/tasks/${task.id}`}
-                      className="text-muted-foreground hover:text-foreground"
-                    >
-                      {userMap.get(task.assigned_to) ?? "Unknown"}
-                    </Link>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={statusVariantMap[task.status as TaskStatus]}>
-                      {TASK_STATUS_LABELS[task.status as TaskStatus]}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Link
-                      href={`/tasks/${task.id}`}
-                      className="hover:underline"
-                    >
-                      {task.deadline
-                        ? new Date(task.deadline).toLocaleDateString()
-                        : "—"}
-                    </Link>
+            </TableHeader>
+            <TableBody>
+              {(tasks ?? []).length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={4} className="text-center text-muted-foreground">
+                    No tasks yet.
                   </TableCell>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
+              ) : (
+                (tasks ?? []).map((task) => (
+                  <TableRow key={task.id} className="hover:bg-muted/50 transition-colors">
+                    <TableCell>
+                      <Link href={`/tasks/${task.id}`} className="font-medium hover:underline">
+                        {task.title}
+                      </Link>
+                    </TableCell>
+                    <TableCell>
+                      <Link href={`/tasks/${task.id}`} className="text-muted-foreground hover:text-foreground">
+                        {userMap.get(task.assigned_to) ?? "Unknown"}
+                      </Link>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={statusVariantMap[task.status as TaskStatus]}>
+                        {TASK_STATUS_LABELS[task.status as TaskStatus]}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Link href={`/tasks/${task.id}`} className="hover:underline">
+                        {task.deadline ? new Date(task.deadline).toLocaleDateString() : "—"}
+                      </Link>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      )}
     </div>
   );
 }
