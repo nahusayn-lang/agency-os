@@ -188,7 +188,7 @@ export function TaskCard({ task, assignerName, assignerRole }: TaskCardProps) {
       <div className="text-sm space-y-0.5 text-muted-foreground">
         <div>Priority: <span className="text-foreground">{task.priority}</span></div>
         <div>Estimated Hours: <span className="text-foreground">{task.estimated_hours ?? "—"}</span></div>
-        <div>Deadline: <span className="text-foreground">{task.deadline ? new Date(task.deadline).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) : "—"}</span></div>
+        <div>Deadline: <span className="text-foreground" suppressHydrationWarning>{task.deadline ? new Date(task.deadline).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) : "—"}</span></div>
         <div>Assigned By: <span className="text-foreground">{assignerName ?? "Unknown"} ({assignerRole ?? "—"})</span></div>
         <div>Status: <span className="text-foreground">{task.status}</span></div>
         <div>
