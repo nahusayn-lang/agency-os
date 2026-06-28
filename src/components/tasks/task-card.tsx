@@ -30,7 +30,6 @@ interface TaskCardProps {
 type ViewState = "idle" | "running" | "pausing" | "submitting";
 
 export function TaskCard({ task, assignerName, assignerRole }: TaskCardProps) {
-  // Agar session_start_time DB mein hai toh calculate karo kitna time already guzra
   const sessionAlreadyElapsed = task.session_start_time
     ? Math.floor((Date.now() - new Date(task.session_start_time).getTime()) / 1000)
     : 0;
@@ -53,7 +52,6 @@ export function TaskCard({ task, assignerName, assignerRole }: TaskCardProps) {
   const [submitError, setSubmitError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Agar page load pe session chal raha tha toh timer shuru karo
   useEffect(() => {
     if (task.session_start_time) {
       window.localStorage.setItem("running_task", task.id);
@@ -66,7 +64,6 @@ export function TaskCard({ task, assignerName, assignerRole }: TaskCardProps) {
     };
   }, [task.id, task.session_start_time]);
 
-  // Doosra task start ho toh yeh band karo
   useEffect(() => {
     function onStorage(e: StorageEvent) {
       if (e.key === "running_task" && e.newValue !== task.id && view === "running") {
@@ -132,7 +129,6 @@ export function TaskCard({ task, assignerName, assignerRole }: TaskCardProps) {
     } else {
       setPauseNote("");
       setElapsed(0);
-      // Naya accumulated DB se aayega next page load pe
       window.location.reload();
     }
   }
@@ -182,7 +178,6 @@ export function TaskCard({ task, assignerName, assignerRole }: TaskCardProps) {
 
   return (
     <div className="rounded-xl border p-4 space-y-3">
-      {/* Task Info */}
       <div>
         <h3 className="font-semibold text-base">{task.title}</h3>
         {task.description && (
@@ -193,7 +188,7 @@ export function TaskCard({ task, assignerName, assignerRole }: TaskCardProps) {
       <div className="text-sm space-y-0.5 text-muted-foreground">
         <div>Priority: <span className="text-foreground">{task.priority}</span></div>
         <div>Estimated Hours: <span className="text-foreground">{task.estimated_hours ?? "—"}</span></div>
-        <div>Deadline: <span className="text-foreground">{task.deadline ? new Date(task.deadline).toLocaleString() : "—"}</span></div>
+        <div>Deadline: <span className="text-foreground">{task.deadline ? new Date(task.deadline).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) : "—"}</span></div>
         <div>Assigned By: <span className="text-foreground">{assignerName ?? "Unknown"} ({assignerRole ?? "—"})</span></div>
         <div>Status: <span className="text-foreground">{task.status}</span></div>
         <div>
@@ -207,7 +202,6 @@ export function TaskCard({ task, assignerName, assignerRole }: TaskCardProps) {
         </div>
       </div>
 
-      {/* === IDLE STATE === */}
       {view === "idle" && (
         <div className="flex gap-2">
           {showStartResume && (
@@ -223,7 +217,6 @@ export function TaskCard({ task, assignerName, assignerRole }: TaskCardProps) {
         </div>
       )}
 
-      {/* === RUNNING STATE === */}
       {view === "running" && (
         <div className="flex gap-2">
           <Button size="sm" variant="outline" onClick={() => setView("pausing")}>
@@ -235,7 +228,6 @@ export function TaskCard({ task, assignerName, assignerRole }: TaskCardProps) {
         </div>
       )}
 
-      {/* === PAUSE FORM === */}
       {view === "pausing" && (
         <div className="border rounded-lg p-3 space-y-2 bg-muted/30">
           <p className="text-sm font-medium">Task Pause — Wajah batao</p>
@@ -269,7 +261,6 @@ export function TaskCard({ task, assignerName, assignerRole }: TaskCardProps) {
         </div>
       )}
 
-      {/* === SUBMIT FORM === */}
       {view === "submitting" && (
         <div className="border rounded-lg p-3 space-y-3 bg-muted/30">
           <p className="text-sm font-medium">Task Submit</p>

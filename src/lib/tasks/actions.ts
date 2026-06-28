@@ -114,7 +114,7 @@ export async function createTaskAction(formData: FormData) {
       title,
       description: description || null,
       priority: priority || "medium",
-      deadline: deadline ? new Date(deadline).toISOString() : null,
+      deadline: deadline ? new Date(deadline + "+05:30").toISOString() : null,
       assigned_by: profile.id,
       assigned_to: assignedTo,
       status: "pending",
