@@ -12,34 +12,37 @@ export async function POST(req: Request) {
     }
 
     const supabase = createClient();
-    const { data: founders } = await supabase
+
+    // Notify founders + managers both
+    const { data: admins } = await supabase
       .from("users")
       .select("id, email")
-      .eq("role", "super_admin")
+      .in("role", ["super_admin", "admin"])
       .eq("is_active", true);
 
-    for (const f of founders ?? []) {
-      // create a leave_request message so founders can approve/reject in the Messages UI
+    for (const admin of admins ?? []) {
       await supabase.from("messages").insert({
         sender_id: profile.id,
-        recipient_id: f.id,
+        recipient_id: admin.id,
         title: "Emergency checkout request",
-        content: `User ${profile.name} requests checkout: ${note}`,
+        content: `${profile.name} requests checkout: ${note}`,
         type: "leave_request",
         status: "pending",
       });
 
-      // also add a short notification
       await supabase.from("notifications").insert({
-        user_id: f.id,
+        user_id: admin.id,
         title: "Emergency checkout request",
-        message: `User ${profile.name} requests checkout: ${note}`,
+        message: `${profile.name} ne emergency checkout maanga: ${note}`,
         link: "/messages",
       });
     }
 
     return NextResponse.redirect(new URL("/attendance", req.url));
   } catch (err) {
-    return NextResponse.json({ error: err instanceof Error ? err.message : "Failed" }, { status: 500 });
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "Failed" },
+      { status: 500 }
+    );
   }
 }

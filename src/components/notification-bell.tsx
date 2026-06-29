@@ -2,9 +2,9 @@
 
 import { useEffect, useState, useRef, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Bell, Check, ExternalLink } from "lucide-react";
+import { Bell, Check, Trash2 } from "lucide-react";
 import Link from "next/link";
-import { markAllNotificationsAsRead, getLatestNotifications } from "@/lib/messages/actions";
+import { markAllNotificationsAsRead, getLatestNotifications, clearAllNotifications } from "@/lib/messages/actions";
 
 interface Notification {
   id: string;
@@ -23,30 +23,21 @@ export function NotificationBell({ userId }: { userId: string }) {
 
   useEffect(() => {
     getLatestNotifications().then((data) => {
-      if (Array.isArray(data)) {
-        setNotifications(data);
-      }
+      if (Array.isArray(data)) setNotifications(data);
     });
 
     const channel = supabase
       .channel(`user-notifications-${userId}`)
       .on(
         "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "notifications",
-          filter: `user_id=eq.${userId}`,
-        },
+        { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${userId}` },
         (payload) => {
-          setNotifications((prev) => [payload.new as Notification, ...prev].slice(0, 10));
+          setNotifications((prev) => [payload.new as Notification, ...prev].slice(0, 20));
         }
       )
       .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => { supabase.removeChannel(channel); };
   }, [userId, supabase]);
 
   useEffect(() => {
@@ -56,9 +47,7 @@ export function NotificationBell({ userId }: { userId: string }) {
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   const unreadCount = notifications.filter((n) => !n.is_read).length;
@@ -66,6 +55,11 @@ export function NotificationBell({ userId }: { userId: string }) {
   const handleMarkAllAsRead = async () => {
     await markAllNotificationsAsRead();
     setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
+  };
+
+  const handleClearAll = async () => {
+    await clearAllNotifications();
+    setNotifications([]);
   };
 
   return (
@@ -87,17 +81,27 @@ export function NotificationBell({ userId }: { userId: string }) {
         <div className="absolute right-0 mt-2 z-50 w-80 rounded-md border border-border bg-popover p-2 shadow-md text-popover-foreground">
           <div className="flex items-center justify-between border-b border-border pb-2 mb-2 px-2">
             <span className="text-xs font-semibold">Notifications</span>
-            {unreadCount > 0 && (
-              <button
-                onClick={handleMarkAllAsRead}
-                className="flex items-center gap-1 text-[10px] text-primary hover:underline font-medium"
-              >
-                <Check className="h-3 w-3" /> Mark all read
-              </button>
-            )}
+            <div className="flex items-center gap-2">
+              {unreadCount > 0 && (
+                <button
+                  onClick={handleMarkAllAsRead}
+                  className="flex items-center gap-1 text-[10px] text-primary hover:underline font-medium"
+                >
+                  <Check className="h-3 w-3" /> Mark all read
+                </button>
+              )}
+              {notifications.length > 0 && (
+                <button
+                  onClick={handleClearAll}
+                  className="flex items-center gap-1 text-[10px] text-destructive hover:underline font-medium"
+                >
+                  <Trash2 className="h-3 w-3" /> Clear all
+                </button>
+              )}
+            </div>
           </div>
 
-          <div className="max-h-64 overflow-y-auto space-y-1">
+          <div className="max-h-72 overflow-y-auto space-y-1">
             {notifications.length === 0 ? (
               <div className="p-4 text-center text-xs text-muted-foreground">
                 No notifications.
@@ -107,7 +111,7 @@ export function NotificationBell({ userId }: { userId: string }) {
                 <div
                   key={n.id}
                   className={`p-2 rounded text-xs transition-colors ${
-                    n.is_read ? "opacity-75" : "bg-accent/40 font-medium"
+                    n.is_read ? "opacity-60" : "bg-accent/40 font-medium"
                   }`}
                 >
                   <div className="flex justify-between items-start gap-2">
@@ -116,16 +120,15 @@ export function NotificationBell({ userId }: { userId: string }) {
                       <Link
                         href={n.link}
                         onClick={() => setIsOpen(false)}
-                        className="text-primary hover:text-primary/80"
+                        className="text-primary hover:text-primary/80 shrink-0"
                       >
-                        <ExternalLink className="h-3.5 w-3.5" />
+                        →
                       </Link>
                     )}
                   </div>
                   <p className="text-muted-foreground mt-0.5">{n.message}</p>
                   <span className="text-[10px] text-muted-foreground block mt-1">
-                    {new Date(n.created_at).toLocaleDateString()} at{" "}
-                    {new Date(n.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    {new Date(n.created_at).toLocaleString("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
                   </span>
                 </div>
               ))

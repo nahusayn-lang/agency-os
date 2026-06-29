@@ -218,3 +218,19 @@ export async function markAllNotificationsAsRead() {
 
   return { success: true };
 }
+export async function clearAllNotifications() {
+  const profile = await requireUserProfile();
+  const supabase = createClient();
+
+  const { error } = await supabase
+    .from("notifications")
+    .delete()
+    .eq("user_id", profile.id);
+
+  if (error) {
+    console.error("Failed to clear notifications:", error.message);
+    return { error: error.message };
+  }
+
+  return { success: true };
+}

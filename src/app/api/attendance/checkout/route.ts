@@ -13,7 +13,6 @@ export async function POST() {
     const now = new Date();
     const today = getTodayDateString(now);
 
-    // Check if already checked in
     const { data: userRow } = await admin
       .from("users")
       .select("shift_end, is_checked_in")
@@ -24,7 +23,6 @@ export async function POST() {
       return NextResponse.json({ error: "Not checked in." }, { status: 400 });
     }
 
-    // Block checkout if any task is pending or in_progress
     const { data: blockedTasks } = await supabase
       .from("tasks")
       .select("id, title, status")
@@ -35,19 +33,15 @@ export async function POST() {
       return NextResponse.json(
         {
           error: "checkout_blocked",
-          blockedTasks: blockedTasks.map((t) => ({
-            id: t.id,
-            title: t.title,
-            status: t.status,
-          })),
+          blockedTasks: blockedTasks.map((t) => ({ id: t.id, title: t.title, status: t.status })),
         },
         { status: 403 }
       );
     }
 
-    // Update attendance
     const shiftEnd = userRow?.shift_end ?? "23:59:59";
-    const statusUpdate = isEarlyExit(shiftEnd, now) ? "early_exit" : undefined;
+    const isEarly = isEarlyExit(shiftEnd, now);
+    const statusUpdate = isEarly ? "early_exit" : undefined;
 
     const { data: attendance } = await admin
       .from("attendance")
@@ -64,15 +58,10 @@ export async function POST() {
         logout_time: now.toISOString(),
       };
       if (statusUpdate) updates.status = statusUpdate;
-
       await admin.from("attendance").update(updates).eq("id", attendance.id);
     }
 
-    // Mark user offline
-    await admin
-      .from("users")
-      .update({ is_checked_in: false })
-      .eq("id", profile.id);
+    await admin.from("users").update({ is_checked_in: false }).eq("id", profile.id);
 
     await supabase.from("audit_log").insert({
       user_id: profile.id,
@@ -80,6 +69,27 @@ export async function POST() {
       entity_type: "attendance",
       entity_id: null,
     });
+
+    // Notify founders + managers if early exit
+    if (isEarly) {
+      const timeStr = now.toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit" });
+      const { data: admins } = await admin
+        .from("users")
+        .select("id")
+        .in("role", ["super_admin", "admin"])
+        .eq("is_active", true);
+
+      if (admins?.length) {
+        await supabase.from("notifications").insert(
+          admins.map((a) => ({
+            user_id: a.id,
+            title: "Early checkout",
+            message: `${profile.name} ne early checkout kiya — ${timeStr}`,
+            link: "/attendance",
+          }))
+        );
+      }
+    }
 
     return NextResponse.json({ success: true });
   } catch (err) {

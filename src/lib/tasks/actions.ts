@@ -23,17 +23,10 @@ async function validateTaskAssignee(
     .eq("id", assignedTo)
     .single();
 
-  if (error || !assignee) {
-    return "Assignee not found.";
-  }
-
-  if (assignerRole === "super_admin") {
-    return null;
-  }
-
-  if (assignee.role !== "member" || !assignee.is_active) {
+  if (error || !assignee) return "Assignee not found.";
+  if (assignerRole === "super_admin") return null;
+  if (assignee.role !== "member" || !assignee.is_active)
     return "Tasks can only be assigned to active team members.";
-  }
 
   return null;
 }
@@ -55,10 +48,7 @@ async function recordTaskStatusChange(
     old_status: params.oldStatus,
     new_status: params.newStatus,
   });
-
-  if (activityError) {
-    throw new Error(activityError.message);
-  }
+  if (activityError) throw new Error(activityError.message);
 
   const { error: auditError } = await supabase.from("audit_log").insert({
     user_id: params.userId,
@@ -67,10 +57,27 @@ async function recordTaskStatusChange(
     entity_id: params.taskId,
     reason: `${params.oldStatus} → ${params.newStatus}`,
   });
+  if (auditError) throw new Error(auditError.message);
+}
 
-  if (auditError) {
-    throw new Error(auditError.message);
-  }
+// Helper — notify all founders + managers
+async function notifyAdmins(
+  supabase: ReturnType<typeof createClient>,
+  title: string,
+  message: string,
+  link: string
+) {
+  const { data: admins } = await supabase
+    .from("users")
+    .select("id")
+    .in("role", ["super_admin", "admin"])
+    .eq("is_active", true);
+
+  if (!admins?.length) return;
+
+  await supabase.from("notifications").insert(
+    admins.map((a) => ({ user_id: a.id, title, message, link }))
+  );
 }
 
 export async function createTaskFormAction(formData: FormData): Promise<void> {
@@ -99,14 +106,8 @@ export async function createTaskAction(formData: FormData) {
 
   const supabase = createClient();
 
-  const assigneeError = await validateTaskAssignee(
-    supabase,
-    profile.role,
-    assignedTo
-  );
-  if (assigneeError) {
-    return { error: assigneeError };
-  }
+  const assigneeError = await validateTaskAssignee(supabase, profile.role, assignedTo);
+  if (assigneeError) return { error: assigneeError };
 
   const { data: task, error } = await supabase
     .from("tasks")
@@ -139,6 +140,14 @@ export async function createTaskAction(formData: FormData) {
     action: "task_assigned",
     entity_type: "task",
     entity_id: task.id,
+  });
+
+  // Notify employee
+  await supabase.from("notifications").insert({
+    user_id: assignedTo,
+    title: "New task assigned",
+    message: `${profile.name} ne tumhe "${task.title}" task assign ki hai.`,
+    link: "/my-tasks",
   });
 
   const { data: assignee } = await supabase
@@ -174,50 +183,32 @@ export async function updateTaskStatusAction(
     .eq("id", taskId)
     .single();
 
-  if (fetchError || !task) {
-    return { error: "Task not found." };
-  }
+  if (fetchError || !task) return { error: "Task not found." };
 
   const oldStatus = task.status as TaskStatus;
 
-  if (
-    !isValidStatusTransition(profile.role, oldStatus, newStatus, {
-      forceClose: options?.forceClose,
-    })
-  ) {
+  if (!isValidStatusTransition(profile.role, oldStatus, newStatus, { forceClose: options?.forceClose })) {
     return { error: "This status transition is not allowed." };
   }
 
   if (options?.forceClose) {
-    if (profile.role !== "super_admin") {
-      return { error: "Only founders can force-close tasks." };
-    }
-    if (!options.overrideReason?.trim()) {
-      return { error: "Override reason is required for force close." };
-    }
+    if (profile.role !== "super_admin") return { error: "Only founders can force-close tasks." };
+    if (!options.overrideReason?.trim()) return { error: "Override reason is required for force close." };
 
-    const { error: overrideError } = await supabase
-      .from("god_mode_overrides")
-      .insert({
-        super_admin_id: profile.id,
-        action: "force_close_task",
-        target_entity: `task:${taskId}`,
-        reason: options.overrideReason.trim(),
-      });
-
-    if (overrideError) {
-      return { error: overrideError.message };
-    }
+    const { error: overrideError } = await supabase.from("god_mode_overrides").insert({
+      super_admin_id: profile.id,
+      action: "force_close_task",
+      target_entity: `task:${taskId}`,
+      reason: options.overrideReason.trim(),
+    });
+    if (overrideError) return { error: overrideError.message };
   }
 
   const { error: updateError } = await supabase
     .from("tasks")
     .update({ status: newStatus })
     .eq("id", taskId);
-
-  if (updateError) {
-    return { error: updateError.message };
-  }
+  if (updateError) return { error: updateError.message };
 
   try {
     await recordTaskStatusChange(supabase, {
@@ -229,16 +220,33 @@ export async function updateTaskStatusAction(
     });
   } catch (err) {
     await supabase.from("tasks").update({ status: oldStatus }).eq("id", taskId);
-    return {
-      error: err instanceof Error ? err.message : "Failed to record activity.",
-    };
+    return { error: err instanceof Error ? err.message : "Failed to record activity." };
   }
 
-  const notifyIds = new Set([task.assigned_to]);
+  // Notify employee on approval or revision
+  if (newStatus === "approved" || newStatus === "completed") {
+    await supabase.from("notifications").insert({
+      user_id: task.assigned_to,
+      title: "Task approved ✓",
+      message: `Tumhari "${task.title}" task approve ho gayi.`,
+      link: "/my-tasks",
+    });
+  }
+
+  if (newStatus === "revision_required") {
+    await supabase.from("notifications").insert({
+      user_id: task.assigned_to,
+      title: "Task revision required",
+      message: `"${task.title}" mein revision chahiye. Admin ka message dekho.`,
+      link: "/my-tasks",
+    });
+  }
+
+  // Email
   const { data: users } = await supabase
     .from("users")
     .select("id, email")
-    .in("id", Array.from(notifyIds));
+    .in("id", [task.assigned_to]);
 
   for (const user of users ?? []) {
     if (user.email) {
@@ -259,10 +267,7 @@ export async function updateTaskStatusAction(
 export async function addTaskCommentAction(taskId: string, message: string) {
   const profile = await requireUserProfile();
   const trimmed = message.trim();
-
-  if (!trimmed) {
-    return { error: "Comment cannot be empty." };
-  }
+  if (!trimmed) return { error: "Comment cannot be empty." };
 
   const supabase = createClient();
 
@@ -271,10 +276,7 @@ export async function addTaskCommentAction(taskId: string, message: string) {
     user_id: profile.id,
     message: trimmed,
   });
-
-  if (error) {
-    return { error: error.message };
-  }
+  if (error) return { error: error.message };
 
   await supabase.from("task_activity").insert({
     task_id: taskId,
@@ -290,32 +292,24 @@ export async function addTaskCommentAction(taskId: string, message: string) {
 
 export async function setTaskProofUrlAction(taskId: string, proofUrl: string) {
   const profile = await requireUserProfile();
-
   const supabase = createClient();
 
-  // Only check that user is the assignee — no role restriction
   const { data: task } = await supabase
     .from("tasks")
     .select("status, assigned_to")
     .eq("id", taskId)
     .single();
 
-  if (!task || task.assigned_to !== profile.id) {
+  if (!task || task.assigned_to !== profile.id)
     return { error: "You are not the assignee of this task." };
-  }
-
-  if (task.status !== "in_progress") {
+  if (task.status !== "in_progress")
     return { error: "Proof can only be uploaded while task is in progress." };
-  }
 
   const { error } = await supabase
     .from("tasks")
     .update({ proof_url: proofUrl })
     .eq("id", taskId);
-
-  if (error) {
-    return { error: error.message };
-  }
+  if (error) return { error: error.message };
 
   await supabase.from("task_activity").insert({
     task_id: taskId,
@@ -335,27 +329,19 @@ export async function submitTaskAction(
   optionalLink?: string | null
 ) {
   const profile = await requireUserProfile();
-
   const supabase = createClient();
 
   const { data: task, error: fetchError } = await supabase
     .from("tasks")
-    .select("id, status, assigned_to")
+    .select("id, title, status, assigned_to")
     .eq("id", taskId)
     .single();
 
-  if (fetchError || !task) {
-    return { error: "Task not found." };
-  }
-
-  if (task.assigned_to !== profile.id) {
-    return { error: "Task not found." };
-  }
+  if (fetchError || !task) return { error: "Task not found." };
+  if (task.assigned_to !== profile.id) return { error: "Task not found." };
 
   const noteTrimmed = String(completionNote ?? "").trim();
-  if (!noteTrimmed) {
-    return { error: "Completion note is required." };
-  }
+  if (!noteTrimmed) return { error: "Completion note is required." };
 
   if (optionalLink && String(optionalLink).trim()) {
     const res = await setTaskProofUrlAction(taskId, String(optionalLink).trim());
@@ -368,18 +354,22 @@ export async function submitTaskAction(
   const statusRes = await updateTaskStatusAction(taskId, "waiting_review");
   if (statusRes?.error) return statusRes;
 
+  // Notify founders + managers
+  await notifyAdmins(
+    supabase,
+    "Task submitted for review",
+    `${profile.name} ne "${task.title}" task submit ki — review karo.`,
+    `/tasks/${taskId}`
+  );
+
   revalidatePath("/tasks");
   revalidatePath(`/tasks/${taskId}`);
-
   return { success: true };
 }
 
 export async function getAssignableMembers() {
   const profile = await requireUserProfile();
-
-  if (profile.role === "member") {
-    return [];
-  }
+  if (profile.role === "member") return [];
 
   const supabase = createClient();
 
@@ -388,7 +378,6 @@ export async function getAssignableMembers() {
       .from("users")
       .select("id, name, email, role, is_active")
       .order("name");
-
     return data ?? [];
   }
 
@@ -398,16 +387,13 @@ export async function getAssignableMembers() {
     .eq("role", "member")
     .eq("is_active", true)
     .order("name");
-
   return data ?? [];
 }
+
 export async function cannotCompleteTaskAction(taskId: string, reason: string) {
   const profile = await requireUserProfile();
   const trimmed = reason.trim();
-
-  if (!trimmed) {
-    return { error: "Reason is required." };
-  }
+  if (!trimmed) return { error: "Reason is required." };
 
   const supabase = createClient();
 
@@ -417,38 +403,22 @@ export async function cannotCompleteTaskAction(taskId: string, reason: string) {
     .eq("id", taskId)
     .single();
 
-  if (fetchError || !task) {
-    return { error: "Task not found." };
-  }
+  if (fetchError || !task) return { error: "Task not found." };
+  if (task.assigned_to !== profile.id) return { error: "You are not the assignee of this task." };
+  if (task.status !== "in_progress") return { error: "Task must be in progress to report cannot complete." };
 
-  if (task.assigned_to !== profile.id) {
-    return { error: "You are not the assignee of this task." };
-  }
-
-  if (task.status !== "in_progress") {
-    return { error: "Task must be in progress to report cannot complete." };
-  }
-
-  // Save reason as a comment prefixed so admin can see it clearly
   const { error: commentError } = await supabase.from("task_comments").insert({
     task_id: taskId,
     user_id: profile.id,
     message: `[Cannot Complete] ${trimmed}`,
   });
+  if (commentError) return { error: commentError.message };
 
-  if (commentError) {
-    return { error: commentError.message };
-  }
-
-  // Move to revision_required so admin sees it in their queue
   const { error: updateError } = await supabase
     .from("tasks")
     .update({ status: "revision_required" })
     .eq("id", taskId);
-
-  if (updateError) {
-    return { error: updateError.message };
-  }
+  if (updateError) return { error: updateError.message };
 
   await supabase.from("task_activity").insert({
     task_id: taskId,
@@ -465,6 +435,14 @@ export async function cannotCompleteTaskAction(taskId: string, reason: string) {
     entity_id: taskId,
     reason: trimmed,
   });
+
+  // Notify founders + managers
+  await notifyAdmins(
+    supabase,
+    "Task cannot be completed",
+    `${profile.name} ne "${task.title}" complete nahi kar saka. Reason: ${trimmed}`,
+    `/tasks/${taskId}`
+  );
 
   revalidatePath("/tasks");
   revalidatePath(`/tasks/${taskId}`);

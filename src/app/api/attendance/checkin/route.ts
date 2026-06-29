@@ -60,6 +60,27 @@ export async function POST() {
       entity_id: null,
     });
 
+    // Notify founders + managers if late
+    if (status === "late") {
+      const timeStr = now.toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit" });
+      const { data: admins } = await admin
+        .from("users")
+        .select("id")
+        .in("role", ["super_admin", "admin"])
+        .eq("is_active", true);
+
+      if (admins?.length) {
+        await supabase.from("notifications").insert(
+          admins.map((a) => ({
+            user_id: a.id,
+            title: "Late check-in",
+            message: `${profile.name} aaj late aaya — ${timeStr}`,
+            link: "/attendance",
+          }))
+        );
+      }
+    }
+
     return NextResponse.json({ success: true, status });
   } catch (err) {
     return NextResponse.json(
