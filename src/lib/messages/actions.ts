@@ -188,7 +188,7 @@ export async function getLatestNotifications() {
 
   const { data, error } = await supabase
     .from("notifications")
-    .select("id, title, message, is_read, link, created_at")
+    .select("id, title, message, is_read, link, created_at, type, reference_id")
     .eq("user_id", profile.id)
     .order("created_at", { ascending: false })
     .limit(10);
@@ -229,6 +229,42 @@ export async function clearAllNotifications() {
 
   if (error) {
     console.error("Failed to clear notifications:", error.message);
+    return { error: error.message };
+  }
+
+  return { success: true };
+}
+
+export async function deleteNotificationAction(notificationId: string) {
+  const profile = await requireUserProfile();
+  const supabase = createClient();
+
+  const { error } = await supabase
+    .from("notifications")
+    .delete()
+    .eq("id", notificationId)
+    .eq("user_id", profile.id);
+
+  if (error) {
+    console.error("Failed to delete notification:", error.message);
+    return { error: error.message };
+  }
+
+  return { success: true };
+}
+
+export async function markNotificationReadAction(notificationId: string) {
+  const profile = await requireUserProfile();
+  const supabase = createClient();
+
+  const { error } = await supabase
+    .from("notifications")
+    .update({ is_read: true })
+    .eq("id", notificationId)
+    .eq("user_id", profile.id);
+
+  if (error) {
+    console.error("Failed to mark notification read:", error.message);
     return { error: error.message };
   }
 

@@ -76,6 +76,7 @@ export async function POST() {
             title: "Late check-in",
             message: `${profile.name} aaj late aaya — ${timeStr}`,
             link: "/attendance",
+            type: "attendance",
           }))
         );
       }

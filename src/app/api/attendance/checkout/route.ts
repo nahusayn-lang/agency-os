@@ -86,6 +86,7 @@ export async function POST() {
             title: "Early checkout",
             message: `${profile.name} ne early checkout kiya — ${timeStr}`,
             link: "/attendance",
+            type: "attendance",
           }))
         );
       }
