@@ -58,9 +58,8 @@ export async function evaluateCheckin(
 ): Promise<CheckinEvaluation> {
   const admin = createAdminClient();
 
-  const [hours, minutes, seconds] = shiftStart.split(":").map(Number);
-  const shiftStartToday = new Date(checkinTime);
-  shiftStartToday.setHours(hours, minutes, seconds ?? 0, 0);
+  const istDateStr = checkinTime.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+  const shiftStartToday = new Date(`${istDateStr}T${shiftStart}+05:30`);
 
   const isLate = checkinTime > shiftStartToday;
 
@@ -361,9 +360,7 @@ export async function sweepMissedCheckouts(): Promise<number> {
   const today = getISTDateString(now);
 
   for (const user of checkedInUsers) {
-    const [h, m, s] = user.shift_end.split(":").map(Number);
-    const shiftEndToday = new Date(now);
-    shiftEndToday.setHours(h, m, s ?? 0, 0);
+    const shiftEndToday = new Date(`${today}T${user.shift_end}+05:30`);
     const cutoff = new Date(shiftEndToday.getTime() + 60 * 60 * 1000); // +1hr grace
 
     if (now <= cutoff) continue;

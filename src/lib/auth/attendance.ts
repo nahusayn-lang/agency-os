@@ -1,10 +1,15 @@
 import type { AttendanceStatus } from "@/lib/types/database";
 
+/**
+ * Builds the absolute instant for a given "HH:MM:SS" wall-clock time, ON THE
+ * IST CALENDAR DATE of `reference` — regardless of the server's own local
+ * timezone (Vercel runs UTC by default, and setHours() previously set the
+ * hour in server-local time, silently shifting every shift_start/shift_end
+ * comparison by 5:30 hours). This is timezone-safe.
+ */
 function parseTimeOnDate(time: string, reference: Date): Date {
-  const [hours, minutes, seconds] = time.split(":").map(Number);
-  const result = new Date(reference);
-  result.setHours(hours, minutes, seconds ?? 0, 0);
-  return result;
+  const istDateStr = reference.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" }); // "YYYY-MM-DD"
+  return new Date(`${istDateStr}T${time}+05:30`);
 }
 
 export function getLoginAttendanceStatus(
