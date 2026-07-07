@@ -11,6 +11,7 @@ import { isValidStatusTransition } from "@/lib/tasks/transitions";
 import type { UserRole } from "@/lib/types/database";
 import type { TaskPriority, TaskStatus } from "@/lib/types/tasks";
 import { TASK_STATUS_LABELS } from "@/lib/types/tasks";
+import { evaluateCannotComplete } from "@/lib/services/strike-fine-engine";
 
 async function validateTaskAssignee(
   supabase: ReturnType<typeof createClient>,
@@ -61,11 +62,15 @@ async function recordTaskStatusChange(
 }
 
 // Helper — notify all founders + managers
+// NOTE: type + referenceId are load-bearing — notification-bell.tsx uses them
+// to decide if a notification is directly actionable. Do not drop these.
 async function notifyAdmins(
   supabase: ReturnType<typeof createClient>,
   title: string,
   message: string,
-  link: string
+  link: string,
+  type: string,
+  referenceId: string
 ) {
   const { data: admins } = await supabase
     .from("users")
@@ -76,7 +81,14 @@ async function notifyAdmins(
   if (!admins?.length) return;
 
   await supabase.from("notifications").insert(
-    admins.map((a) => ({ user_id: a.id, title, message, link }))
+    admins.map((a) => ({
+      user_id: a.id,
+      title,
+      message,
+      link,
+      type,
+      reference_id: referenceId,
+    }))
   );
 }
 
@@ -147,7 +159,9 @@ export async function createTaskAction(formData: FormData) {
     user_id: assignedTo,
     title: "New task assigned",
     message: `${profile.name} ne tumhe "${task.title}" task assign ki hai.`,
-    link: "/my-tasks",
+    link: `/tasks/${task.id}`,
+    type: "task_assigned",
+    reference_id: task.id,
   });
 
   const { data: assignee } = await supabase
@@ -229,7 +243,9 @@ export async function updateTaskStatusAction(
       user_id: task.assigned_to,
       title: "Task approved ✓",
       message: `Tumhari "${task.title}" task approve ho gayi.`,
-      link: "/my-tasks",
+      link: `/tasks/${taskId}`,
+      type: "task_approved",
+      reference_id: taskId,
     });
   }
 
@@ -238,7 +254,9 @@ export async function updateTaskStatusAction(
       user_id: task.assigned_to,
       title: "Task revision required",
       message: `"${task.title}" mein revision chahiye. Admin ka message dekho.`,
-      link: "/my-tasks",
+      link: `/tasks/${taskId}`,
+      type: "task_revision",
+      reference_id: taskId,
     });
   }
 
@@ -359,7 +377,9 @@ export async function submitTaskAction(
     supabase,
     "Task submitted for review",
     `${profile.name} ne "${task.title}" task submit ki — review karo.`,
-    `/tasks/${taskId}`
+    `/tasks/${taskId}`,
+    "task_review",
+    taskId
   );
 
   revalidatePath("/tasks");
@@ -407,6 +427,10 @@ export async function cannotCompleteTaskAction(taskId: string, reason: string) {
   if (task.assigned_to !== profile.id) return { error: "You are not the assignee of this task." };
   if (task.status !== "in_progress") return { error: "Task must be in progress to report cannot complete." };
 
+  // Rule 3: 1 free use/day. 2nd+ use same day -> needs super_admin approval,
+  // checkout stays blocked (checked in checkout/route.ts).
+  const usage = await evaluateCannotComplete(profile.id, taskId, trimmed);
+
   const { error: commentError } = await supabase.from("task_comments").insert({
     task_id: taskId,
     user_id: profile.id,
@@ -414,19 +438,31 @@ export async function cannotCompleteTaskAction(taskId: string, reason: string) {
   });
   if (commentError) return { error: commentError.message };
 
-  const { error: updateError } = await supabase
-    .from("tasks")
-    .update({ status: "revision_required" })
-    .eq("id", taskId);
-  if (updateError) return { error: updateError.message };
+  if (usage.status === "auto_accepted") {
+    const { error: updateError } = await supabase
+      .from("tasks")
+      .update({ status: "revision_required" })
+      .eq("id", taskId);
+    if (updateError) return { error: updateError.message };
 
-  await supabase.from("task_activity").insert({
-    task_id: taskId,
-    performed_by: profile.id,
-    action: "cannot_complete",
-    old_status: "in_progress",
-    new_status: "revision_required",
-  });
+    await supabase.from("task_activity").insert({
+      task_id: taskId,
+      performed_by: profile.id,
+      action: "cannot_complete",
+      old_status: "in_progress",
+      new_status: "revision_required",
+    });
+  } else {
+    // Pending approval — task deliberately stays in_progress so it doesn't
+    // silently look resolved while checkout is blocked.
+    await supabase.from("task_activity").insert({
+      task_id: taskId,
+      performed_by: profile.id,
+      action: "cannot_complete_pending_approval",
+      old_status: "in_progress",
+      new_status: "in_progress",
+    });
+  }
 
   await supabase.from("audit_log").insert({
     user_id: profile.id,
@@ -437,14 +473,21 @@ export async function cannotCompleteTaskAction(taskId: string, reason: string) {
   });
 
   // Notify founders + managers
+  const adminMessage =
+    usage.status === "pending_approval"
+      ? `${profile.name} ne aaj 2nd baar "${task.title}" complete nahi kar saka — approval chahiye. Reason: ${trimmed}`
+      : `${profile.name} ne "${task.title}" complete nahi kar saka. Reason: ${trimmed}`;
+
   await notifyAdmins(
     supabase,
-    "Task cannot be completed",
-    `${profile.name} ne "${task.title}" complete nahi kar saka. Reason: ${trimmed}`,
-    `/tasks/${taskId}`
+    usage.status === "pending_approval" ? "Cannot-complete approval needed" : "Task cannot be completed",
+    adminMessage,
+    `/tasks/${taskId}`,
+    usage.status === "pending_approval" ? "cannot_complete_pending" : "task_blocked",
+    taskId
   );
 
   revalidatePath("/tasks");
   revalidatePath(`/tasks/${taskId}`);
-  return { success: true };
+  return { success: true, status: usage.status };
 }
