@@ -11,6 +11,8 @@ import { TeamProfilesList } from "@/components/dashboard/team-profiles-list";
 import { AttendanceCard } from "@/components/dashboard/attendance-card";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { getTodayDateString } from "@/lib/auth/attendance";
+import { FinesAdminTable, type AdminFineRow } from "@/components/dashboard/fines-admin-table";
+import { StrikeControlPanel, type StrikeRow } from "@/components/dashboard/strike-control-panel";
 
 export default async function FounderDashboardPage() {
   const profile = await requireRole("super_admin");
@@ -63,6 +65,37 @@ export default async function FounderDashboardPage() {
   const revenueGenerated = (wonLeads ?? []).reduce((sum, lead) => sum + (lead.deal_value ?? 0), 0);
   const { count: lostDeals } = await supabase.from("leads").select("*", { count: "exact", head: true }).eq("stage", "deal_lost");
 
+  // All employee fines — super_admin can Mark Paid / Waive
+  const { data: allFinesRaw } = await admin
+    .from("fines")
+    .select("id, amount, status, deadline, proof_url, dispute_reason, users:user_id(name)")
+    .order("created_at", { ascending: false });
+
+  const allFines: AdminFineRow[] = (allFinesRaw ?? []).map((f) => ({
+    id: f.id,
+    amount: f.amount,
+    status: f.status,
+    deadline: f.deadline,
+    proof_url: f.proof_url,
+    dispute_reason: f.dispute_reason,
+    user_name: (f.users as unknown as { name: string } | null)?.name ?? "Unknown",
+  }));
+
+  // Active strikes — founder-only, private removal control
+  const { data: activeStrikesRaw } = await admin
+    .from("strikes")
+    .select("id, reason, is_removed, created_at, users:user_id(name)")
+    .eq("is_removed", false)
+    .order("created_at", { ascending: false });
+
+  const activeStrikes: StrikeRow[] = (activeStrikesRaw ?? []).map((s) => ({
+    id: s.id,
+    reason: s.reason,
+    is_removed: s.is_removed,
+    created_at: s.created_at,
+    user_name: (s.users as unknown as { name: string } | null)?.name ?? "Unknown",
+  }));
+
   return (
     <div className="space-y-8">
       <div>
@@ -113,6 +146,11 @@ export default async function FounderDashboardPage() {
       </div>
 
       <WeeklyCommitmentCard weekStart={weekStart} initialText={commitment?.commitment_text ?? ""} />
+
+      <FinesAdminTable fines={allFines} isSuperAdmin={true} />
+
+      <StrikeControlPanel strikes={activeStrikes} />
+
       <TeamProfilesList members={teamMembers ?? []} />
       <OverrideHistoryTable overrides={overrides} actorNames={actorNames} />
     </div>

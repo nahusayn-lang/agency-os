@@ -9,6 +9,7 @@ import { FounderCommitmentReadonly } from "@/components/dashboard/founder-commit
 import { AttendanceCard } from "@/components/dashboard/attendance-card";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { getTodayDateString } from "@/lib/auth/attendance";
+import { FinesAdminTable, type AdminFineRow } from "@/components/dashboard/fines-admin-table";
 
 export default async function ManagerDashboardPage() {
   const profile = await requireRole("admin");
@@ -56,6 +57,22 @@ export default async function ManagerDashboardPage() {
     .select("*", { count: "exact", head: true })
     .not("stage", "in", '("deal_won","deal_lost")');
 
+  // All employee fines — view-only for admin (super_admin has the actions)
+  const { data: allFinesRaw } = await admin
+    .from("fines")
+    .select("id, amount, status, deadline, proof_url, dispute_reason, users:user_id(name)")
+    .order("created_at", { ascending: false });
+
+  const allFines: AdminFineRow[] = (allFinesRaw ?? []).map((f) => ({
+    id: f.id,
+    amount: f.amount,
+    status: f.status,
+    deadline: f.deadline,
+    proof_url: f.proof_url,
+    dispute_reason: f.dispute_reason,
+    user_name: (f.users as unknown as { name: string } | null)?.name ?? "Unknown",
+  }));
+
   return (
     <div className="space-y-8">
       <div>
@@ -91,6 +108,8 @@ export default async function ManagerDashboardPage() {
         weekStart={weekStart}
         commitmentText={commitment?.commitment_text ?? null}
       />
+
+      <FinesAdminTable fines={allFines} isSuperAdmin={false} />
 
       <section className="rounded-xl border p-6">
         <h2 className="mb-3 font-medium">Team performance profiles</h2>

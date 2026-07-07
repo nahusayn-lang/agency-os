@@ -11,6 +11,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { AttendanceCard } from "@/components/dashboard/attendance-card";
 import { getTodayDateString } from "@/lib/auth/attendance";
+import { FineWalletWidget } from "@/components/dashboard/fine-wallet-widget";
 
 export default async function EmployeeDashboardPage() {
   const profile = await requireRole("member");
@@ -68,6 +69,13 @@ export default async function EmployeeDashboardPage() {
     .eq("user_id", profile.id)
     .eq("is_read", false);
 
+  // Own fines — Fine Wallet widget
+  const { data: myFines } = await admin
+    .from("fines")
+    .select("id, amount, status, deadline, proof_url, dispute_reason")
+    .eq("user_id", profile.id)
+    .order("created_at", { ascending: false });
+
   return (
     <div className="space-y-8">
       <div>
@@ -118,6 +126,8 @@ export default async function EmployeeDashboardPage() {
         weekStart={weekStart}
         commitmentText={commitment?.commitment_text ?? null}
       />
+
+      <FineWalletWidget fines={myFines ?? []} />
 
       <section className="rounded-xl border p-6">
         <h2 className="mb-4 font-medium">Your performance score</h2>
