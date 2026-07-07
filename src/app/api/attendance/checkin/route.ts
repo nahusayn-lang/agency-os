@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { requireUserProfile } from "@/lib/auth/session";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getLoginAttendanceStatus, getTodayDateString } from "@/lib/auth/attendance";
+import { getTodayDateString } from "@/lib/auth/attendance";
 import { createClient } from "@/lib/supabase/server";
+import { evaluateCheckin, addStrike } from "@/lib/services/strike-fine-engine";
 
 export async function POST() {
   const profile = await requireUserProfile();
@@ -24,7 +25,9 @@ export async function POST() {
     }
 
     const shiftStart = userRow?.shift_start ?? "00:00:00";
-    const status = getLoginAttendanceStatus(shiftStart, now);
+
+    const evaluation = await evaluateCheckin(profile.id, shiftStart, now);
+    const status = evaluation.status;
 
     const { data: existing } = await admin
       .from("attendance")
@@ -33,19 +36,26 @@ export async function POST() {
       .eq("date", today)
       .maybeSingle();
 
+    let attendanceId: string | null = existing?.id ?? null;
+
     if (existing) {
       await admin
         .from("attendance")
         .update({ checkin_time: now.toISOString(), login_time: now.toISOString(), status })
         .eq("id", existing.id);
     } else {
-      await admin.from("attendance").insert({
-        user_id: profile.id,
-        checkin_time: now.toISOString(),
-        login_time: now.toISOString(),
-        status,
-        date: today,
-      });
+      const { data: inserted } = await admin
+        .from("attendance")
+        .insert({
+          user_id: profile.id,
+          checkin_time: now.toISOString(),
+          login_time: now.toISOString(),
+          status,
+          date: today,
+        })
+        .select("id")
+        .single();
+      attendanceId = inserted?.id ?? null;
     }
 
     await admin
@@ -57,11 +67,14 @@ export async function POST() {
       user_id: profile.id,
       action: "checkin",
       entity_type: "attendance",
-      entity_id: null,
+      entity_id: attendanceId,
     });
 
-    // Notify founders + managers if late
-    if (status === "late") {
+    if (evaluation.strikeTriggered) {
+      await addStrike(profile.id, "late_checkin", attendanceId);
+    }
+
+    if (status === "late" || evaluation.graceUsed) {
       const timeStr = now.toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit" });
       const { data: admins } = await admin
         .from("users")
@@ -70,11 +83,15 @@ export async function POST() {
         .eq("is_active", true);
 
       if (admins?.length) {
+        const note = evaluation.strikeTriggered
+          ? `${profile.name} late aaya (${timeStr}) — grace khatam, 1 strike lagi hai.`
+          : `${profile.name} late aaya (${timeStr}) — grace period use hua.`;
+
         await supabase.from("notifications").insert(
           admins.map((a) => ({
             user_id: a.id,
             title: "Late check-in",
-            message: `${profile.name} aaj late aaya — ${timeStr}`,
+            message: note,
             link: "/attendance",
             type: "attendance",
           }))
@@ -82,7 +99,12 @@ export async function POST() {
       }
     }
 
-    return NextResponse.json({ success: true, status });
+    return NextResponse.json({
+      success: true,
+      status,
+      strikeAdded: evaluation.strikeTriggered,
+      graceUsed: evaluation.graceUsed,
+    });
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Failed" },

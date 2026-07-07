@@ -3,6 +3,7 @@ import { requireUserProfile } from "@/lib/auth/session";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { isEarlyExit, getTodayDateString } from "@/lib/auth/attendance";
+import { hasPendingCannotCompleteApproval } from "@/lib/services/strike-fine-engine";
 
 export async function POST() {
   const profile = await requireUserProfile();
@@ -39,6 +40,17 @@ export async function POST() {
       );
     }
 
+    const pendingApproval = await hasPendingCannotCompleteApproval(profile.id);
+    if (pendingApproval) {
+      return NextResponse.json(
+        {
+          error: "checkout_blocked_pending_approval",
+          message: "Ek 'cannot complete' request super_admin approval ka wait kar rahi hai. Checkout tab tak block hai.",
+        },
+        { status: 403 }
+      );
+    }
+
     const shiftEnd = userRow?.shift_end ?? "23:59:59";
     const isEarly = isEarlyExit(shiftEnd, now);
     const statusUpdate = isEarly ? "early_exit" : undefined;
@@ -70,7 +82,6 @@ export async function POST() {
       entity_id: null,
     });
 
-    // Notify founders + managers if early exit
     if (isEarly) {
       const timeStr = now.toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit" });
       const { data: admins } = await admin
