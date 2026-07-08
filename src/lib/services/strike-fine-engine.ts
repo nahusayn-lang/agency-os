@@ -155,8 +155,35 @@ export async function addStrike(
   return { strikeId: strike.id, fineCreated };
 }
 
+/** Founder-configurable fine amount (single row settings table). Falls back to ₹149. */
+export async function getFineAmount(): Promise<number> {
+  const admin = createAdminClient();
+  const { data } = await admin.from("fine_settings").select("amount").eq("id", 1).maybeSingle();
+  return Number(data?.amount ?? 149);
+}
+
+/** Super_admin-only: updates the fine amount used for all future fines. */
+export async function setFineAmount(amount: number, updatedBy: string): Promise<void> {
+  if (!Number.isFinite(amount) || amount <= 0) {
+    throw new Error("Fine amount valid positive number honi chahiye.");
+  }
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("fine_settings")
+    .upsert({ id: 1, amount, updated_by: updatedBy, updated_at: new Date().toISOString() });
+  if (error) throw new Error(`Failed to update fine amount: ${error.message}`);
+
+  await admin.from("audit_log").insert({
+    user_id: updatedBy,
+    action: "fine_amount_updated",
+    entity_type: "fine_settings",
+    entity_id: "1",
+    reason: `New amount: ₹${amount}`,
+  });
+}
+
 /**
- * Every 3 un-fined strikes -> 1 new fine of ₹100.
+ * Every 3 un-fined strikes -> 1 new fine (amount from fine_settings, default ₹149).
  * Multiple fines can be created in one call if strikes accumulated fast (e.g. 6 -> 2 fines).
  */
 export async function checkAndCreateFine(userId: string): Promise<boolean> {
@@ -173,6 +200,8 @@ export async function checkAndCreateFine(userId: string): Promise<boolean> {
   if (error) throw new Error(`Failed to check strikes for fine: ${error.message}`);
   if (!unfinedStrikes || unfinedStrikes.length < 3) return false;
 
+  const fineAmount = await getFineAmount();
+
   let created = false;
   let pool = unfinedStrikes;
 
@@ -186,7 +215,7 @@ export async function checkAndCreateFine(userId: string): Promise<boolean> {
       .from("fines")
       .insert({
         user_id: userId,
-        amount: 100,
+        amount: fineAmount,
         strikes_count: 3,
         status: "pending",
         deadline,
@@ -208,8 +237,8 @@ export async function checkAndCreateFine(userId: string): Promise<boolean> {
 
     await admin.from("notifications").insert({
       user_id: userId,
-      title: "Fine raised — ₹100",
-      message: `3 strikes complete ho gaye — ₹100 ka fine laga hai. Deadline: ${deadline}`,
+      title: `Fine raised — ₹${fineAmount}`,
+      message: `3 strikes complete ho gaye — ₹${fineAmount} ka fine laga hai. Deadline: ${deadline}`,
       link: "/attendance",
       type: "fine",
     });

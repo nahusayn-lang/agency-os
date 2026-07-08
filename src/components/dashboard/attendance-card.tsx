@@ -17,6 +17,53 @@ interface AttendanceCardProps {
   shiftStart: string | null;
   shiftEnd: string | null;
   checkedOutToday?: boolean;
+  /** Active (not removed) strikes not yet folded into a fine — normally 0, 1 or 2. */
+  activeStrikeCount?: number;
+  /** Fines still awaiting payment/confirmation (status 'pending' or 'submitted'). */
+  pendingFineCount?: number;
+  /** Amount of a single fine, for the ₹ label (all fines share the same current amount). */
+  fineAmount?: number;
+}
+
+function StrikeFineBadge({
+  activeStrikeCount = 0,
+  pendingFineCount = 0,
+  fineAmount = 149,
+}: {
+  activeStrikeCount?: number;
+  pendingFineCount?: number;
+  fineAmount?: number;
+}) {
+  if (activeStrikeCount === 0 && pendingFineCount === 0) return null;
+
+  let label = "";
+  let tone = "";
+
+  if (pendingFineCount === 0) {
+    label = `${activeStrikeCount} ${activeStrikeCount === 1 ? "strike" : "strikes"}`;
+    tone =
+      activeStrikeCount === 1
+        ? "bg-amber-500/10 text-amber-500 border border-amber-500/30"
+        : "bg-orange-500/10 text-orange-500 border border-orange-500/30";
+  } else {
+    const fineLabel =
+      pendingFineCount === 1
+        ? `fine ₹${fineAmount}`
+        : `fine ₹${fineAmount * pendingFineCount} · ${pendingFineCount}×`;
+    label = activeStrikeCount > 0 ? `${fineLabel} + ${activeStrikeCount} strike${activeStrikeCount > 1 ? "s" : ""}` : fineLabel;
+    tone = "bg-destructive/10 text-destructive border border-destructive/30";
+  }
+
+  return (
+    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ${tone}`}>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-3">
+        <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" />
+        <line x1="12" y1="9" x2="12" y2="13" />
+        <line x1="12" y1="17" x2="12.01" y2="17" />
+      </svg>
+      {label}
+    </span>
+  );
 }
 
 function formatDuration(ms: number): string {
@@ -35,7 +82,16 @@ function fmtShiftTime(t: string | null): string {
   return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: true });
 }
 
-export function AttendanceCard({ isCheckedIn, lastCheckinAt, shiftStart, shiftEnd, checkedOutToday }: AttendanceCardProps) {
+export function AttendanceCard({
+  isCheckedIn,
+  lastCheckinAt,
+  shiftStart,
+  shiftEnd,
+  checkedOutToday,
+  activeStrikeCount = 0,
+  pendingFineCount = 0,
+  fineAmount = 149,
+}: AttendanceCardProps) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -133,17 +189,24 @@ export function AttendanceCard({ isCheckedIn, lastCheckinAt, shiftStart, shiftEn
   return (
     <>
       <Card className={`border-2 ${isCheckedIn ? "border-emerald-500/40 bg-emerald-950/20" : checkedOutToday ? "border-emerald-500/20" : "border-border"}`}>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Attendance</CardTitle>
-          {isCheckedIn && (
-            <span className="flex items-center gap-1.5 text-xs font-medium text-emerald-400">
-              <span className="relative flex h-2 w-2">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+          <div className="flex flex-col items-end gap-1.5">
+            {isCheckedIn && (
+              <span className="flex items-center gap-1.5 text-xs font-medium text-emerald-400">
+                <span className="relative flex h-2 w-2">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+                </span>
+                Live
               </span>
-              Live
-            </span>
-          )}
+            )}
+            <StrikeFineBadge
+              activeStrikeCount={activeStrikeCount}
+              pendingFineCount={pendingFineCount}
+              fineAmount={fineAmount}
+            />
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
 

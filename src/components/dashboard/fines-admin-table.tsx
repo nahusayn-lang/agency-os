@@ -8,20 +8,27 @@ export interface AdminFineRow {
   id: string;
   user_name: string;
   amount: number;
-  status: "pending" | "paid" | "waived";
+  status: "pending" | "submitted" | "paid" | "waived";
   deadline: string;
   proof_url: string | null;
-  dispute_reason: string | null;
+  payment_comment: string | null;
 }
 
-function statusBadge(status: AdminFineRow["status"], isOverdue: boolean) {
-  if (status === "paid") return "bg-accent text-accent-foreground";
-  if (status === "waived") return "bg-muted text-muted-foreground";
-  if (isOverdue) return "bg-destructive/15 text-destructive";
-  return "bg-yellow-500/10 text-yellow-600 border border-yellow-500/40";
+function statusBadgeClass(status: AdminFineRow["status"], isOverdue: boolean) {
+  if (status === "paid") return "bg-emerald-500/10 text-emerald-500 border border-emerald-500/30";
+  if (status === "waived") return "bg-muted text-muted-foreground border border-border";
+  if (status === "submitted") return "bg-sky-500/10 text-sky-500 border border-sky-500/30";
+  if (isOverdue) return "bg-destructive/10 text-destructive border border-destructive/30";
+  return "bg-amber-500/10 text-amber-500 border border-amber-500/30";
 }
 
-/** Only render for super_admin — pass isSuperAdmin from the server page. */
+function statusLabel(status: AdminFineRow["status"], isOverdue: boolean) {
+  if (status === "pending" && isOverdue) return "overdue";
+  if (status === "submitted") return "awaiting confirmation";
+  return status;
+}
+
+/** Founder sees full controls; admin/manager get a read-only list. */
 export function FinesAdminTable({
   fines,
   isSuperAdmin,
@@ -32,7 +39,7 @@ export function FinesAdminTable({
   const [pending, startTransition] = useTransition();
   const today = new Date().toISOString().slice(0, 10);
 
-  function act(fineId: string, action: "paid" | "waived") {
+  function act(fineId: string, action: "paid" | "waived" | "reject") {
     startTransition(async () => {
       await fetch("/api/admin/fines", {
         method: "POST",
@@ -46,69 +53,68 @@ export function FinesAdminTable({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Employee Fines</CardTitle>
+        <CardTitle className="text-base">Employee fines</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-left text-muted-foreground border-b">
-                <th className="py-2 pr-4">Employee</th>
-                <th className="py-2 pr-4">Amount</th>
-                <th className="py-2 pr-4">Deadline</th>
-                <th className="py-2 pr-4">Status</th>
-                <th className="py-2 pr-4">Proof</th>
-                {isSuperAdmin && <th className="py-2 pr-4">Action</th>}
-              </tr>
-            </thead>
-            <tbody>
-              {fines.map((fine) => {
-                const isOverdue = fine.status === "pending" && fine.deadline < today;
-                return (
-                  <tr key={fine.id} className="border-b last:border-0">
-                    <td className="py-2 pr-4">{fine.user_name}</td>
-                    <td className="py-2 pr-4">₹{fine.amount}</td>
-                    <td className="py-2 pr-4">{fine.deadline}</td>
-                    <td className="py-2 pr-4">
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${statusBadge(fine.status, isOverdue)}`}>
-                        {fine.status === "pending" && isOverdue ? "overdue" : fine.status}
-                      </span>
-                    </td>
-                    <td className="py-2 pr-4">
-                      {fine.proof_url ? (
-                        <a href={fine.proof_url} target="_blank" rel="noreferrer" className="text-blue-500 underline text-xs">
-                          view
-                        </a>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">—</span>
-                      )}
-                    </td>
-                    {isSuperAdmin && (
-                      <td className="py-2 pr-4">
-                        {fine.status === "pending" && (
-                          <div className="flex gap-2">
-                            <Button size="sm" disabled={pending} onClick={() => act(fine.id, "paid")}>
-                              Mark Paid
-                            </Button>
-                            <Button size="sm" variant="ghost" disabled={pending} onClick={() => act(fine.id, "waived")}>
-                              Waive
-                            </Button>
-                          </div>
-                        )}
-                      </td>
-                    )}
-                  </tr>
-                );
-              })}
-              {fines.length === 0 && (
-                <tr>
-                  <td colSpan={isSuperAdmin ? 6 : 5} className="py-4 text-center text-muted-foreground">
-                    Koi fine nahi hai.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+        {fines.length === 0 && (
+          <p className="text-sm text-muted-foreground py-4 text-center">Koi fine nahi hai.</p>
+        )}
+
+        <div className="space-y-2">
+          {fines.map((fine) => {
+            const isOverdue = fine.status === "pending" && fine.deadline < today;
+            return (
+              <div key={fine.id} className="rounded-lg border p-3 space-y-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="font-medium text-sm">{fine.user_name}</span>
+                  <span className={`text-xs px-2 py-0.5 rounded-full ${statusBadgeClass(fine.status, isOverdue)}`}>
+                    {statusLabel(fine.status, isOverdue)}
+                  </span>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                  <span className="text-foreground font-medium text-sm">₹{fine.amount}</span>
+                  <span>Deadline: {fine.deadline}</span>
+                  {fine.proof_url && (
+                    <a href={fine.proof_url} target="_blank" rel="noreferrer" className="text-primary underline">
+                      Screenshot dekho
+                    </a>
+                  )}
+                </div>
+
+                {fine.payment_comment && (
+                  <p className="text-xs text-muted-foreground italic">&quot;{fine.payment_comment}&quot;</p>
+                )}
+
+                {isSuperAdmin && fine.status === "submitted" && (
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    <Button
+                      size="sm"
+                      disabled={pending}
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                      onClick={() => act(fine.id, "paid")}
+                    >
+                      Confirm paid
+                    </Button>
+                    <Button size="sm" variant="outline" disabled={pending} onClick={() => act(fine.id, "reject")}>
+                      Reject proof
+                    </Button>
+                  </div>
+                )}
+
+                {isSuperAdmin && fine.status === "pending" && (
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    <Button size="sm" disabled={pending} onClick={() => act(fine.id, "paid")}>
+                      Mark paid
+                    </Button>
+                    <Button size="sm" variant="ghost" disabled={pending} onClick={() => act(fine.id, "waived")}>
+                      Waive
+                    </Button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       </CardContent>
     </Card>

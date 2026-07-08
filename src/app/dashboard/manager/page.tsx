@@ -10,6 +10,8 @@ import { AttendanceCard } from "@/components/dashboard/attendance-card";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { getTodayDateString } from "@/lib/auth/attendance";
 import { FinesAdminTable, type AdminFineRow } from "@/components/dashboard/fines-admin-table";
+import { FineWalletWidget } from "@/components/dashboard/fine-wallet-widget";
+import { getFineAmount } from "@/lib/services/strike-fine-engine";
 
 export default async function ManagerDashboardPage() {
   const profile = await requireRole("admin");
@@ -60,7 +62,7 @@ export default async function ManagerDashboardPage() {
   // All employee fines — view-only for admin (super_admin has the actions)
   const { data: allFinesRaw } = await admin
     .from("fines")
-    .select("id, amount, status, deadline, proof_url, dispute_reason, users:user_id(name)")
+    .select("id, amount, status, deadline, proof_url, payment_comment, users:user_id(name)")
     .order("created_at", { ascending: false });
 
   const allFines: AdminFineRow[] = (allFinesRaw ?? []).map((f) => ({
@@ -69,9 +71,29 @@ export default async function ManagerDashboardPage() {
     status: f.status,
     deadline: f.deadline,
     proof_url: f.proof_url,
-    dispute_reason: f.dispute_reason,
+    payment_comment: f.payment_comment,
     user_name: (f.users as unknown as { name: string } | null)?.name ?? "Unknown",
   }));
+
+  // Manager's own strikes/fines — for their own Attendance card badge + Fine Pay card
+  const { data: myFines } = await admin
+    .from("fines")
+    .select("id, amount, status, deadline, proof_url, payment_comment")
+    .eq("user_id", profile.id)
+    .order("created_at", { ascending: false });
+
+  const { count: activeStrikeCount } = await admin
+    .from("strikes")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", profile.id)
+    .eq("is_removed", false)
+    .is("fine_id", null);
+
+  const pendingFineCount = (myFines ?? []).filter(
+    (f) => f.status === "pending" || f.status === "submitted"
+  ).length;
+
+  const fineAmount = await getFineAmount();
 
   return (
     <div className="space-y-8">
@@ -89,6 +111,9 @@ export default async function ManagerDashboardPage() {
           shiftStart={shiftStart}
           shiftEnd={shiftEnd}
           checkedOutToday={checkedOutToday}
+          activeStrikeCount={activeStrikeCount ?? 0}
+          pendingFineCount={pendingFineCount}
+          fineAmount={fineAmount}
         />
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -110,6 +135,8 @@ export default async function ManagerDashboardPage() {
       />
 
       <FinesAdminTable fines={allFines} isSuperAdmin={false} />
+
+      <FineWalletWidget fines={myFines ?? []} />
 
       <section className="rounded-xl border p-6">
         <h2 className="mb-3 font-medium">Team performance profiles</h2>

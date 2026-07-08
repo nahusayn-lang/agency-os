@@ -12,6 +12,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { AttendanceCard } from "@/components/dashboard/attendance-card";
 import { getTodayDateString } from "@/lib/auth/attendance";
 import { FineWalletWidget } from "@/components/dashboard/fine-wallet-widget";
+import { getFineAmount } from "@/lib/services/strike-fine-engine";
 
 export default async function EmployeeDashboardPage() {
   const profile = await requireRole("member");
@@ -69,12 +70,25 @@ export default async function EmployeeDashboardPage() {
     .eq("user_id", profile.id)
     .eq("is_read", false);
 
-  // Own fines — Fine Wallet widget
+  // Own fines — Fine Pay card
   const { data: myFines } = await admin
     .from("fines")
-    .select("id, amount, status, deadline, proof_url, dispute_reason")
+    .select("id, amount, status, deadline, proof_url, payment_comment")
     .eq("user_id", profile.id)
     .order("created_at", { ascending: false });
+
+  const { count: activeStrikeCount } = await admin
+    .from("strikes")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", profile.id)
+    .eq("is_removed", false)
+    .is("fine_id", null);
+
+  const pendingFineCount = (myFines ?? []).filter(
+    (f) => f.status === "pending" || f.status === "submitted"
+  ).length;
+
+  const fineAmount = await getFineAmount();
 
   return (
     <div className="space-y-8">
@@ -92,6 +106,9 @@ export default async function EmployeeDashboardPage() {
           shiftStart={userRow?.shift_start ?? null}
           shiftEnd={userRow?.shift_end ?? null}
           checkedOutToday={checkedOutToday}
+          activeStrikeCount={activeStrikeCount ?? 0}
+          pendingFineCount={pendingFineCount}
+          fineAmount={fineAmount}
         />
 
         <Card>

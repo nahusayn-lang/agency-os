@@ -17,11 +17,39 @@ export interface StrikeRow {
  * this component behind `profile.role === "super_admin"` — it must never be
  * imported or rendered for admin/member roles.
  */
-export function StrikeControlPanel({ strikes }: { strikes: StrikeRow[] }) {
+export function StrikeControlPanel({ strikes, fineAmount }: { strikes: StrikeRow[]; fineAmount: number }) {
   const [pending, startTransition] = useTransition();
   const [openId, setOpenId] = useState<string | null>(null);
   const [reason, setReason] = useState("");
   const [error, setError] = useState<string | null>(null);
+
+  const [amountInput, setAmountInput] = useState(String(fineAmount));
+  const [amountPending, startAmountTransition] = useTransition();
+  const [amountSaved, setAmountSaved] = useState(false);
+  const [amountError, setAmountError] = useState<string | null>(null);
+
+  function saveFineAmount() {
+    const amount = Number(amountInput);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setAmountError("Valid amount daalo.");
+      return;
+    }
+    setAmountError(null);
+    setAmountSaved(false);
+    startAmountTransition(async () => {
+      const res = await fetch("/api/admin/fine-settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setAmountError(data.error ?? "Save nahi hua.");
+        return;
+      }
+      setAmountSaved(true);
+    });
+  }
 
   function remove(strikeId: string) {
     if (!reason.trim()) {
@@ -53,7 +81,30 @@ export function StrikeControlPanel({ strikes }: { strikes: StrikeRow[] }) {
       <CardHeader>
         <CardTitle className="text-base">Strike Control (Private)</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-2">
+      <CardContent className="space-y-4">
+        <div className="rounded-lg border p-3 space-y-2">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Fine amount</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm text-muted-foreground">₹</span>
+            <input
+              type="number"
+              min={1}
+              className="w-24 rounded border px-2 py-1 text-sm bg-background"
+              value={amountInput}
+              onChange={(e) => {
+                setAmountInput(e.target.value);
+                setAmountSaved(false);
+              }}
+            />
+            <Button size="sm" disabled={amountPending} onClick={saveFineAmount}>
+              {amountPending ? "Saving…" : "Save"}
+            </Button>
+            {amountSaved && <span className="text-xs text-emerald-500">Saved ✓</span>}
+          </div>
+          <p className="text-xs text-muted-foreground">Har 3 strike par isi amount ka fine lagega. Purane fines nahi badlenge.</p>
+          {amountError && <p className="text-xs text-destructive">{amountError}</p>}
+        </div>
+
         {active.length === 0 && <p className="text-sm text-muted-foreground">Koi active strike nahi hai.</p>}
         {active.map((strike) => (
           <div key={strike.id} className="flex items-center justify-between rounded-lg border p-2 text-sm">

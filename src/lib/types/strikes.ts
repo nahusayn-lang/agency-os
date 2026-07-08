@@ -1,5 +1,5 @@
 export type StrikeReason = "late_checkin" | "missed_checkout" | "fine_deadline_missed";
-export type FineStatus = "pending" | "paid" | "waived";
+export type FineStatus = "pending" | "submitted" | "paid" | "waived";
 export type CannotCompleteStatus = "auto_accepted" | "pending_approval" | "approved" | "rejected";
 
 export interface Strike {
@@ -23,7 +23,8 @@ export interface Fine {
   status: FineStatus;
   deadline: string;
   proof_url: string | null;
-  dispute_reason: string | null;
+  payment_comment: string | null;
+  submitted_at: string | null;
   reviewed_by: string | null;
   reviewed_at: string | null;
   paid_at: string | null;
