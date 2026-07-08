@@ -54,13 +54,28 @@ export async function getReportsForMember(userId: string) {
   return data ?? [];
 }
 
-export async function getAllReportsForAdmin(memberId?: string, dateFilter?: string) {
+/**
+ * Fetches reports for the team review section.
+ * By default excludes the current viewer's own reports (those belong in "My Reports"),
+ * so a founder/admin's own checkout report never shows up mixed into the team list.
+ */
+export async function getAllReportsForAdmin(memberId?: string, dateFilter?: string, options?: { excludeSelf?: boolean }) {
   const profile = await requireUserProfile();
   if (profile.role === "member") throw new Error("Unauthorized");
   const supabase = createClient();
 
-  let query = supabase.from("reports").select("*, users:user_id(id, name, email)").order("created_at", { ascending: false });
-  if (memberId) query = query.eq("user_id", memberId);
+  // Alias must be "user" (singular) to match the ReportWithUser type — using "users"
+  // here was the bug that made every report show the author as "Unknown".
+  let query = supabase
+    .from("reports")
+    .select("*, user:user_id(id, name, email, role)")
+    .order("created_at", { ascending: false });
+
+  if (memberId) {
+    query = query.eq("user_id", memberId);
+  } else if (options?.excludeSelf) {
+    query = query.neq("user_id", profile.id);
+  }
 
   const { data, error } = await query;
   if (error) throw new Error(error.message);

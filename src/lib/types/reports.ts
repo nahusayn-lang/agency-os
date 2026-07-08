@@ -1,3 +1,5 @@
+export type ReportUserRole = "member" | "admin" | "super_admin";
+
 export interface Report {
   id: string;
   user_id: string;
@@ -10,5 +12,16 @@ export interface Report {
 }
 
 export interface ReportWithUser extends Report {
-  user?: { id: string; name?: string; email?: string };
+  user?: {
+    id: string;
+    name?: string;
+    email?: string;
+    role?: ReportUserRole;
+  };
 }
+
+export const ROLE_LABEL: Record<ReportUserRole, string> = {
+  member: "Employee",
+  admin: "Manager",
+  super_admin: "Founder",
+};
