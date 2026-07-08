@@ -56,6 +56,13 @@ const STAGE_COLORS: Record<
   },
 };
 
+function toWhatsappNumber(phone: string) {
+  const digits = phone.replace(/\D/g, "");
+  if (digits.length === 10) return "91" + digits;
+  if (digits.length === 11 && digits.startsWith("0")) return "91" + digits.slice(1);
+  return digits;
+}
+
 function LeadCard({
   lead,
   onStageChange,
@@ -84,12 +91,30 @@ function LeadCard({
           )}
 
           {lead.phone && (
-            <a
-              href={"tel:" + lead.phone}
-              className="text-xs text-blue-400 hover:text-blue-300 transition-colors mt-0.5 block"
-            >
-              {"📞 " + lead.phone}
-            </a>
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <a
+                href={"tel:" + lead.phone}
+                className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
+              >
+                {"📞 " + lead.phone}
+              </a>
+              <a
+                href={"https://wa.me/" + toWhatsappNumber(lead.phone)}
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Message on WhatsApp"
+                className="shrink-0 text-emerald-400 hover:text-emerald-300 transition-colors"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  width="14"
+                  height="14"
+                  fill="currentColor"
+                >
+                  <path d="M12.04 2c-5.52 0-10 4.48-10 10 0 1.77.46 3.45 1.27 4.9L2 22l5.25-1.38a9.94 9.94 0 0 0 4.79 1.22h.01c5.52 0 10-4.48 10-10s-4.48-10-10-10Zm0 18.2a8.2 8.2 0 0 1-4.18-1.14l-.3-.18-3.11.82.83-3.03-.2-.31A8.19 8.19 0 1 1 20.2 12a8.2 8.2 0 0 1-8.16 8.2Zm4.5-6.13c-.25-.12-1.45-.71-1.67-.79-.22-.08-.39-.12-.55.12-.16.25-.63.79-.77.95-.14.16-.28.18-.53.06-.25-.12-1.04-.38-1.98-1.22-.73-.65-1.23-1.45-1.37-1.7-.14-.25-.02-.38.11-.5.11-.11.25-.28.37-.42.12-.14.16-.25.25-.41.08-.16.04-.31-.02-.43-.06-.12-.55-1.33-.76-1.82-.2-.48-.4-.41-.55-.42h-.47c-.16 0-.43.06-.66.31-.22.25-.86.85-.86 2.06 0 1.22.89 2.4 1.01 2.56.12.16 1.75 2.67 4.24 3.74.59.26 1.06.41 1.42.52.6.19 1.14.16 1.57.1.48-.07 1.45-.59 1.65-1.16.2-.57.2-1.06.14-1.16-.06-.1-.22-.16-.47-.28Z" />
+                </svg>
+              </a>
+            </div>
           )}
         </div>
 
