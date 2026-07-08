@@ -12,7 +12,6 @@ import { AttendanceCard } from "@/components/dashboard/attendance-card";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { getTodayDateString } from "@/lib/auth/attendance";
 import { FinesAdminTable, type AdminFineRow } from "@/components/dashboard/fines-admin-table";
-import { StrikeControlPanel, type StrikeRow } from "@/components/dashboard/strike-control-panel";
 import { FineWalletWidget } from "@/components/dashboard/fine-wallet-widget";
 import { getFineAmount } from "@/lib/services/strike-fine-engine";
 
@@ -34,7 +33,6 @@ export default async function FounderDashboardPage() {
   const isCheckedIn = userRow?.is_checked_in ?? false;
   const lastCheckinAt = userRow?.last_checkin_at ?? null;
 
-  // Aaj ka attendance record hai ya nahi
   const today = getTodayDateString();
   const { data: todayAttendance } = await admin
     .from("attendance")
@@ -60,6 +58,11 @@ export default async function FounderDashboardPage() {
 
   const actorNames = new Map((actors ?? []).map((a) => [a.id, a.name]));
 
+  const { count: pendingTasks } = await supabase
+    .from("tasks")
+    .select("*", { count: "exact", head: true })
+    .not("status", "in", '("completed","approved")');
+
   const { count: totalLeads } = await supabase.from("leads").select("*", { count: "exact", head: true });
   const { count: activeLeads } = await supabase.from("leads").select("*", { count: "exact", head: true }).not("stage", "in", '("deal_won","deal_lost")');
   const { count: dealsClosed } = await supabase.from("leads").select("*", { count: "exact", head: true }).eq("stage", "deal_won");
@@ -67,7 +70,6 @@ export default async function FounderDashboardPage() {
   const revenueGenerated = (wonLeads ?? []).reduce((sum, lead) => sum + (lead.deal_value ?? 0), 0);
   const { count: lostDeals } = await supabase.from("leads").select("*", { count: "exact", head: true }).eq("stage", "deal_lost");
 
-  // All employee fines — super_admin can Mark Paid / Waive
   const { data: allFinesRaw } = await admin
     .from("fines")
     .select("id, amount, status, deadline, proof_url, payment_comment, users:user_id(name)")
@@ -83,7 +85,6 @@ export default async function FounderDashboardPage() {
     user_name: (f.users as unknown as { name: string } | null)?.name ?? "Unknown",
   }));
 
-  // Founder's own strikes/fines — for their own Attendance card badge + Fine Pay card
   const { data: myFines } = await admin
     .from("fines")
     .select("id, amount, status, deadline, proof_url, payment_comment")
@@ -103,21 +104,6 @@ export default async function FounderDashboardPage() {
 
   const fineAmount = await getFineAmount();
 
-  // Active strikes — founder-only, private removal control
-  const { data: activeStrikesRaw } = await admin
-    .from("strikes")
-    .select("id, reason, is_removed, created_at, users:user_id(name)")
-    .eq("is_removed", false)
-    .order("created_at", { ascending: false });
-
-  const activeStrikes: StrikeRow[] = (activeStrikesRaw ?? []).map((s) => ({
-    id: s.id,
-    reason: s.reason,
-    is_removed: s.is_removed,
-    created_at: s.created_at,
-    user_name: (s.users as unknown as { name: string } | null)?.name ?? "Unknown",
-  }));
-
   return (
     <div className="space-y-8">
       <div>
@@ -127,7 +113,7 @@ export default async function FounderDashboardPage() {
         <p className="text-muted-foreground">Welcome, {profile.name}</p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-7">
         <AttendanceCard
           isCheckedIn={isCheckedIn}
           lastCheckinAt={lastCheckinAt}
@@ -138,6 +124,12 @@ export default async function FounderDashboardPage() {
           pendingFineCount={pendingFineCount}
           fineAmount={fineAmount}
         />
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Pending Tasks</CardTitle>
+          </CardHeader>
+          <CardContent><div className="text-2xl font-bold">{pendingTasks ?? 0}</div></CardContent>
+        </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Leads</CardTitle>
@@ -175,8 +167,6 @@ export default async function FounderDashboardPage() {
       <FinesAdminTable fines={allFines} isSuperAdmin={true} />
 
       <FineWalletWidget fines={myFines ?? []} />
-
-      <StrikeControlPanel strikes={activeStrikes} fineAmount={fineAmount} />
 
       <TeamProfilesList members={teamMembers ?? []} />
       <OverrideHistoryTable overrides={overrides} actorNames={actorNames} />

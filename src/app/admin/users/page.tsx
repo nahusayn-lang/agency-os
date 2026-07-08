@@ -1,7 +1,10 @@
 import Link from "next/link";
 import { requireUserProfile } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { toggleUserActiveAction, setUserRoleAction, setShiftAction } from "@/lib/admin/users";
+import { StrikeControlPanel, type StrikeRow } from "@/components/dashboard/strike-control-panel";
+import { getFineAmount } from "@/lib/services/strike-fine-engine";
 
 export default async function AdminUsersPage() {
   const profile = await requireUserProfile();
@@ -30,15 +33,37 @@ export default async function AdminUsersPage() {
     shift_end?: string | null;
   }>;
 
+  let activeStrikes: StrikeRow[] = [];
+  let fineAmount = 149;
+  if (profile.role === "super_admin") {
+    const admin = createAdminClient();
+    fineAmount = await getFineAmount();
+    const { data: activeStrikesRaw } = await admin
+      .from("strikes")
+      .select("id, reason, is_removed, created_at, users:user_id(name)")
+      .eq("is_removed", false)
+      .order("created_at", { ascending: false });
+
+    activeStrikes = (activeStrikesRaw ?? []).map((s) => ({
+      id: s.id,
+      reason: s.reason,
+      is_removed: s.is_removed,
+      created_at: s.created_at,
+      user_name: (s.users as unknown as { name: string } | null)?.name ?? "Unknown",
+    }));
+  }
+
   return (
     <div className="px-4 py-6 max-w-lg mx-auto">
       <h1 className="mb-6 text-2xl font-bold">Admin Users</h1>
 
       <div className="space-y-4">
+        {profile.role === "super_admin" && (
+          <StrikeControlPanel strikes={activeStrikes} fineAmount={fineAmount} />
+        )}
         {rows.map((u) => (
           <div key={u.id} className="rounded-xl border border-border bg-card p-4 space-y-3">
 
-            {/* ── Row 1: Name + Email + Role badge ── */}
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
                 <div className="font-semibold text-base truncate">{u.name}</div>
@@ -49,7 +74,6 @@ export default async function AdminUsersPage() {
               </span>
             </div>
 
-            {/* ── Row 2: Activate / Deactivate button ── */}
             <form action={toggleUserActiveAction}>
               <input type="hidden" name="userId" value={u.id} />
               <input type="hidden" name="isActive" value={u.is_active ? "false" : "true"} />
@@ -65,7 +89,6 @@ export default async function AdminUsersPage() {
               </button>
             </form>
 
-            {/* ── Row 3: Set Role ── */}
             <form action={setUserRoleAction} className="flex items-center gap-2">
               <input type="hidden" name="userId" value={u.id} />
               <select
@@ -85,7 +108,6 @@ export default async function AdminUsersPage() {
               </button>
             </form>
 
-            {/* ── Row 4: Shift info + edit (super_admin only) ── */}
             <div className="text-xs text-muted-foreground">
               Shift: {u.shift_start?.slice(0, 5) ?? "—"} → {u.shift_end?.slice(0, 5) ?? "—"}
             </div>

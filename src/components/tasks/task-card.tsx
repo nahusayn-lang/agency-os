@@ -173,40 +173,43 @@ export function TaskCard({ task, assignerName, assignerRole }: TaskCardProps) {
       {/* ── COLLAPSED HEADER ── */}
       <button
         onClick={() => setExpanded((p) => !p)}
-        className="w-full text-left px-4 py-3 flex items-center gap-3"
+        className="w-full text-left px-4 py-3 flex flex-col gap-2"
       >
-        {/* Title */}
-        <span className="flex-1 min-w-0 break-words font-medium text-sm leading-snug">{task.title}</span>
+        {/* Title — apni alag row */}
+        <span className="break-words font-medium text-sm leading-snug">{task.title}</span>
 
-        {/* Priority badge */}
-        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full capitalize shrink-0 ${PRIORITY_STYLES[task.priority] ?? "bg-muted text-muted-foreground"}`}>
-          {task.priority}
-        </span>
-
-        {/* Status chip */}
-        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full shrink-0 ${STATUS_CHIP[task.status] ?? "bg-muted text-muted-foreground"}`}>
-          {STATUS_LABEL[task.status] ?? task.status}
-        </span>
-
-        {/* Live indicator */}
-        {view === "running" && (
-          <span className="text-xs text-green-500 animate-pulse shrink-0">● Live</span>
-        )}
-
-        {/* Deadline (only if exists) */}
-        {task.deadline && (
-          <span className="text-xs text-muted-foreground shrink-0" suppressHydrationWarning>
-            {new Date(task.deadline).toLocaleString("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+        {/* Details row — badges, date, chevron */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Priority badge */}
+          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full capitalize shrink-0 ${PRIORITY_STYLES[task.priority] ?? "bg-muted text-muted-foreground"}`}>
+            {task.priority}
           </span>
-        )}
 
-        {/* Chevron */}
-        <svg
-          className={`w-4 h-4 text-muted-foreground shrink-0 transition-transform duration-200 ${expanded ? "rotate-180" : ""}`}
-          fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-        </svg>
+          {/* Status chip */}
+          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full shrink-0 ${STATUS_CHIP[task.status] ?? "bg-muted text-muted-foreground"}`}>
+            {STATUS_LABEL[task.status] ?? task.status}
+          </span>
+
+          {/* Live indicator */}
+          {view === "running" && (
+            <span className="text-xs text-green-500 animate-pulse shrink-0">● Live</span>
+          )}
+
+          {/* Deadline (only if exists) */}
+          {task.deadline && (
+            <span className="text-xs text-muted-foreground shrink-0" suppressHydrationWarning>
+              {new Date(task.deadline).toLocaleString("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+            </span>
+          )}
+
+          {/* Chevron */}
+          <svg
+            className={`w-4 h-4 text-muted-foreground shrink-0 transition-transform duration-200 ml-auto ${expanded ? "rotate-180" : ""}`}
+            fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+          </svg>
+        </div>
       </button>
 
       {/* ── EXPANDED BODY ── */}
