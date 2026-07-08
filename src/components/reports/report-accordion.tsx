@@ -3,19 +3,13 @@
 import { useMemo, useState } from "react";
 import { ChevronDownIcon } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import { ROLE_LABEL, type ReportUserRole, type ReportWithUser } from "@/lib/types/reports";
+import type { ReportWithUser } from "@/lib/types/reports";
 
 interface ReportAccordionProps {
   reports: ReportWithUser[];
   variant: "mine" | "team";
   emptyLabel: string;
 }
-
-const ROLE_BADGE_STYLE: Record<ReportUserRole, string> = {
-  member: "bg-sky-500/10 text-sky-500 border-sky-500/20",
-  admin: "bg-violet-500/10 text-violet-500 border-violet-500/20",
-  super_admin: "bg-primary/10 text-primary border-primary/20",
-};
 
 function fmtDate(d: string): string {
   return new Date(d).toLocaleDateString([], {
@@ -90,7 +84,6 @@ export function ReportAccordion({ reports, variant, emptyLabel }: ReportAccordio
             <div className="space-y-2">
               {dayReports.map((report) => {
                 const isOpen = openId === report.id;
-                const roleKey = (report.user?.role ?? "member") as ReportUserRole;
                 const name = report.user?.name || "Unknown";
 
                 return (
