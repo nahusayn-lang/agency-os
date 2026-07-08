@@ -41,7 +41,7 @@ export function AdminWeeklyTargetsView({ targets }: AdminWeeklyTargetsViewProps)
         <Card key={target.id} className="p-6">
           <div className="mb-4 space-y-2">
             <div className="flex items-start justify-between">
-              <div className="flex-1">
+              <div className="flex-1 min-w-0">
                 <h3 className="font-semibold">{target.target_name}</h3>
                 {target.user && <p className="text-sm text-muted-foreground">{target.user.name} ({target.user.email})</p>}
                 <p className="text-xs text-muted-foreground">{new Date(target.created_at).toLocaleDateString()}</p>

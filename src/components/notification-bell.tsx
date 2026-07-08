@@ -112,7 +112,7 @@ function SwipeableRow({
           className="flex justify-between items-start gap-2 cursor-pointer"
           onClick={() => onOpen(notification)}
         >
-          <span className="font-semibold block">{notification.title}</span>
+          <span className="font-semibold block break-words">{notification.title}</span>
           {notification.link && (
             <Link
               href={notification.link}

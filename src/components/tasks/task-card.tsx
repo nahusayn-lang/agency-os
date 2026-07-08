@@ -176,7 +176,7 @@ export function TaskCard({ task, assignerName, assignerRole }: TaskCardProps) {
         className="w-full text-left px-4 py-3 flex items-center gap-3"
       >
         {/* Title */}
-        <span className="flex-1 font-medium text-sm leading-snug">{task.title}</span>
+        <span className="flex-1 min-w-0 break-words font-medium text-sm leading-snug">{task.title}</span>
 
         {/* Priority badge */}
         <span className={`text-xs font-semibold px-2 py-0.5 rounded-full capitalize shrink-0 ${PRIORITY_STYLES[task.priority] ?? "bg-muted text-muted-foreground"}`}>

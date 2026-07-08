@@ -40,7 +40,7 @@ export function WeeklyTargetsList({ targets, isMemberView = false }: WeeklyTarge
       {targets.map(target => (
         <Card key={target.id} className="p-6">
           <div className="mb-4 flex items-start justify-between">
-            <div className="flex-1">
+            <div className="flex-1 min-w-0">
               <h3 className="font-semibold">{target.target_name}</h3>
               {!isMemberView && target.user && <p className="text-sm text-muted-foreground">{target.user.name}</p>}
               <p className="text-xs text-muted-foreground">{new Date(target.created_at).toLocaleDateString()}</p>

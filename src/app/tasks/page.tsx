@@ -94,7 +94,7 @@ export default async function TasksPage() {
                 (tasks ?? []).map((task) => (
                   <TableRow key={task.id} className="hover:bg-muted/50 transition-colors">
                     <TableCell>
-                      <Link href={`/tasks/${task.id}`} className="font-medium hover:underline">
+                      <Link href={`/tasks/${task.id}`} className="font-medium hover:underline break-words">
                         {task.title}
                       </Link>
                     </TableCell>
