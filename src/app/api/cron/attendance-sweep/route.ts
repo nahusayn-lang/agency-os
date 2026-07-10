@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
-import { sweepMissedCheckouts, sweepOverdueFines } from "@/lib/services/strike-fine-engine";
+import {
+  sweepMissedCheckouts,
+  sweepOverdueFines,
+  sweepAbsentUsers,
+} from "@/lib/services/strike-fine-engine";
 
 export async function GET(req: Request) {
   const authHeader = req.headers.get("authorization");
@@ -10,11 +14,13 @@ export async function GET(req: Request) {
   try {
     const missedCheckouts = await sweepMissedCheckouts();
     const overdueFineStrikes = await sweepOverdueFines();
+    const absentStrikes = await sweepAbsentUsers();
 
     return NextResponse.json({
       success: true,
       missedCheckouts,
       overdueFineStrikes,
+      absentStrikes,
     });
   } catch (err) {
     return NextResponse.json(

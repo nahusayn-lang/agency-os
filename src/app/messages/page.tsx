@@ -24,6 +24,7 @@ interface Message {
   content: string;
   type: "direct" | "announcement" | "leave_request" | "task_clarification";
   task_id: string | null;
+  leave_date: string | null;
   status: "pending" | "approved" | "rejected";
   created_at: string;
   sender: { name: string; email: string } | null;
@@ -75,7 +76,7 @@ export default function MessagesPage() {
     supabase
       .from("messages")
       .select(`
-        id, sender_id, recipient_id, title, content, type, task_id, status, created_at,
+        id, sender_id, recipient_id, title, content, type, task_id, leave_date, status, created_at,
         sender:users!messages_sender_id_fkey(name, email),
         recipient:users!messages_recipient_id_fkey(name, email)
       `)
@@ -226,6 +227,13 @@ export default function MessagesPage() {
                     </div>
                   )}
 
+                  {composeType === "leave_request" && (
+                    <div className="space-y-2">
+                      <Label htmlFor="leave_date">Leave date</Label>
+                      <Input id="leave_date" name="leave_date" type="date" required />
+                    </div>
+                  )}
+
                   {composeType === "task_clarification" && (
                     <div className="space-y-2 sm:col-span-2">
                       <Label htmlFor="task_id">Associated task</Label>
@@ -295,6 +303,11 @@ export default function MessagesPage() {
                         <strong>Type:</strong>{" "}
                         {selectedMessage.type.replace("_", " ").toUpperCase()}
                       </p>
+                      {selectedMessage.type === "leave_request" && selectedMessage.leave_date && (
+                        <p>
+                          <strong>Leave date:</strong> {selectedMessage.leave_date}
+                        </p>
+                      )}
                     </div>
                   </div>
                   <div className="text-right">
