@@ -7,6 +7,7 @@ import { redirect } from "next/navigation";
 import { requireUserProfile } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { sendTaskNotification } from "@/lib/services/email-service";
+import { notifyUser, notifyUsers } from "@/lib/notifications/notify";
 import { isValidStatusTransition } from "@/lib/tasks/transitions";
 import type { UserRole } from "@/lib/types/database";
 import type { TaskPriority, TaskStatus } from "@/lib/types/tasks";
@@ -61,7 +62,7 @@ async function recordTaskStatusChange(
   if (auditError) throw new Error(auditError.message);
 }
 
-// Helper — notify all founders + managers
+// Helper — notify founders + managers (or founder only, when scoped)
 // NOTE: type + referenceId are load-bearing — notification-bell.tsx uses them
 // to decide if a notification is directly actionable. Do not drop these.
 async function notifyAdmins(
@@ -70,25 +71,22 @@ async function notifyAdmins(
   message: string,
   link: string,
   type: string,
-  referenceId: string
+  referenceId: string,
+  options?: { founderOnly?: boolean }
 ) {
+  const roles = options?.founderOnly ? ["super_admin"] : ["super_admin", "admin"];
+
   const { data: admins } = await supabase
     .from("users")
     .select("id")
-    .in("role", ["super_admin", "admin"])
+    .in("role", roles)
     .eq("is_active", true);
 
   if (!admins?.length) return;
 
-  await supabase.from("notifications").insert(
-    admins.map((a) => ({
-      user_id: a.id,
-      title,
-      message,
-      link,
-      type,
-      reference_id: referenceId,
-    }))
+  await notifyUsers(
+    admins.map((a) => a.id),
+    { title, message, link, type, referenceId }
   );
 }
 
@@ -154,14 +152,15 @@ export async function createTaskAction(formData: FormData) {
     entity_id: task.id,
   });
 
-  // Notify employee
-  await supabase.from("notifications").insert({
-    user_id: assignedTo,
+  // Notify the assignee — works the same whether it's an employee, a
+  // manager, or the founder assigning a task to themselves/another admin.
+  await notifyUser({
+    userId: assignedTo,
     title: "New task assigned",
     message: `${profile.name} ne tumhe "${task.title}" task assign ki hai.`,
     link: `/tasks/${task.id}`,
     type: "task_assigned",
-    reference_id: task.id,
+    referenceId: task.id,
   });
 
   const { data: assignee } = await supabase
@@ -193,7 +192,7 @@ export async function updateTaskStatusAction(
 
   const { data: task, error: fetchError } = await supabase
     .from("tasks")
-    .select("id, title, status, assigned_to")
+    .select("id, title, status, assigned_to, assigned_by")
     .eq("id", taskId)
     .single();
 
@@ -216,6 +215,19 @@ export async function updateTaskStatusAction(
       reason: options.overrideReason.trim(),
     });
     if (overrideError) return { error: overrideError.message };
+
+    // Transparency: the affected user should always know when a founder
+    // overrides one of their tasks.
+    if (task.assigned_to !== profile.id) {
+      await notifyUser({
+        userId: task.assigned_to,
+        title: "Task force-closed by founder",
+        message: `${profile.name} ne "${task.title}" ko force-close kiya. Reason: ${options.overrideReason.trim()}`,
+        link: `/tasks/${taskId}`,
+        type: "task_override",
+        referenceId: taskId,
+      });
+    }
   }
 
   const { error: updateError } = await supabase
@@ -237,27 +249,52 @@ export async function updateTaskStatusAction(
     return { error: err instanceof Error ? err.message : "Failed to record activity." };
   }
 
-  // Notify employee on approval or revision
-  if (newStatus === "approved" || newStatus === "completed") {
-    await supabase.from("notifications").insert({
-      user_id: task.assigned_to,
-      title: "Task approved ✓",
-      message: `Tumhari "${task.title}" task approve ho gayi.`,
-      link: `/tasks/${taskId}`,
-      type: "task_approved",
-      reference_id: taskId,
-    });
-  }
+  // Notify whichever party (assigner or assignee) did NOT make this change.
+  // "waiting_review" is skipped here — submitTaskAction already notifies all
+  // founders/managers about it right after calling this function, so notifying
+  // the assigner again here would be a duplicate ping for the same event.
+  if (newStatus !== "waiting_review" && !options?.forceClose) {
+    const otherParty = profile.id === task.assigned_to ? task.assigned_by : task.assigned_to;
 
-  if (newStatus === "revision_required") {
-    await supabase.from("notifications").insert({
-      user_id: task.assigned_to,
-      title: "Task revision required",
-      message: `"${task.title}" mein revision chahiye. Admin ka message dekho.`,
-      link: `/tasks/${taskId}`,
-      type: "task_revision",
-      reference_id: taskId,
-    });
+    if (otherParty && otherParty !== profile.id) {
+      const statusMessages: Partial<Record<TaskStatus, { title: string; message: string; type: string }>> = {
+        approved: {
+          title: "Task approved ✓",
+          message: `"${task.title}" task approve ho gayi.`,
+          type: "task_approved",
+        },
+        completed: {
+          title: "Task approved ✓",
+          message: `"${task.title}" task approve ho gayi.`,
+          type: "task_approved",
+        },
+        revision_required: {
+          title: "Task revision required",
+          message: `"${task.title}" mein revision chahiye.`,
+          type: "task_revision",
+        },
+        in_progress: {
+          title: "Task in progress",
+          message: `"${task.title}" par kaam shuru ho gaya hai.`,
+          type: "task_status",
+        },
+      };
+
+      const notice = statusMessages[newStatus] ?? {
+        title: "Task status updated",
+        message: `"${task.title}" ka status "${TASK_STATUS_LABELS[newStatus]}" ho gaya.`,
+        type: "task_status",
+      };
+
+      await notifyUser({
+        userId: otherParty,
+        title: notice.title,
+        message: notice.message,
+        link: `/tasks/${taskId}`,
+        type: notice.type,
+        referenceId: taskId,
+      });
+    }
   }
 
   // Email
@@ -282,12 +319,18 @@ export async function updateTaskStatusAction(
   return { success: true };
 }
 
-export async function addTaskCommentAction(taskId: string, message: string) {
+export async function addTaskCommentAction(taskId: string, message: string, options?: { skipNotify?: boolean }) {
   const profile = await requireUserProfile();
   const trimmed = message.trim();
   if (!trimmed) return { error: "Comment cannot be empty." };
 
   const supabase = createClient();
+
+  const { data: task } = await supabase
+    .from("tasks")
+    .select("title, assigned_to, assigned_by")
+    .eq("id", taskId)
+    .single();
 
   const { error } = await supabase.from("task_comments").insert({
     task_id: taskId,
@@ -303,6 +346,20 @@ export async function addTaskCommentAction(taskId: string, message: string) {
     old_status: null,
     new_status: null,
   });
+
+  if (task && !options?.skipNotify) {
+    const otherParty = profile.id === task.assigned_to ? task.assigned_by : task.assigned_to;
+    if (otherParty && otherParty !== profile.id) {
+      await notifyUser({
+        userId: otherParty,
+        title: "New task comment",
+        message: `${profile.name} ne "${task.title}" par comment kiya: ${trimmed.slice(0, 100)}`,
+        link: `/tasks/${taskId}`,
+        type: "task_comment",
+        referenceId: taskId,
+      });
+    }
+  }
 
   revalidatePath(`/tasks/${taskId}`);
   return { success: true };
@@ -366,7 +423,7 @@ export async function submitTaskAction(
     if (res?.error) return res;
   }
 
-  const commentRes = await addTaskCommentAction(taskId, noteTrimmed);
+  const commentRes = await addTaskCommentAction(taskId, noteTrimmed, { skipNotify: true });
   if (commentRes?.error) return commentRes;
 
   const statusRes = await updateTaskStatusAction(taskId, "waiting_review");
@@ -472,7 +529,8 @@ export async function cannotCompleteTaskAction(taskId: string, reason: string) {
     reason: trimmed,
   });
 
-  // Notify founders + managers
+  // Notify founders + managers (pending-approval case is founder-only —
+  // only the founder can approve/reject a 2nd+ cannot-complete for the day)
   const adminMessage =
     usage.status === "pending_approval"
       ? `${profile.name} ne aaj 2nd baar "${task.title}" complete nahi kar saka — approval chahiye. Reason: ${trimmed}`
@@ -484,7 +542,8 @@ export async function cannotCompleteTaskAction(taskId: string, reason: string) {
     adminMessage,
     `/tasks/${taskId}`,
     usage.status === "pending_approval" ? "cannot_complete_pending" : "task_blocked",
-    taskId
+    taskId,
+    { founderOnly: usage.status === "pending_approval" }
   );
 
   revalidatePath("/tasks");

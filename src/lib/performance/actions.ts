@@ -5,6 +5,7 @@ import "server-only";
 import { revalidatePath } from "next/cache";
 import { requireUserProfile } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
+import { notifyUser } from "@/lib/notifications/notify";
 import { canOverridePerformanceScore } from "@/lib/performance/permissions";
 import { buildOverrideTargetEntity } from "@/lib/performance/overrides";
 import {
@@ -178,6 +179,19 @@ export async function overridePerformanceScoreAction(params: {
 
   if (overrideError) {
     return { error: overrideError.message };
+  }
+
+  // This single event covers both "performance score updated" and
+  // "god-mode override happened" — they're the same action here, so one
+  // notification, not two.
+  if (params.targetUserId !== profile.id) {
+    await notifyUser({
+      userId: params.targetUserId,
+      title: "Performance score updated",
+      message: `${profile.name} ne tumhara performance score is period ke liye override kiya hai.`,
+      link: "/dashboard",
+      type: "performance_override",
+    });
   }
 
   revalidatePath(`/dashboard/team/${params.targetUserId}`);

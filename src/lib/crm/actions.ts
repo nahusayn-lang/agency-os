@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireUserProfile } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
+import { notifyUser, notifyUsers } from "@/lib/notifications/notify";
 import {
   LEAD_STAGES,
   type LeadEditableField,
@@ -127,7 +128,7 @@ export async function updateLeadStageAction(leadId: string, newStage: LeadStage)
 
   const { data: lead, error: fetchError } = await supabase
     .from("leads")
-    .select("id, stage, assigned_to")
+    .select("id, stage, assigned_to, business_name")
     .eq("id", leadId)
     .single();
 
@@ -174,6 +175,45 @@ export async function updateLeadStageAction(leadId: string, newStage: LeadStage)
 
   revalidatePath("/crm");
   revalidatePath(`/crm/${leadId}`);
+
+  const stageChangeMessage = `${profile.name} ne "${lead.business_name}" lead ka stage "${oldStage}" se "${newStage}" kiya.`;
+
+  // Whoever didn't make the change gets notified (the assignee, if someone
+  // else moved their lead).
+  if (lead.assigned_to !== profile.id) {
+    await notifyUser({
+      userId: lead.assigned_to,
+      title: "Lead stage updated",
+      message: stageChangeMessage,
+      link: `/crm/${leadId}`,
+      type: "lead_stage_change",
+      referenceId: leadId,
+    });
+  }
+
+  // Founder always gets a separate copy for visibility, unless the founder
+  // is the one who made the change themself.
+  if (profile.role !== "super_admin") {
+    const { data: founders } = await supabase
+      .from("users")
+      .select("id")
+      .eq("role", "super_admin")
+      .eq("is_active", true);
+
+    if (founders?.length) {
+      await notifyUsers(
+        founders.map((f) => f.id),
+        {
+          title: "Lead stage updated",
+          message: stageChangeMessage,
+          link: `/crm/${leadId}`,
+          type: "lead_stage_change",
+          referenceId: leadId,
+        }
+      );
+    }
+  }
+
   return { success: true };
 }
 

@@ -58,10 +58,16 @@ export async function POST() {
       attendanceId = inserted?.id ?? null;
     }
 
-    await admin
-      .from("users")
-      .update({ is_checked_in: true, last_checkin_at: now.toISOString() })
-      .eq("id", profile.id);
+    const { data: lockedUsers } = await admin
+  .from("users")
+  .update({ is_checked_in: true, last_checkin_at: now.toISOString() })
+  .eq("id", profile.id)
+  .eq("is_checked_in", false)
+  .select("id");
+
+if (!lockedUsers || lockedUsers.length === 0) {
+  return NextResponse.json({ error: "Already checked in." }, { status: 400 });
+}
 
     await supabase.from("audit_log").insert({
       user_id: profile.id,

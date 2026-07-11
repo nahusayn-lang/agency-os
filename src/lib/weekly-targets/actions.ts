@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireUserProfile } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
+import { notifyUser } from "@/lib/notifications/notify";
 
 async function recordWeeklyTargetAudit(supabase: ReturnType<typeof createClient>, params: { userId: string; targetId: string; action: string; oldCompletion?: number; newCompletion?: number }) {
   const { error } = await supabase.from("weekly_targets_audit").insert({ weekly_target_id: params.targetId, user_id: params.userId, action: params.action, old_completion_percentage: params.oldCompletion, new_completion_percentage: params.newCompletion });
@@ -53,6 +54,19 @@ export async function updateWeeklyTargetCompletionAction(targetId: string, compl
   if (error) return { error: error.message };
 
   await recordWeeklyTargetAudit(supabase, { userId: profile.id, targetId, action: "completion_updated", oldCompletion: currentTarget.completion_percentage, newCompletion: completionPercentage });
+
+  // Don't notify when the employee updated their own target's completion.
+  if (profile.id !== currentTarget.user_id) {
+    await notifyUser({
+      userId: currentTarget.user_id,
+      title: "Weekly target updated",
+      message: `Tumhare weekly target ka completion ${completionPercentage}% update ho gaya hai.`,
+      link: "/targets",
+      type: "weekly_target",
+      referenceId: targetId,
+    });
+  }
+
   revalidatePath("/targets");
   return { success: true };
 }
@@ -62,10 +76,25 @@ export async function updateWeeklyTargetNotesAction(targetId: string, adminNotes
   if (profile.role === "member") return { error: "Only admins can update notes." };
 
   const supabase = createClient();
+  const { data: target, error: fetchError } = await supabase.from("weekly_targets").select("user_id").eq("id", targetId).single();
+  if (fetchError || !target) return { error: "Weekly target not found." };
+
   const { error } = await supabase.from("weekly_targets").update({ admin_notes: adminNotes.trim() || null }).eq("id", targetId);
   if (error) return { error: error.message };
 
   await recordWeeklyTargetAudit(supabase, { userId: profile.id, targetId, action: "admin_notes_updated" });
+
+  // Notes are always admin-authored (member role is blocked above), so this
+  // is always for the employee — no self-notify check needed here.
+  await notifyUser({
+    userId: target.user_id,
+    title: "Weekly target note added",
+    message: `${profile.name} ne tumhare weekly target par ek note add kiya hai.`,
+    link: "/targets",
+    type: "weekly_target",
+    referenceId: targetId,
+  });
+
   revalidatePath("/targets");
   return { success: true };
 }

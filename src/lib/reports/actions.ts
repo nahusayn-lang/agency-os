@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireUserProfile } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
+import { notifyUsers } from "@/lib/notifications/notify";
 
 async function recordReportAudit(supabase: ReturnType<typeof createClient>, params: { userId: string; reportId: string; action: string }) {
   const { error } = await supabase.from("reports_audit").insert({ report_id: params.reportId, user_id: params.userId, action: params.action });
@@ -36,6 +37,27 @@ export async function createReportAction(formData: FormData): Promise<{ error?: 
   if (error || !report) return { error: error?.message ?? "Failed to create report." };
 
   await recordReportAudit(supabase, { userId: profile.id, reportId: report.id, action: "report_submitted" });
+
+  const { data: recipients } = await supabase
+    .from("users")
+    .select("id")
+    .in("role", ["super_admin", "admin"])
+    .neq("id", profile.id)
+    .eq("is_active", true);
+
+  if (recipients?.length) {
+    await notifyUsers(
+      recipients.map((r) => r.id),
+      {
+        title: "New report submitted",
+        message: `${profile.name} ne apna daily report submit kiya hai.`,
+        link: "/reports",
+        type: "report",
+        referenceId: report.id,
+      }
+    );
+  }
+
   revalidatePath("/reports");
   return { success: true };
 }

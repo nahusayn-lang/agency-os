@@ -1,12 +1,11 @@
 "use client";
 
 import { useEffect, useState, useRef, useMemo, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Bell, Check, Trash2, Loader2 } from "lucide-react";
-import Link from "next/link";
 import {
   markAllNotificationsAsRead,
-  markNotificationReadAction,
   getLatestNotifications,
   clearAllNotifications,
   deleteNotificationAction,
@@ -114,16 +113,9 @@ function SwipeableRow({
         >
           <span className="font-semibold block break-words">{notification.title}</span>
           {notification.link && (
-            <Link
-              href={notification.link}
-              onClick={(e) => {
-                e.stopPropagation();
-                onOpen(notification);
-              }}
-              className="text-primary hover:text-primary/80 shrink-0"
-            >
+            <span className="text-primary shrink-0" aria-hidden="true">
               →
-            </Link>
+            </span>
           )}
         </div>
         <p className="text-muted-foreground mt-0.5">{notification.message}</p>
@@ -174,6 +166,7 @@ export function NotificationBell({ userId }: { userId: string }) {
   const [clearing, setClearing] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const supabase = useMemo(() => createClient(), []);
+  const router = useRouter();
 
   useEffect(() => {
     getLatestNotifications().then((data) => {
@@ -236,15 +229,19 @@ export function NotificationBell({ userId }: { userId: string }) {
     });
   }, []);
 
-  const handleOpen = useCallback((n: Notification) => {
-    setIsOpen(false);
-    if (!n.is_read) {
-      setNotifications((prev) =>
-        prev.map((item) => (item.id === n.id ? { ...item, is_read: true } : item))
-      );
-      markNotificationReadAction(n.id).catch(() => {});
-    }
-  }, []);
+  const handleOpen = useCallback(
+    (n: Notification) => {
+      setIsOpen(false);
+      if (n.link) {
+        router.push(n.link);
+      }
+      // Once opened, a notification is done its job — remove it, same as
+      // swipe-delete, instead of leaving it sitting there as "read".
+      setNotifications((prev) => prev.filter((item) => item.id !== n.id));
+      deleteNotificationAction(n.id).catch(() => {});
+    },
+    [router]
+  );
 
   return (
     <div className="relative" ref={containerRef}>

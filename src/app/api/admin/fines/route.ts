@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireUserProfile } from "@/lib/auth/session";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { notifyUser } from "@/lib/notifications/notify";
 
 export async function POST(req: Request) {
   const profile = await requireUserProfile();
@@ -64,12 +65,13 @@ export async function POST(req: Request) {
       reject: "Fine proof rejected",
     };
 
-    await admin.from("notifications").insert({
-      user_id: fine.user_id,
+    await notifyUser({
+      userId: fine.user_id,
       title: titles[action],
       message: messages[action],
       link: "/attendance",
       type: "fine",
+      referenceId: fineId,
     });
 
     return NextResponse.json({ success: true });
@@ -120,15 +122,16 @@ export async function PATCH(req: Request) {
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-    // Notify founder(s) that a fine payment is awaiting confirmation.
+    // Fine proof verification is founder-only — only super_admins get this.
     const { data: founders } = await admin.from("users").select("id").eq("role", "super_admin");
     for (const f of founders ?? []) {
-      await admin.from("notifications").insert({
-        user_id: f.id,
+      await notifyUser({
+        userId: f.id,
         title: "Fine payment awaiting confirmation",
         message: `${profile.name} ne fine payment proof submit kiya hai.`,
         link: "/dashboard/founder",
         type: "fine",
+        referenceId: fineId,
       });
     }
 

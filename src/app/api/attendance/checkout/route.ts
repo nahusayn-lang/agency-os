@@ -73,7 +73,16 @@ export async function POST() {
       await admin.from("attendance").update(updates).eq("id", attendance.id);
     }
 
-    await admin.from("users").update({ is_checked_in: false }).eq("id", profile.id);
+    const { data: lockedUsers } = await admin
+  .from("users")
+  .update({ is_checked_in: false })
+  .eq("id", profile.id)
+  .eq("is_checked_in", true)
+  .select("id");
+
+if (!lockedUsers || lockedUsers.length === 0) {
+  return NextResponse.json({ error: "Already checked out." }, { status: 400 });
+}
 
     await supabase.from("audit_log").insert({
       user_id: profile.id,

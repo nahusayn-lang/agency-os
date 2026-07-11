@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { notifyUser } from "@/lib/notifications/notify";
 
 /** IST-aware date helpers (matches existing attendance.ts convention) */
 function toIST(date: Date): Date {
@@ -119,12 +120,7 @@ export async function resetGraceUsage(userId: string, date: Date = new Date()): 
 // STRIKES
 // ============================================================
 
-export type StrikeReason =
-  | "late_checkin"
-  | "missed_checkout"
-  | "fine_deadline_missed"
-  | "no_checkin"
-  | "leave_rejected";
+export type StrikeReason = "late_checkin" | "missed_checkout" | "fine_deadline_missed";
 
 /** Adds a strike, resets grace-usage counter, and checks whether a new fine should be raised. */
 export async function addStrike(
@@ -156,6 +152,26 @@ export async function addStrike(
     entity_type: "strike",
     entity_id: strike.id,
   });
+
+  // "missed_checkout" is skipped here — sweepMissedCheckouts() below already
+  // sends its own, more detailed notification (mentions the auto-checkout
+  // itself, not just the strike), so this avoids sending the user two
+  // notifications for the same event.
+  if (reason !== "missed_checkout") {
+    const reasonText: Record<StrikeReason, string> = {
+      late_checkin: "Late check-in ki wajah se",
+      missed_checkout: "Missed checkout ki wajah se",
+      fine_deadline_missed: "Fine deadline miss karne ki wajah se",
+    };
+    await notifyUser({
+      userId,
+      title: "Strike added",
+      message: `${reasonText[reason]} tumhe 1 strike lagi hai.`,
+      link: "/attendance",
+      type: "strike",
+      referenceId: strike.id,
+    });
+  }
 
   return { strikeId: strike.id, fineCreated };
 }
@@ -240,12 +256,13 @@ export async function checkAndCreateFine(userId: string): Promise<boolean> {
         batch.map((s) => s.id)
       );
 
-    await admin.from("notifications").insert({
-      user_id: userId,
+    await notifyUser({
+      userId,
       title: `Fine raised — ₹${fineAmount}`,
       message: `3 strikes complete ho gaye — ₹${fineAmount} ka fine laga hai. Deadline: ${deadline}`,
       link: "/attendance",
       type: "fine",
+      referenceId: fine.id,
     });
 
     created = true;
@@ -261,6 +278,12 @@ export async function removeStrike(
   reason: string
 ): Promise<void> {
   const admin = createAdminClient();
+
+  const { data: strikeRow } = await admin
+    .from("strikes")
+    .select("user_id")
+    .eq("id", strikeId)
+    .single();
 
   const { error } = await admin
     .from("strikes")
@@ -281,6 +304,17 @@ export async function removeStrike(
     entity_id: strikeId,
     reason,
   });
+
+  if (strikeRow?.user_id) {
+    await notifyUser({
+      userId: strikeRow.user_id,
+      title: "Strike removed",
+      message: `Tumhari ek strike founder dwara remove kar di gayi hai. Reason: ${reason}`,
+      link: "/attendance",
+      type: "strike_removed",
+      referenceId: strikeId,
+    });
+  }
 }
 
 // ============================================================
@@ -347,6 +381,12 @@ export async function reviewCannotComplete(
 ): Promise<void> {
   const admin = createAdminClient();
 
+  const { data: usageRow } = await admin
+    .from("cannot_complete_usage")
+    .select("user_id, task_id")
+    .eq("id", usageId)
+    .single();
+
   const { error } = await admin
     .from("cannot_complete_usage")
     .update({ status: decision, reviewed_by: reviewerId, reviewed_at: new Date().toISOString() })
@@ -360,6 +400,21 @@ export async function reviewCannotComplete(
     entity_type: "cannot_complete_usage",
     entity_id: usageId,
   });
+
+  // Goes back to the exact employee who submitted the request — not admins.
+  if (usageRow?.user_id) {
+    await notifyUser({
+      userId: usageRow.user_id,
+      title: decision === "approved" ? "Cannot-complete approved" : "Cannot-complete rejected",
+      message:
+        decision === "approved"
+          ? "Founder ne tumhari cannot-complete request approve kar di — checkout ab unblock hai."
+          : "Founder ne tumhari cannot-complete request reject kar di.",
+      link: usageRow.task_id ? `/tasks/${usageRow.task_id}` : "/tasks",
+      type: "cannot_complete_review",
+      referenceId: usageId,
+    });
+  }
 }
 
 /** True if the user currently has any pending_approval cannot-complete usage (blocks checkout). */
@@ -424,8 +479,8 @@ export async function sweepMissedCheckouts(): Promise<number> {
 
     await addStrike(user.id, "missed_checkout", attendance.id);
 
-    await admin.from("notifications").insert({
-      user_id: user.id,
+    await notifyUser({
+      userId: user.id,
       title: "Auto-checkout",
       message: "Shift-end + 1hr grace ke baad system ne khud checkout kar diya. 1 strike lagi hai.",
       link: "/attendance",
@@ -438,94 +493,60 @@ export async function sweepMissedCheckouts(): Promise<number> {
   return processed;
 }
 
-export async function addAbsentStrikes(
-  userId: string,
-  attendanceId: string
-): Promise<{ fineCreated: boolean }> {
-  let fineCreated = false;
-  for (let i = 0; i < 3; i++) {
-    const result = await addStrike(userId, "no_checkin", attendanceId);
-    if (result.fineCreated) fineCreated = true;
-  }
-  return { fineCreated };
-}
-
-export async function sweepAbsentUsers(): Promise<number> {
+// ============================================================
+// DEADLINE REMINDERS (run via cron once daily)
+// Pings the affected user once, 1 day before a task/fine deadline.
+// ============================================================
+export async function sweepDeadlineReminders(): Promise<{ taskReminders: number; fineReminders: number }> {
   const admin = createAdminClient();
   const now = new Date();
+  const in24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
 
-  const { data: users, error } = await admin
-    .from("users")
-    .select("id, shift_start, shift_end")
-    .eq("is_active", true);
+  const { data: dueTasks, error: taskError } = await admin
+    .from("tasks")
+    .select("id, title, assigned_to, deadline")
+    .eq("deadline_reminder_sent", false)
+    .not("deadline", "is", null)
+    .not("status", "in", "(approved,completed)")
+    .lte("deadline", in24h.toISOString())
+    .gte("deadline", now.toISOString());
 
-  if (error) throw new Error(`Failed to sweep absents: ${error.message}`);
-  if (!users || users.length === 0) return 0;
+  if (taskError) throw new Error(`Failed to sweep task deadlines: ${taskError.message}`);
 
-  const todayStr = getISTDateString(now);
-  const yesterday = new Date(now);
-  yesterday.setDate(yesterday.getDate() - 1);
-  const yesterdayStr = getISTDateString(yesterday);
-
-  let processed = 0;
-
-  for (const user of users) {
-    if (!user.shift_start || !user.shift_end) continue;
-
-    for (const shiftDateStr of [yesterdayStr, todayStr]) {
-      const shiftStartDT = new Date(`${shiftDateStr}T${user.shift_start}+05:30`);
-      let shiftEndDT = new Date(`${shiftDateStr}T${user.shift_end}+05:30`);
-      if (shiftEndDT <= shiftStartDT) {
-        shiftEndDT = new Date(shiftEndDT.getTime() + 24 * 60 * 60 * 1000);
-      }
-
-      const graceDeadline = new Date(shiftEndDT.getTime() + 60 * 60 * 1000);
-      if (now < graceDeadline) continue;
-
-      const { data: existingAttendance } = await admin
-        .from("attendance")
-        .select("id")
-        .eq("user_id", user.id)
-        .eq("date", shiftDateStr)
-        .maybeSingle();
-
-      if (existingAttendance) continue;
-
-      const { data: approvedLeave } = await admin
-        .from("messages")
-        .select("id")
-        .eq("sender_id", user.id)
-        .eq("type", "leave_request")
-        .eq("status", "approved")
-        .eq("leave_date", shiftDateStr)
-        .maybeSingle();
-
-      if (approvedLeave) continue;
-
-      const { data: absentRow, error: insertError } = await admin
-        .from("attendance")
-        .insert({ user_id: user.id, status: "absent", date: shiftDateStr })
-        .select("id")
-        .single();
-
-      if (insertError || !absentRow) {
-        console.error(`Failed to mark absent for ${user.id} on ${shiftDateStr}:`, insertError?.message);
-        continue;
-      }
-
-      await addAbsentStrikes(user.id, absentRow.id);
-
-      await admin.from("notifications").insert({
-        user_id: user.id,
-        title: "Absent — 3 strikes lagi hain",
-        message: `${shiftDateStr} ko koi check-in nahi hua aur koi approved leave bhi nahi thi. 3 strikes lagi hain.`,
-        link: "/attendance",
-        type: "attendance",
-      });
-
-      processed += 1;
-    }
+  for (const task of dueTasks ?? []) {
+    await notifyUser({
+      userId: task.assigned_to,
+      title: "Task deadline approaching",
+      message: `"${task.title}" ka deadline 24 ghante mein hai.`,
+      link: `/tasks/${task.id}`,
+      type: "task_deadline_reminder",
+      referenceId: task.id,
+    });
+    await admin.from("tasks").update({ deadline_reminder_sent: true }).eq("id", task.id);
   }
 
-  return processed;
+  const tomorrow = getISTDateString(new Date(now.getTime() + 24 * 60 * 60 * 1000));
+
+  const { data: dueFines, error: fineError } = await admin
+    .from("fines")
+    .select("id, user_id, amount, deadline")
+    .eq("status", "pending")
+    .eq("reminder_sent", false)
+    .lte("deadline", tomorrow);
+
+  if (fineError) throw new Error(`Failed to sweep fine deadlines: ${fineError.message}`);
+
+  for (const fine of dueFines ?? []) {
+    await notifyUser({
+      userId: fine.user_id,
+      title: "Fine deadline approaching",
+      message: `Tumhara ₹${fine.amount} fine ka deadline kal hai.`,
+      link: "/attendance",
+      type: "fine_deadline_reminder",
+      referenceId: fine.id,
+    });
+    await admin.from("fines").update({ reminder_sent: true }).eq("id", fine.id);
+  }
+
+  return { taskReminders: dueTasks?.length ?? 0, fineReminders: dueFines?.length ?? 0 };
 }

@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache";
 import { requireUserProfile } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { recordLogoutAttendance } from "@/lib/services/attendance-service";
-import { addStrike } from "@/lib/services/strike-fine-engine";
+import { sendPushToUser, sendPushToUsers } from "@/lib/notifications/push";
 
 export async function getActiveUsers() {
   const supabase = createClient();
@@ -37,7 +37,6 @@ export async function sendMessageAction(formData: FormData) {
   const content = String(formData.get("content") ?? "").trim();
   const recipientIdInput = String(formData.get("recipient_id") ?? "").trim();
   const taskIdInput = String(formData.get("task_id") ?? "").trim();
-  const leaveDateInput = String(formData.get("leave_date") ?? "").trim();
 
   if (!title || !content || !type) {
     return { error: "Type, Title, and Content are required." };
@@ -47,13 +46,8 @@ export async function sendMessageAction(formData: FormData) {
     return { error: "Only administrators can send announcements." };
   }
 
-  if (type === "leave_request" && !leaveDateInput) {
-    return { error: "Leave date is required for a leave request." };
-  }
-
   const recipient_id = recipientIdInput || null;
   const task_id = taskIdInput || null;
-  const leave_date = type === "leave_request" ? leaveDateInput : null;
 
   if (type !== "announcement" && !recipient_id) {
     return { error: "Recipient is required for this message type." };
@@ -67,12 +61,38 @@ export async function sendMessageAction(formData: FormData) {
     content,
     type,
     task_id,
-    leave_date,
     status: type === "leave_request" ? "pending" : "approved",
   });
 
   if (error) {
     return { error: error.message };
+  }
+
+  const titleByType: Record<string, string> = {
+    direct: "New Direct Message",
+    leave_request: "New Leave Request",
+    task_clarification: "New Task Clarification",
+  };
+
+  if (recipient_id) {
+    await sendPushToUser(recipient_id, {
+      title: titleByType[type] ?? "New Message",
+      message: content.slice(0, 100),
+      link: "/messages",
+    });
+  } else if (type === "announcement") {
+    const { data: recipients } = await supabase
+      .from("users")
+      .select("id")
+      .neq("id", profile.id)
+      .eq("is_active", true);
+
+    if (recipients?.length) {
+      await sendPushToUsers(
+        recipients.map((r) => r.id),
+        { title: `Announcement: ${title}`, message: content.slice(0, 100), link: "/messages" }
+      );
+    }
   }
 
   revalidatePath("/messages");
@@ -108,6 +128,18 @@ export async function updateLeaveRequestStatusAction(
   const { error } = await supabase.from("messages").update({ status }).eq("id", messageId);
   if (error) {
     return { error: error.message };
+  }
+
+  const isEmergencyCheckout = messageRow.title === "Emergency checkout request";
+
+  if (messageRow.type === "leave_request" && !isEmergencyCheckout) {
+    // Regular leave request: the DB trigger already writes the notification
+    // row, this just adds the outside-the-app push for it.
+    await sendPushToUser(messageRow.sender_id, {
+      title: `Leave Request ${status === "approved" ? "Approved" : "Rejected"}`,
+      message: `Your leave request has been ${status} by the administrator.`,
+      link: "/messages",
+    });
   }
 
   if (messageRow.type === "leave_request") {
@@ -147,6 +179,11 @@ export async function updateLeaveRequestStatusAction(
           message: `Your emergency checkout request was approved by ${profile.name}. You have been checked out.`,
           link: "/dashboard",
         });
+        await sendPushToUser(messageRow.sender_id, {
+          title: "Emergency checkout approved",
+          message: `Your emergency checkout request was approved by ${profile.name}. You have been checked out.`,
+          link: "/dashboard",
+        });
       } catch (e) {
         console.error(e);
       }
@@ -154,7 +191,17 @@ export async function updateLeaveRequestStatusAction(
 
     if (status === "rejected") {
       try {
-        await addStrike(messageRow.sender_id, "leave_rejected", messageId);
+        const { data: userRow } = await supabase
+          .from("users")
+          .select("id, strikes, email, name")
+          .eq("id", messageRow.sender_id)
+          .single();
+
+        const currentStrikes = (userRow?.strikes as number) ?? 0;
+        await supabase
+          .from("users")
+          .update({ strikes: currentStrikes + 1 })
+          .eq("id", messageRow.sender_id);
 
         await supabase.from("audit_log").insert({
           user_id: profile.id,
@@ -166,6 +213,11 @@ export async function updateLeaveRequestStatusAction(
 
         await supabase.from("notifications").insert({
           user_id: messageRow.sender_id,
+          title: "Emergency checkout rejected",
+          message: "Your emergency checkout request was rejected and a strike was applied.",
+          link: "/dashboard",
+        });
+        await sendPushToUser(messageRow.sender_id, {
           title: "Emergency checkout rejected",
           message: "Your emergency checkout request was rejected and a strike was applied.",
           link: "/dashboard",

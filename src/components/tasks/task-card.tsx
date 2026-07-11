@@ -84,6 +84,8 @@ export function TaskCard({ task, assignerName, assignerRole }: TaskCardProps) {
   const [proofUrl, setProofUrl] = useState<string | null>(task.proof_url ?? null);
   const [submitError, setSubmitError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isStarting, setIsStarting] = useState(false);
+  const [isPausing, setIsPausing] = useState(false);
 
   useEffect(() => {
     if (task.session_start_time) {
@@ -108,21 +110,24 @@ export function TaskCard({ task, assignerName, assignerRole }: TaskCardProps) {
   }, [view, task.id, elapsed]);
 
   function startTimer() {
-    const existing = window.localStorage.getItem("running_task");
-    if (existing && existing !== task.id) {
-      alert("Pehle chalta hua task pause ya submit karo, tab hi doosra start hoga.");
-      return;
-    }
-    fetch("/api/tasks/perform", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "start", taskId: task.id }),
-    }).then(() => {
-      setView("running");
-      window.localStorage.setItem("running_task", task.id);
-      timerRef.current = window.setInterval(() => setElapsed((s) => s + 1), 1000);
-    });
+  if (isStarting) return;
+  const existing = window.localStorage.getItem("running_task");
+  if (existing && existing !== task.id) {
+    alert("Pehle chalta hua task pause ya submit karo, tab hi doosra start hoga.");
+    return;
   }
+  setIsStarting(true);
+  fetch("/api/tasks/perform", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "start", taskId: task.id }),
+  }).then(() => {
+    setIsStarting(false);
+    setView("running");
+    window.localStorage.setItem("running_task", task.id);
+    timerRef.current = window.setInterval(() => setElapsed((s) => s + 1), 1000);
+  });
+}
 
   function stopTimerLocally() {
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
@@ -130,19 +135,21 @@ export function TaskCard({ task, assignerName, assignerRole }: TaskCardProps) {
   }
 
   async function handleConfirmPause() {
-    if (!pauseNote.trim()) { setPauseError("Pause karne ki wajah likhna zaroori hai."); return; }
-    setPauseError("");
-    stopTimerLocally();
-    const res = await fetch("/api/tasks/perform", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "pause", taskId: task.id, note: pauseNote }),
-    });
-    const data = await res.json();
-    if (data?.error) { alert(data.error); }
-    else { setPauseNote(""); setElapsed(0); window.location.reload(); }
-  }
-
+  if (isPausing) return;
+  if (!pauseNote.trim()) { setPauseError("Pause karne ki wajah likhna zaroori hai."); return; }
+  setPauseError("");
+  setIsPausing(true);
+  stopTimerLocally();
+  const res = await fetch("/api/tasks/perform", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "pause", taskId: task.id, note: pauseNote }),
+  });
+  const data = await res.json();
+  setIsPausing(false);
+  if (data?.error) { alert(data.error); }
+  else { setPauseNote(""); setElapsed(0); window.location.reload(); }
+}
   async function handleConfirmSubmit() {
     if (!proofUrl) { setSubmitError("Screenshot upload karna zaroori hai."); return; }
     if (!submitNote.trim()) { setSubmitError("Completion note likhna zaroori hai."); return; }
@@ -275,7 +282,7 @@ export function TaskCard({ task, assignerName, assignerRole }: TaskCardProps) {
           {view === "idle" && !isDone && task.status !== "waiting_review" && (
             <div className="flex gap-2">
               {showStartResume && (
-                <Button size="sm" onClick={startTimer}>{startLabel}</Button>
+                <Button size="sm" disabled={isStarting} onClick={startTimer}>{isStarting ? "Starting…" : startLabel}</Button>
               )}
               {task.status === "in_progress" && (
                 <Button size="sm" variant="outline" onClick={() => setView("submitting")}>Submit</Button>
@@ -304,7 +311,7 @@ export function TaskCard({ task, assignerName, assignerRole }: TaskCardProps) {
               />
               {pauseError && <p className="text-xs text-red-500">{pauseError}</p>}
               <div className="flex gap-2">
-                <Button size="sm" onClick={handleConfirmPause}>Confirm Pause</Button>
+                <Button size="sm" disabled={isPausing} onClick={handleConfirmPause}>{isPausing ? "Pausing…" : "Confirm Pause"}</Button>
                 <Button size="sm" variant="ghost" onClick={() => { setPauseNote(""); setPauseError(""); setView("running"); }}>Cancel</Button>
               </div>
             </div>

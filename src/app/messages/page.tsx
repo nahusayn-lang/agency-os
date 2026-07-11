@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { SubmitButton } from "@/components/ui/submit-button";
+import { Button } from "@/components/ui/button";
 import { getActiveUsers, getUserTasks, sendMessageAction, updateLeaveRequestStatusAction } from "@/lib/messages/actions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -46,6 +46,7 @@ export default function MessagesPage() {
   const [composeType, setComposeType] = useState<string>("direct");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [isSending, setIsSending] = useState(false);
 
   const supabase = createClient();
 
@@ -92,12 +93,15 @@ export default function MessagesPage() {
 
   const handleComposeSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (isSending) return;
     setErrorMsg(null);
     setSuccessMsg(null);
+    setIsSending(true);
 
     const formData = new FormData(e.currentTarget);
     const result = await sendMessageAction(formData);
 
+    setIsSending(false);
     if (result.error) {
       setErrorMsg(result.error);
     } else {
@@ -264,7 +268,9 @@ export default function MessagesPage() {
                   <Textarea id="content" name="content" rows={5} placeholder="Write your message here..." required />
                 </div>
 
-                <SubmitButton loadingText="Sending message...">Send message</SubmitButton>
+                <Button type="submit" disabled={isSending}>
+                  {isSending ? "Sending message..." : "Send message"}
+                </Button>
               </form>
             </CardContent>
           </Card>

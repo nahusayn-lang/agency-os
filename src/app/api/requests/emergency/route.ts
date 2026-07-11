@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireUserProfile } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
+import { sendPushToUser } from "@/lib/notifications/push";
 
 export async function POST(req: Request) {
   const profile = await requireUserProfile();
@@ -21,6 +22,11 @@ export async function POST(req: Request) {
       .eq("is_active", true);
 
     for (const admin of admins ?? []) {
+      // Inserting into "messages" fires the existing DB trigger which
+      // creates the in-app notification row for this admin automatically —
+      // we only need to additionally fire the outside-the-app push here.
+      // (Previously this ALSO manually inserted a notification row, which
+      // created a duplicate — every emergency request pinged admins twice.)
       await supabase.from("messages").insert({
         sender_id: profile.id,
         recipient_id: admin.id,
@@ -30,8 +36,7 @@ export async function POST(req: Request) {
         status: "pending",
       });
 
-      await supabase.from("notifications").insert({
-        user_id: admin.id,
+      await sendPushToUser(admin.id, {
         title: "Emergency checkout request",
         message: `${profile.name} ne emergency checkout maanga: ${note}`,
         link: "/messages",
