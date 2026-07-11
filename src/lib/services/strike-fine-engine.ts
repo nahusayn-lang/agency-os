@@ -120,7 +120,7 @@ export async function resetGraceUsage(userId: string, date: Date = new Date()): 
 // STRIKES
 // ============================================================
 
-export type StrikeReason = "late_checkin" | "missed_checkout" | "fine_deadline_missed";
+export type StrikeReason = "late_checkin" | "missed_checkout" | "fine_deadline_missed" | "no_checkin";
 
 /** Adds a strike, resets grace-usage counter, and checks whether a new fine should be raised. */
 export async function addStrike(
@@ -162,6 +162,7 @@ export async function addStrike(
       late_checkin: "Late check-in ki wajah se",
       missed_checkout: "Missed checkout ki wajah se",
       fine_deadline_missed: "Fine deadline miss karne ki wajah se",
+      no_checkin: "Poore din check-in na karne ki wajah se",
     };
     await notifyUser({
       userId,
@@ -483,6 +484,82 @@ export async function sweepMissedCheckouts(): Promise<number> {
       userId: user.id,
       title: "Auto-checkout",
       message: "Shift-end + 1hr grace ke baad system ne khud checkout kar diya. 1 strike lagi hai.",
+      link: "/attendance",
+      type: "attendance",
+    });
+
+    processed += 1;
+  }
+
+  return processed;
+}
+
+// ============================================================
+// ABSENT SWEEP (run via cron once daily)
+// Any active user who hasn't checked in within 1hr of their shift-start,
+// and isn't covered by an approved leave for today, gets marked absent
+// (an `attendance` row with status "absent") and takes a strike.
+// ============================================================
+export async function sweepAbsentUsers(): Promise<number> {
+  const admin = createAdminClient();
+  const now = new Date();
+  const today = getISTDateString(now);
+
+  const { data: activeUsers, error } = await admin
+    .from("users")
+    .select("id, shift_start")
+    .eq("is_active", true);
+
+  if (error) throw new Error(`Failed to sweep absent users: ${error.message}`);
+  if (!activeUsers || activeUsers.length === 0) return 0;
+
+  let processed = 0;
+
+  for (const user of activeUsers) {
+    const shiftStartToday = new Date(`${today}T${user.shift_start}+05:30`);
+    const cutoff = new Date(shiftStartToday.getTime() + 60 * 60 * 1000); // +1hr grace past shift start
+
+    if (now <= cutoff) continue;
+
+    // Already has a record for today (checked in, or already swept) — skip.
+    const { data: attendance } = await admin
+      .from("attendance")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("date", today)
+      .maybeSingle();
+
+    if (attendance) continue;
+
+    // Covered by an approved leave for today — not absent, skip.
+    const { data: approvedLeave } = await admin
+      .from("messages")
+      .select("id")
+      .eq("sender_id", user.id)
+      .eq("type", "leave_request")
+      .eq("status", "approved")
+      .eq("leave_date", today)
+      .maybeSingle();
+
+    if (approvedLeave) continue;
+
+    const { error: insertError } = await admin.from("attendance").insert({
+      user_id: user.id,
+      date: today,
+      status: "absent",
+    });
+
+    if (insertError) {
+      console.error(`Failed to mark ${user.id} absent:`, insertError.message);
+      continue;
+    }
+
+    await addStrike(user.id, "no_checkin");
+
+    await notifyUser({
+      userId: user.id,
+      title: "Marked absent",
+      message: "Shift-start + 1hr grace tak check-in nahi hua, isliye aaj absent mark ho gaye ho aur 1 strike lagi hai.",
       link: "/attendance",
       type: "attendance",
     });
