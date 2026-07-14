@@ -459,7 +459,6 @@ export async function sweepMissedCheckouts(): Promise<number> {
       .from("attendance")
       .select("id, checkout_time")
       .eq("user_id", user.id)
-      .eq("date", today)
       .is("checkout_time", null)
       .order("checkin_time", { ascending: false })
       .limit(1)
@@ -554,15 +553,28 @@ export async function sweepAbsentUsers(): Promise<number> {
       continue;
     }
 
-    await addStrike(user.id, "no_checkin");
+ const fineAmount = await getFineAmount();
+  const deadline = getWeekEndDeadline(now);
 
-    await notifyUser({
-      userId: user.id,
-      title: "Marked absent",
-      message: "Shift-start + 1hr grace tak check-in nahi hua, isliye aaj absent mark ho gaye ho aur 1 strike lagi hai.",
-      link: "/attendance",
-      type: "attendance",
-    });
+  const { data: fine } = await admin
+    .from("fines")
+    .insert({ user_id: user.id, amount: fineAmount, strikes_count: 3, status: "pending", deadline })
+    .select("id")
+    .single();
+
+  await admin.from("strikes").insert([
+    { user_id: user.id, reason: "no_checkin", is_removed: false, fine_id: fine?.id ?? null },
+    { user_id: user.id, reason: "no_checkin", is_removed: false, fine_id: fine?.id ?? null },
+    { user_id: user.id, reason: "no_checkin", is_removed: false, fine_id: fine?.id ?? null },
+  ]);
+
+  await notifyUser({
+    userId: user.id,
+    title: "Marked absent — fine issued",
+    message: `Check-in nahi hua bina leave ke — direct ₹${fineAmount} fine laga hai. Deadline: ${deadline}`,
+    link: "/attendance",
+    type: "attendance",
+  });
 
     processed += 1;
   }
