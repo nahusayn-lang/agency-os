@@ -17,6 +17,8 @@ interface AttendanceCardProps {
   shiftStart: string | null;
   shiftEnd: string | null;
   checkedOutToday?: boolean;
+  /** True if checkout was initiated but the mandatory report hasn't been submitted yet. */
+  reportPending?: boolean;
   /** Active (not removed) strikes not yet folded into a fine — normally 0, 1 or 2. */
   activeStrikeCount?: number;
   /** Fines still awaiting payment/confirmation (status 'pending' or 'submitted'). */
@@ -88,6 +90,7 @@ export function AttendanceCard({
   shiftStart,
   shiftEnd,
   checkedOutToday,
+  reportPending = false,
   activeStrikeCount = 0,
   pendingFineCount = 0,
   fineAmount = 149,
@@ -100,7 +103,7 @@ export function AttendanceCard({
 
   // Report modal state
   const [showReportModal, setShowReportModal] = useState(false);
-  const [reportPending, setReportPending] = useState(false);
+  const [reportSubmitting, setReportSubmitting] = useState(false);
   const [reportError, setReportError] = useState<string | null>(null);
   const [reportFields, setReportFields] = useState({
     what_i_did_today: "",
@@ -108,6 +111,19 @@ export function AttendanceCard({
     pending_work: "",
     blockers: "",
   });
+
+  // Refresh ke baad bhi report modal wapas dikhao agar server keh raha hai
+  // ki checkout initiate ho chuka hai par report abhi submit nahi hua.
+  // Isse pehle wala bug fix hota hai jaha refresh karne par modal state
+  // (jo sirf client memory mein tha) gayab ho jaata tha.
+  useEffect(() => {
+    if (reportPending && isCheckedIn) {
+      setReportFields({ what_i_did_today: "", completed_work: "", pending_work: "", blockers: "" });
+      setReportError(null);
+      setShowReportModal(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reportPending, isCheckedIn]);
 
   useEffect(() => {
     if (!isCheckedIn || !lastCheckinAt) return;
@@ -164,7 +180,7 @@ export function AttendanceCard({
       setReportError("Saare fields fill karna zaroori hai.");
       return;
     }
-    setReportPending(true);
+    setReportSubmitting(true);
     setReportError(null);
     try {
       const formData = new FormData();
@@ -176,13 +192,20 @@ export function AttendanceCard({
       const res = await fetch("/api/attendance/submit-report", { method: "POST", body: formData });
       const data = await res.json();
       if (!res.ok) {
-        setReportError(data.error ?? "Report submit nahi hua.");
+        if (data.error === "checkout_blocked" && data.blockedTasks) {
+          // Report form ke khule rehte waqt koi task block ho gaya —
+          // modal band karke card par blocked-tasks list dikhao.
+          setShowReportModal(false);
+          setBlockedTasks(data.blockedTasks);
+          return;
+        }
+        setReportError(data.message ?? data.error ?? "Report submit nahi hua.");
         return;
       }
       setShowReportModal(false);
       router.refresh();
     } finally {
-      setReportPending(false);
+      setReportSubmitting(false);
     }
   }
 
@@ -344,10 +367,10 @@ export function AttendanceCard({
               <Button
                 size="sm"
                 className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
-                disabled={reportPending}
+                disabled={reportSubmitting}
                 onClick={handleReportSubmit}
               >
-                {reportPending ? "Submitting…" : "Submit Report"}
+                {reportSubmitting ? "Submitting…" : "Submit Report"}
               </Button>
             </div>
           </div>

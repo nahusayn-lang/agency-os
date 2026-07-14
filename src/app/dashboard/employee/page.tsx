@@ -25,11 +25,12 @@ export default async function EmployeeDashboardPage() {
 
   const { data: userRow } = await admin
     .from("users")
-    .select("is_checked_in, last_checkin_at, shift_start, shift_end")
+    .select("is_checked_in, last_checkin_at, shift_start, shift_end, checkout_report_pending")
     .eq("id", profile.id)
     .single();
 
   const isCheckedIn = userRow?.is_checked_in ?? false;
+  const reportPending = userRow?.checkout_report_pending ?? false;
   const lastCheckinAt = userRow?.last_checkin_at ?? null;
 
   const today = getTodayDateString();
@@ -106,6 +107,7 @@ export default async function EmployeeDashboardPage() {
           shiftStart={userRow?.shift_start ?? null}
           shiftEnd={userRow?.shift_end ?? null}
           checkedOutToday={checkedOutToday}
+          reportPending={reportPending}
           activeStrikeCount={activeStrikeCount ?? 0}
           pendingFineCount={pendingFineCount}
           fineAmount={fineAmount}

@@ -2,21 +2,22 @@ import { NextResponse } from "next/server";
 import { requireUserProfile } from "@/lib/auth/session";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { isEarlyExit, getTodayDateString } from "@/lib/auth/attendance";
 import { hasPendingCannotCompleteApproval } from "@/lib/services/strike-fine-engine";
 
+// Ye route SIRF validation karta hai (blocked tasks / pending approval).
+// Asli checkout (is_checked_in=false, checkout_time, audit log) ab
+// /api/attendance/submit-report route mein hota hai — taaki report
+// submit kiye bina checkout kabhi bhi DB mein complete na ho (refresh-safe).
 export async function POST() {
   const profile = await requireUserProfile();
 
   try {
     const supabase = createClient();
     const admin = createAdminClient();
-    const now = new Date();
-    const today = getTodayDateString(now);
 
     const { data: userRow } = await admin
       .from("users")
-      .select("shift_end, is_checked_in")
+      .select("is_checked_in")
       .eq("id", profile.id)
       .single();
 
@@ -51,66 +52,13 @@ export async function POST() {
       );
     }
 
-    const shiftEnd = userRow?.shift_end ?? "23:59:59";
-    const isEarly = isEarlyExit(shiftEnd, now);
-    const statusUpdate = isEarly ? "early_exit" : undefined;
-
-    const { data: attendance } = await admin
-      .from("attendance")
-      .select("id, status")
-      .eq("user_id", profile.id)
-      .eq("date", today)
-      .order("checkin_time", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (attendance) {
-      const updates: Record<string, unknown> = {
-        checkout_time: now.toISOString(),
-        logout_time: now.toISOString(),
-      };
-      if (statusUpdate) updates.status = statusUpdate;
-      await admin.from("attendance").update(updates).eq("id", attendance.id);
-    }
-
-    const { data: lockedUsers } = await admin
-  .from("users")
-  .update({ is_checked_in: false })
-  .eq("id", profile.id)
-  .eq("is_checked_in", true)
-  .select("id");
-
-if (!lockedUsers || lockedUsers.length === 0) {
-  return NextResponse.json({ error: "Already checked out." }, { status: 400 });
-}
-
-    await supabase.from("audit_log").insert({
-      user_id: profile.id,
-      action: "checkout",
-      entity_type: "attendance",
-      entity_id: null,
-    });
-
-    if (isEarly) {
-      const timeStr = now.toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit" });
-      const { data: admins } = await admin
-        .from("users")
-        .select("id")
-        .in("role", ["super_admin", "admin"])
-        .eq("is_active", true);
-
-      if (admins?.length) {
-        await supabase.from("notifications").insert(
-          admins.map((a) => ({
-            user_id: a.id,
-            title: "Early checkout",
-            message: `${profile.name} ne early checkout kiya — ${timeStr}`,
-            link: "/attendance",
-            type: "attendance",
-          }))
-        );
-      }
-    }
+    // Validation pass ho gayi — report abhi bhi baaki hai. Ye flag set
+    // karo taaki refresh hone par bhi dashboard ko pata rahe ki report
+    // modal dobara dikhana hai.
+    await admin
+      .from("users")
+      .update({ checkout_report_pending: true })
+      .eq("id", profile.id);
 
     return NextResponse.json({ success: true });
   } catch (err) {
