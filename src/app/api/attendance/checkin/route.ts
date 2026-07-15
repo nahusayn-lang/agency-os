@@ -16,7 +16,7 @@ export async function POST() {
 
     const { data: userRow } = await supabase
       .from("users")
-      .select("shift_start, is_checked_in")
+      .select("shift_start, shift_end, is_checked_in")
       .eq("id", profile.id)
       .single();
 
@@ -25,9 +25,26 @@ export async function POST() {
     }
 
     const shiftStart = userRow?.shift_start ?? "00:00:00";
+    const shiftEnd = userRow?.shift_end ?? null;
 
-    const evaluation = await evaluateCheckin(profile.id, shiftStart, now);
-    const status = evaluation.status;
+    // Agar shift already khatam ho chuki hai (matlab sweep isko absent
+    // maar chuka ho sakta hai), to check-in normally chalne do — time
+    // track hoga, kaam kar sakta hai — lekin "late" mein convert nahi
+    // karna hai. Status "absent" hi rehta hai; fine/strike jo already
+    // lag chuki hai wo waisi hi rehti hai. Founder record dekh kar
+    // manually maaf/adjust kar sakta hai.
+    const isAfterShiftEnd =
+      !!shiftEnd && now > new Date(`${today}T${shiftEnd}+05:30`);
+
+    let evaluation = { status: "present" as "present" | "late", strikeTriggered: false, graceUsed: false };
+    let status: string = "present";
+
+    if (isAfterShiftEnd) {
+      status = "absent";
+    } else {
+      evaluation = await evaluateCheckin(profile.id, shiftStart, now);
+      status = evaluation.status;
+    }
 
     const { data: existing } = await admin
       .from("attendance")
@@ -41,7 +58,12 @@ export async function POST() {
     if (existing) {
       await admin
         .from("attendance")
-        .update({ checkin_time: now.toISOString(), login_time: now.toISOString(), status })
+        .update({
+          checkin_time: now.toISOString(),
+          login_time: now.toISOString(),
+          status,
+          ...(isAfterShiftEnd ? { late_checkin_after_absent: true } : {}),
+        })
         .eq("id", existing.id);
     } else {
       const { data: inserted } = await admin
@@ -52,6 +74,7 @@ export async function POST() {
           login_time: now.toISOString(),
           status,
           date: today,
+          ...(isAfterShiftEnd ? { late_checkin_after_absent: true } : {}),
         })
         .select("id")
         .single();
@@ -80,7 +103,26 @@ if (!lockedUsers || lockedUsers.length === 0) {
       await addStrike(profile.id, "late_checkin", attendanceId);
     }
 
-    if (status === "late" || evaluation.graceUsed) {
+    if (isAfterShiftEnd) {
+      const timeStr = now.toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit" });
+      const { data: admins } = await admin
+        .from("users")
+        .select("id")
+        .in("role", ["super_admin", "admin"])
+        .eq("is_active", true);
+
+      if (admins?.length) {
+        await supabase.from("notifications").insert(
+          admins.map((a) => ({
+            user_id: a.id,
+            title: "Shift ke baad check-in",
+            message: `${profile.name} ne shift khatam hone ke baad (${timeStr}) check-in kiya — attendance abhi bhi "absent" hai, review karke chaho to manually maaf/adjust kar sakte ho.`,
+            link: "/attendance",
+            type: "attendance",
+          }))
+        );
+      }
+    } else if (status === "late" || evaluation.graceUsed) {
       const timeStr = now.toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit" });
       const { data: admins } = await admin
         .from("users")

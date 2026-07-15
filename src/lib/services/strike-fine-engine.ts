@@ -32,10 +32,14 @@ export function getWeekEndDeadline(date: Date = new Date()): string {
 }
 
 // ============================================================
-// GRACE PERIOD (check-in) — 30 min grace, 2 uses per week
+// GRACE PERIOD (check-in)
+// 0–30 min after shift start: always free, no fine, no weekly limit.
+// 30–60 min after shift start: "grace" — allowed only 2 times per week.
+// 60+ min after shift start: always late + strike.
 // ============================================================
 
-const GRACE_MINUTES = 30;
+const FREE_WINDOW_MINUTES = 30;
+const EXTRA_GRACE_MINUTES = 30; // on top of the free window, i.e. up to 60 min total
 const GRACE_LIMIT_PER_WEEK = 2;
 
 export interface CheckinEvaluation {
@@ -48,9 +52,10 @@ export interface CheckinEvaluation {
 }
 
 /**
- * Evaluates a check-in against shift start + grace rules.
- * Rule: on time -> present. Late but within 30min grace and grace-uses < 2 -> present (grace used).
- * Late (whether within or beyond 30min grace) once grace uses are exhausted (>=2 already used this week) -> strike.
+ * Evaluates a check-in against shift start + the two-tier window rule.
+ * - On time, or within 30 min of shift start -> always present, no fine, no weekly limit.
+ * - 30–60 min late -> present IF a weekly grace slot (max 2/week) is available, else late+strike.
+ * - 60+ min late -> always late + strike, regardless of grace quota.
  */
 export async function evaluateCheckin(
   userId: string,
@@ -62,13 +67,16 @@ export async function evaluateCheckin(
   const istDateStr = checkinTime.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
   const shiftStartToday = new Date(`${istDateStr}T${shiftStart}+05:30`);
 
-  const isLate = checkinTime > shiftStartToday;
+  const freeWindowDeadline = new Date(shiftStartToday.getTime() + FREE_WINDOW_MINUTES * 60 * 1000);
 
-  if (!isLate) {
+  // Within the first 30 min of shift start (or early/on time) — always free.
+  if (checkinTime <= freeWindowDeadline) {
     return { status: "present", strikeTriggered: false, graceUsed: false };
   }
 
-  const graceDeadline = new Date(shiftStartToday.getTime() + GRACE_MINUTES * 60 * 1000);
+  const graceDeadline = new Date(
+    shiftStartToday.getTime() + (FREE_WINDOW_MINUTES + EXTRA_GRACE_MINUTES) * 60 * 1000
+  );
   const withinGraceWindow = checkinTime <= graceDeadline;
 
   const weekStart = getWeekStart(checkinTime);
@@ -82,7 +90,7 @@ export async function evaluateCheckin(
   const usedSoFar = graceRow?.used_count ?? 0;
   const graceAvailable = usedSoFar < GRACE_LIMIT_PER_WEEK;
 
-  // Grace only "saves" the check-in if late arrival is within the 30-min window
+  // Grace only "saves" the check-in if arrival is within the 30–60 min window
   // AND the user hasn't already used up their 2 grace slots this week.
   if (withinGraceWindow && graceAvailable) {
     if (graceRow) {
@@ -100,9 +108,11 @@ export async function evaluateCheckin(
     return { status: "present", strikeTriggered: false, graceUsed: true };
   }
 
-  // Grace exhausted (3rd+ late this week) OR arrived beyond the 30-min window -> strike.
+  // Grace exhausted (3rd+ late this week within 30-60min) OR arrived beyond
+  // the 60-min total window -> strike.
   return { status: "late", strikeTriggered: true, graceUsed: false };
 }
+
 
 /** Resets a user's grace-usage counter for the current week (called after a strike is added). */
 export async function resetGraceUsage(userId: string, date: Date = new Date()): Promise<void> {
@@ -418,7 +428,79 @@ export async function reviewCannotComplete(
   }
 }
 
-/** True if the user currently has any pending_approval cannot-complete usage (blocks checkout). */
+/**
+ * Jab bhi naye shift ka start-time aa jaaye, aur user abhi bhi purani
+ * (pichli shift-occurrence ki) session mein checked-in ho, to usko turant
+ * force-checkout kar do — grace/1hr wait ka intezaar nahi. Isse fresh
+ * "Check In" card turant available ho jaata hai naye shift ke liye.
+ *
+ * Pehchaan: attendance row ka `date` (shift-occurrence date) agar aaj ki
+ * date se alag hai, aur aaj ka shift-start time already aa chuka hai,
+ * to wo session "stale" hai — force close.
+ *
+ * Ise dashboard load par call karo (turant reflect ho) + cron sweep mein
+ * bhi (background safety net) taaki page reload na hone par bhi close ho.
+ */
+export async function closeStaleShiftSession(userId: string): Promise<void> {
+  const admin = createAdminClient();
+  const now = new Date();
+  const today = getISTDateString(now);
+
+  const { data: user } = await admin
+    .from("users")
+    .select("id, shift_start, is_checked_in")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (!user?.is_checked_in || !user.shift_start) return;
+
+  const shiftStartToday = new Date(`${today}T${user.shift_start}+05:30`);
+  if (now < shiftStartToday) return; // aaj ka shift abhi shuru nahi hua
+
+  const { data: attendance } = await admin
+    .from("attendance")
+    .select("id, date, checkin_time")
+    .eq("user_id", userId)
+    .is("checkout_time", null)
+    .order("checkin_time", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (!attendance || attendance.date === today) return; // same-shift session, chhedo mat
+
+  await admin
+    .from("attendance")
+    .update({
+      checkout_time: now.toISOString(),
+      logout_time: now.toISOString(),
+      auto_checkout: true,
+    })
+    .eq("id", attendance.id);
+
+  await admin.from("users").update({ is_checked_in: false }).eq("id", userId);
+}
+
+/** Background safety-net (call from cron) — closes any leftover stale sessions
+ * for all checked-in users, in case the dashboard wasn't reloaded at the
+ * exact shift-boundary moment. */
+export async function sweepStaleShiftSessions(): Promise<number> {
+  const admin = createAdminClient();
+  const { data: checkedInUsers } = await admin
+    .from("users")
+    .select("id")
+    .eq("is_checked_in", true)
+    .eq("is_active", true);
+
+  if (!checkedInUsers || checkedInUsers.length === 0) return 0;
+
+  let processed = 0;
+  for (const user of checkedInUsers) {
+    await closeStaleShiftSession(user.id);
+    processed += 1;
+  }
+  return processed;
+}
+
 export async function hasPendingCannotCompleteApproval(userId: string): Promise<boolean> {
   const admin = createAdminClient();
   const { count } = await admin
@@ -506,7 +588,7 @@ export async function sweepAbsentUsers(): Promise<number> {
 
   const { data: activeUsers, error } = await admin
     .from("users")
-    .select("id, shift_start")
+    .select("id, shift_start, shift_end")
     .eq("is_active", true);
 
   if (error) throw new Error(`Failed to sweep absent users: ${error.message}`);
@@ -515,8 +597,12 @@ export async function sweepAbsentUsers(): Promise<number> {
   let processed = 0;
 
   for (const user of activeUsers) {
-    const shiftStartToday = new Date(`${today}T${user.shift_start}+05:30`);
-    const cutoff = new Date(shiftStartToday.getTime() + 60 * 60 * 1000); // +1hr grace past shift start
+    // Absent sirf tab lagta hai jab poori shift nikal jaaye aur user ne
+    // ek baar bhi check-in na kiya ho — shift start + thodi der grace par
+    // nahi (wo "late" ke liye hai, evaluateCheckin mein handle hota hai).
+    if (!user.shift_end) continue;
+    const shiftEndToday = new Date(`${today}T${user.shift_end}+05:30`);
+    const cutoff = shiftEndToday;
 
     if (now <= cutoff) continue;
 

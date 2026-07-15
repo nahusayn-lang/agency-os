@@ -11,10 +11,11 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { getTodayDateString } from "@/lib/auth/attendance";
 import { FinesAdminTable, type AdminFineRow } from "@/components/dashboard/fines-admin-table";
 import { FineWalletWidget } from "@/components/dashboard/fine-wallet-widget";
-import { getFineAmount } from "@/lib/services/strike-fine-engine";
+import { getFineAmount, closeStaleShiftSession } from "@/lib/services/strike-fine-engine";
 
 export default async function ManagerDashboardPage() {
   const profile = await requireRole("admin");
+  await closeStaleShiftSession(profile.id);
   const weekStart = getWeekStartDateString();
   const commitment = await getFounderCommitmentForWeek(weekStart);
 
@@ -36,12 +37,15 @@ export default async function ManagerDashboardPage() {
   const today = getTodayDateString();
   const { data: todayAttendance } = await admin
     .from("attendance")
-    .select("id")
+    .select("id, checkout_time")
     .eq("user_id", profile.id)
     .eq("date", today)
     .maybeSingle();
 
-  const checkedOutToday = !isCheckedIn && !!todayAttendance;
+  // "Marked for today" sirf tab dikhna chahiye jab actually checkout ho
+  // chuka ho — sirf row exist karna kaafi nahi (absent-marked row bhi
+  // "date = today" ke saath exist karti hai, uska checkout_time null hota hai).
+  const checkedOutToday = !isCheckedIn && !!todayAttendance?.checkout_time;
 
   const { data: members } = await supabase
     .from("users")
