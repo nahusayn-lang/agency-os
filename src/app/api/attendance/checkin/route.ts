@@ -27,31 +27,59 @@ export async function POST() {
     const shiftStart = userRow?.shift_start ?? "00:00:00";
     const shiftEnd = userRow?.shift_end ?? null;
 
-    // Agar shift already khatam ho chuki hai (matlab sweep isko absent
-    // maar chuka ho sakta hai), to check-in normally chalne do — time
-    // track hoga, kaam kar sakta hai — lekin "late" mein convert nahi
-    // karna hai. Status "absent" hi rehta hai; fine/strike jo already
-    // lag chuki hai wo waisi hi rehti hai. Founder record dekh kar
-    // manually maaf/adjust kar sakta hai.
+    // Step 1: Purani "open" absent entry dhoondo — koi bhi record jiska
+    // checkin_time null hai (matlab kabhi check-in nahi hua, sirf absent
+    // lagi thi). Aisa record tab tak "open" rehta hai jab tak uski *agli*
+    // shift-occurrence shuru nahi ho jaati (shift daily repeat hoti hai).
+    const { data: openAbsent } = await admin
+      .from("attendance")
+      .select("id, date")
+      .eq("user_id", profile.id)
+      .eq("status", "absent")
+      .is("checkin_time", null)
+      .order("date", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    let linkToRecordId: string | null = null;
+
+    if (openAbsent && shiftStart) {
+      // Agli occurrence ka start-time = us purani entry ki date + 1 din, shift_start pe.
+      const nextOccurrenceStart = new Date(
+        `${openAbsent.date}T${shiftStart}+05:30`
+      );
+      nextOccurrenceStart.setDate(nextOccurrenceStart.getDate() + 1);
+
+      if (now < nextOccurrenceStart) {
+        // Abhi bhi dead-zone mein hai — agla shift start nahi hua — isliye
+        // ye check-in purani hi absent-entry mein jaayega, naya row nahi.
+        linkToRecordId = openAbsent.id;
+      }
+    }
+
     const isAfterShiftEnd =
-      !!shiftEnd && now > new Date(`${today}T${shiftEnd}+05:30`);
+      !!shiftEnd && !linkToRecordId && now > new Date(`${today}T${shiftEnd}+05:30`);
 
     let evaluation = { status: "present" as "present" | "late", strikeTriggered: false, graceUsed: false };
     let status: string = "present";
 
-    if (isAfterShiftEnd) {
+    if (linkToRecordId || isAfterShiftEnd) {
       status = "absent";
     } else {
       evaluation = await evaluateCheckin(profile.id, shiftStart, now);
       status = evaluation.status;
     }
 
-    const { data: existing } = await admin
-      .from("attendance")
-      .select("id")
-      .eq("user_id", profile.id)
-      .eq("date", today)
-      .maybeSingle();
+    const isRecovery = !!linkToRecordId || isAfterShiftEnd;
+
+    const { data: existing } = linkToRecordId
+      ? { data: { id: linkToRecordId } }
+      : await admin
+          .from("attendance")
+          .select("id")
+          .eq("user_id", profile.id)
+          .eq("date", today)
+          .maybeSingle();
 
     let attendanceId: string | null = existing?.id ?? null;
 
@@ -62,7 +90,7 @@ export async function POST() {
           checkin_time: now.toISOString(),
           login_time: now.toISOString(),
           status,
-          ...(isAfterShiftEnd ? { late_checkin_after_absent: true } : {}),
+          ...(isRecovery ? { late_checkin_after_absent: true } : {}),
         })
         .eq("id", existing.id);
     } else {
@@ -74,7 +102,7 @@ export async function POST() {
           login_time: now.toISOString(),
           status,
           date: today,
-          ...(isAfterShiftEnd ? { late_checkin_after_absent: true } : {}),
+          ...(isRecovery ? { late_checkin_after_absent: true } : {}),
         })
         .select("id")
         .single();
@@ -103,7 +131,7 @@ if (!lockedUsers || lockedUsers.length === 0) {
       await addStrike(profile.id, "late_checkin", attendanceId);
     }
 
-    if (isAfterShiftEnd) {
+    if (isRecovery) {
       const timeStr = now.toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit" });
       const { data: admins } = await admin
         .from("users")
