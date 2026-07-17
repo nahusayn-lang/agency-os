@@ -1,10 +1,7 @@
 import Link from "next/link";
 import { requireUserProfile } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { toggleUserActiveAction, setUserRoleAction, setShiftAction } from "@/lib/admin/users";
-import { StrikeControlPanel, type StrikeRow } from "@/components/dashboard/strike-control-panel";
-import { getFineAmount } from "@/lib/services/strike-fine-engine";
 
 export default async function AdminUsersPage() {
   const profile = await requireUserProfile();
@@ -33,33 +30,18 @@ export default async function AdminUsersPage() {
     shift_end?: string | null;
   }>;
 
-  let activeStrikes: StrikeRow[] = [];
-  let fineAmount = 149;
-  if (profile.role === "super_admin") {
-    const admin = createAdminClient();
-    fineAmount = await getFineAmount();
-    const { data: activeStrikesRaw } = await admin
-      .from("strikes")
-      .select("id, reason, is_removed, created_at, users:user_id(name)")
-      .eq("is_removed", false)
-      .order("created_at", { ascending: false });
-
-    activeStrikes = (activeStrikesRaw ?? []).map((s) => ({
-      id: s.id,
-      reason: s.reason,
-      is_removed: s.is_removed,
-      created_at: s.created_at,
-      user_name: (s.users as unknown as { name: string } | null)?.name ?? "Unknown",
-    }));
-  }
-
   return (
     <div className="px-4 py-6 max-w-lg mx-auto">
       <h1 className="mb-6 text-2xl font-bold">Admin Users</h1>
 
       <div className="space-y-4">
         {profile.role === "super_admin" && (
-          <StrikeControlPanel strikes={activeStrikes} fineAmount={fineAmount} />
+          <a
+            href="/fines-rewards"
+            className="block rounded-xl border border-white/10 bg-card p-4 text-sm text-primary underline underline-offset-2"
+          >
+            Fine amount, strikes aur fines ab yahan hain → Fine &amp; Rewards page
+          </a>
         )}
         {rows.map((u) => (
           <div key={u.id} className="rounded-xl border border-border bg-card p-4 space-y-3">

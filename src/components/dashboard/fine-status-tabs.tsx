@@ -1,0 +1,224 @@
+"use client";
+
+import { useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { createClient } from "@/lib/supabase/client";
+
+export interface FineTabItem {
+  id: string;
+  amount: number;
+  status: "pending" | "submitted" | "paid" | "waived";
+  deadline: string;
+  proof_url: string | null;
+  payment_comment: string | null;
+  category: string;
+}
+
+const CATEGORY_LABELS: Record<string, string> = {
+  late_checkin: "Late Check-in",
+  missed_checkout: "Missed Checkout",
+  no_checkin: "Absent",
+  fine_deadline_missed: "Deadline Missed",
+  leave_rejected: "Leave Rejected",
+  uncategorized: "Other",
+};
+
+const TABS = [
+  { key: "topay", label: "To Pay" },
+  { key: "paid", label: "Paid" },
+  { key: "waived", label: "Waived" },
+] as const;
+
+type TabKey = (typeof TABS)[number]["key"];
+
+function matchesTab(status: FineTabItem["status"], tab: TabKey) {
+  if (tab === "topay") return status === "pending" || status === "submitted";
+  return status === tab;
+}
+
+/**
+ * canPay: true for the employee's own list (shows Pay button on "pending" fines).
+ * adminActions: true for founder viewing a team member's fines (Mark paid / Waive inline).
+ */
+export function FineStatusTabs({
+  fines,
+  canPay = false,
+  adminActions = false,
+}: {
+  fines: FineTabItem[];
+  canPay?: boolean;
+  adminActions?: boolean;
+}) {
+  const router = useRouter();
+  const [tab, setTab] = useState<TabKey>("topay");
+  const [pending, startTransition] = useTransition();
+  const [openPayId, setOpenPayId] = useState<string | null>(null);
+  const [file, setFile] = useState<File | null>(null);
+  const [comment, setComment] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  const today = new Date().toISOString().slice(0, 10);
+
+  const counts = useMemo(() => {
+    const c: Record<TabKey, number> = { topay: 0, paid: 0, waived: 0 };
+    fines.forEach((f) => TABS.forEach((t) => matchesTab(f.status, t.key) && c[t.key]++));
+    return c;
+  }, [fines]);
+
+  const visible = fines.filter((f) => matchesTab(f.status, tab));
+
+  function submitPayment(fineId: string) {
+    if (!file) {
+      setError("Payment screenshot lagana zaroori hai.");
+      return;
+    }
+    setError(null);
+    startTransition(async () => {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setError("Session expire ho gaya, dobara login karo.");
+        return;
+      }
+      const path = `${user.id}/${fineId}-${Date.now()}-${file.name}`;
+      const { error: uploadError } = await supabase.storage
+        .from("fine-proofs")
+        .upload(path, file, { upsert: false });
+      if (uploadError) {
+        setError(uploadError.message);
+        return;
+      }
+      const { data: signed } = await supabase.storage
+        .from("fine-proofs")
+        .createSignedUrl(path, 60 * 60 * 24 * 365);
+
+      const res = await fetch("/api/admin/fines", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fineId, proofUrl: signed?.signedUrl ?? "", paymentComment: comment }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? "Submit nahi hua.");
+        return;
+      }
+      setOpenPayId(null);
+      setFile(null);
+      setComment("");
+      router.refresh();
+    });
+  }
+
+  function act(fineId: string, action: "paid" | "waived") {
+    startTransition(async () => {
+      await fetch("/api/admin/fines", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fineId, action }),
+      });
+      router.refresh();
+    });
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex gap-1 rounded-lg border p-1 w-fit">
+        {TABS.map((t) => (
+          <button
+            key={t.key}
+            onClick={() => setTab(t.key)}
+            className={`text-xs px-3 py-1.5 rounded-md transition-colors ${
+              tab === t.key ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-white/5"
+            }`}
+          >
+            {t.label} ({counts[t.key]})
+          </button>
+        ))}
+      </div>
+
+      <div className="space-y-2">
+        {visible.length === 0 && (
+          <p className="text-sm text-muted-foreground py-2">Yahan kuch nahi hai.</p>
+        )}
+        {visible.map((fine) => {
+          const isOverdue = fine.status === "pending" && fine.deadline < today;
+          return (
+            <div key={fine.id} className="rounded-lg border p-3 space-y-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="font-medium">₹{fine.amount}</span>
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-white/5 text-white/60 border border-white/10">
+                  {CATEGORY_LABELS[fine.category] ?? fine.category}
+                </span>
+                {isOverdue && (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-destructive/10 text-destructive border border-destructive/30">
+                    overdue
+                  </span>
+                )}
+                {fine.status === "submitted" && (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-sky-500/10 text-sky-500 border border-sky-500/30">
+                    awaiting confirmation
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">Deadline: {fine.deadline}</p>
+              {fine.proof_url && (
+                <a href={fine.proof_url} target="_blank" rel="noreferrer" className="text-xs text-primary underline">
+                  Screenshot dekho
+                </a>
+              )}
+              {fine.payment_comment && (
+                <p className="text-xs text-muted-foreground italic">&quot;{fine.payment_comment}&quot;</p>
+              )}
+
+              {canPay && fine.status === "pending" && (
+                openPayId === fine.id ? (
+                  <div className="space-y-2">
+                    <div>
+                      <label className="text-xs font-medium text-muted-foreground">
+                        Payment screenshot <span className="text-destructive">*</span>
+                      </label>
+                      <Input type="file" accept="image/*" className="mt-1" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+                    </div>
+                    <textarea
+                      className="w-full rounded-lg border bg-background px-2 py-1.5 text-sm resize-none"
+                      rows={2}
+                      placeholder="Comment (optional)"
+                      value={comment}
+                      onChange={(e) => setComment(e.target.value)}
+                    />
+                    {error && <p className="text-xs text-destructive">{error}</p>}
+                    <div className="flex gap-2">
+                      <Button size="sm" disabled={pending} className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => submitPayment(fine.id)}>
+                        {pending ? "Submitting…" : "Done"}
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => { setOpenPayId(null); setError(null); }}>
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <Button size="sm" variant="outline" disabled={pending} onClick={() => setOpenPayId(fine.id)}>
+                    Pay
+                  </Button>
+                )
+              )}
+
+              {adminActions && fine.status === "pending" && (
+                <div className="flex gap-2 pt-1">
+                  <Button size="sm" disabled={pending} onClick={() => act(fine.id, "paid")}>
+                    Mark paid
+                  </Button>
+                  <Button size="sm" variant="ghost" disabled={pending} onClick={() => act(fine.id, "waived")}>
+                    Waive
+                  </Button>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}

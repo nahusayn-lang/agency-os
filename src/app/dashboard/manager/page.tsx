@@ -9,7 +9,6 @@ import { FounderCommitmentReadonly } from "@/components/dashboard/founder-commit
 import { AttendanceCard } from "@/components/dashboard/attendance-card";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { getTodayDateString } from "@/lib/auth/attendance";
-import { FinesAdminTable, type AdminFineRow } from "@/components/dashboard/fines-admin-table";
 import { FineWalletWidget } from "@/components/dashboard/fine-wallet-widget";
 import { getFineAmount, closeStaleShiftSession } from "@/lib/services/strike-fine-engine";
 
@@ -64,22 +63,6 @@ export default async function ManagerDashboardPage() {
     .select("*", { count: "exact", head: true })
     .not("stage", "in", '("deal_won","deal_lost")');
 
-  // All employee fines — view-only for admin (super_admin has the actions)
-  const { data: allFinesRaw } = await admin
-    .from("fines")
-    .select("id, amount, status, deadline, proof_url, payment_comment, users:user_id(name)")
-    .order("created_at", { ascending: false });
-
-  const allFines: AdminFineRow[] = (allFinesRaw ?? []).map((f) => ({
-    id: f.id,
-    amount: f.amount,
-    status: f.status,
-    deadline: f.deadline,
-    proof_url: f.proof_url,
-    payment_comment: f.payment_comment,
-    user_name: (f.users as unknown as { name: string } | null)?.name ?? "Unknown",
-  }));
-
   // Manager's own strikes/fines — for their own Attendance card badge + Fine Pay card
   const { data: myFines } = await admin
     .from("fines")
@@ -127,6 +110,19 @@ export default async function ManagerDashboardPage() {
           </CardHeader>
           <CardContent><div className="text-2xl font-bold">{pendingTasks ?? 0}</div></CardContent>
         </Card>
+        <a href="/fines-rewards">
+          <Card className="hover:border-white/20 transition-colors cursor-pointer">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Fines</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{(myFines ?? []).length}</div>
+              {pendingFineCount > 0 && (
+                <p className="text-xs text-amber-400 mt-1">{pendingFineCount} pending</p>
+              )}
+            </CardContent>
+          </Card>
+        </a>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Active Leads</CardTitle>
@@ -140,7 +136,6 @@ export default async function ManagerDashboardPage() {
         commitmentText={commitment?.commitment_text ?? null}
       />
 
-      <FinesAdminTable fines={allFines} isSuperAdmin={false} />
 
       <FineWalletWidget fines={myFines ?? []} />
 

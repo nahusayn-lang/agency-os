@@ -2,7 +2,7 @@ import Link from "next/link";
 import { requireUserProfile } from "@/lib/auth/session";
 import { getDashboardPathForRole } from "@/lib/auth/roles";
 import { LogoutButton } from "@/components/logout-button";
-import { LayoutDashboard, ClipboardList, CheckSquare, BookUser, Mail, FileText, CalendarCheck, BarChart2, Target, Users } from "lucide-react";
+import { LayoutDashboard, ClipboardList, CheckSquare, BookUser, Mail, FileText, CalendarCheck, BarChart2, Target, Users, Wallet } from "lucide-react";
 
 export default async function Sidebar() {
   const profile = await requireUserProfile();
@@ -56,6 +56,9 @@ export default async function Sidebar() {
           </Link>
           <Link href="/performance" className={linkClass}>
             <BarChart2 size={15} /> Performance
+          </Link>
+          <Link href="/fines-rewards" className={linkClass}>
+            <Wallet size={15} /> Fine &amp; Rewards
           </Link>
           <Link href="/targets" className={linkClass}>
             <Target size={15} /> Weekly Targets
