@@ -4,6 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { ListTree } from "lucide-react";
 
 export interface StrikeRow {
   id: string;
@@ -121,12 +122,17 @@ export function StrikesPanel({ strikes }: { strikes: StrikeRow[] }) {
           const isBusy = pending && (busyId === current?.id);
 
           return (
-            <Card key={userName}>
-              <CardHeader className="pb-2">
+            <Card key={userName} className="rounded-2xl">
+              <CardHeader className="pb-3">
                 <CardTitle className="text-sm font-medium flex items-center justify-between">
-                  <span>{userName}</span>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-500 border border-amber-500/30">
-                    {active.length} active
+                  <span className="flex items-center gap-2.5">
+                    <span className="w-8 h-8 rounded-full bg-amber-500/10 text-amber-500 border border-amber-500/30 flex items-center justify-center text-xs font-medium">
+                      {userName.charAt(0).toUpperCase()}
+                    </span>
+                    {userName}
+                  </span>
+                  <span className="text-[11px] text-muted-foreground tracking-wide">
+                    {active.length} ACTIVE
                   </span>
                 </CardTitle>
               </CardHeader>
@@ -134,37 +140,35 @@ export function StrikesPanel({ strikes }: { strikes: StrikeRow[] }) {
                 {active.length === 0 ? (
                   <p className="text-xs text-muted-foreground">Koi active strike nahi.</p>
                 ) : (
-                  <div className="rounded-lg border p-2.5 space-y-2">
+                  <div className="rounded-xl bg-white/[0.03] p-4 space-y-3">
                     <div className="flex items-center justify-between">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 w-7 p-0"
+                      <button
+                        aria-label="Previous strike"
+                        className="w-7 h-7 rounded-full border border-white/15 flex items-center justify-center text-white/60 hover:bg-white/5 disabled:opacity-30 transition-colors"
                         disabled={idx <= 0}
                         onClick={() => setPointerIndex((prev) => ({ ...prev, [userName]: idx - 1 }))}
                       >
                         ‹
-                      </Button>
+                      </button>
                       <span className="text-xs text-muted-foreground">
-                        Strike #{idx + 1} / {active.length}
+                        {idx + 1} / {active.length}
                       </span>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 w-7 p-0"
+                      <button
+                        aria-label="Next strike"
+                        className="w-7 h-7 rounded-full border border-white/15 flex items-center justify-center text-white/60 hover:bg-white/5 disabled:opacity-30 transition-colors"
                         disabled={idx >= active.length - 1}
                         onClick={() => setPointerIndex((prev) => ({ ...prev, [userName]: idx + 1 }))}
                       >
                         ›
-                      </Button>
+                      </button>
                     </div>
 
                     {current && (
                       <>
-                        <p className="text-sm">
-                          <span className="font-medium">{current.reason.replace(/_/g, " ")}</span>
-                          <span className="text-muted-foreground"> — {new Date(current.created_at).toLocaleString()}</span>
-                        </p>
+                        <div>
+                          <p className="text-sm font-medium">{current.reason.replace(/_/g, " ")}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">{new Date(current.created_at).toLocaleString()}</p>
+                        </div>
 
                         {removeReasonFor === current.id ? (
                           <div className="flex items-center gap-1.5">
@@ -217,10 +221,11 @@ export function StrikesPanel({ strikes }: { strikes: StrikeRow[] }) {
                 )}
 
                 <button
-                  className="text-xs text-primary underline underline-offset-2"
+                  className="flex items-center gap-1.5 text-xs text-primary"
                   onClick={() => setDetailsOpenFor(detailsOpenFor === userName ? null : userName)}
                 >
-                  {detailsOpenFor === userName ? "Details band karo" : "Sabhi strikes ki details dekho"}
+                  <ListTree size={13} />
+                  Details
                 </button>
 
                 {detailsOpenFor === userName && (

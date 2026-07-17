@@ -35,18 +35,20 @@ export function FinesRewardsClient({
 
   return (
     <div className="space-y-6">
-      <div className="flex gap-1 rounded-lg border p-1 w-fit">
-        {(["fine", "rewards"] as const).map((t) => (
-          <button
-            key={t}
-            onClick={() => setMainTab(t)}
-            className={`text-sm px-4 py-1.5 rounded-md capitalize transition-colors ${
-              mainTab === t ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-white/5"
-            }`}
-          >
-            {t === "fine" ? "Fine" : "Rewards"}
-          </button>
-        ))}
+      <div className="flex justify-center">
+        <div className="flex gap-1 rounded-xl border p-1.5">
+          {(["fine", "rewards"] as const).map((t) => (
+            <button
+              key={t}
+              onClick={() => setMainTab(t)}
+              className={`text-base px-8 py-2.5 rounded-lg capitalize font-medium transition-colors ${
+                mainTab === t ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-white/5"
+              }`}
+            >
+              {t === "fine" ? "Fine" : "Rewards"}
+            </button>
+          ))}
+        </div>
       </div>
 
       {mainTab === "rewards" && (
@@ -85,18 +87,20 @@ export function FinesRewardsClient({
 
           {isAdmin ? (
             <div className="space-y-3">
-              <div className="flex gap-1 rounded-lg border p-1 w-fit">
-                {(["mine", "team"] as const).map((s) => (
-                  <button
-                    key={s}
-                    onClick={() => setScope(s)}
-                    className={`text-xs px-3 py-1.5 rounded-md transition-colors ${
-                      scope === s ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-white/5"
-                    }`}
-                  >
-                    {s === "mine" ? "My Fines" : "Team Fines"}
-                  </button>
-                ))}
+              <div className="flex justify-center">
+                <div className="flex gap-1 rounded-xl border p-1.5">
+                  {(["mine", "team"] as const).map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => setScope(s)}
+                      className={`text-sm px-6 py-2 rounded-lg font-medium transition-colors ${
+                        scope === s ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-white/5"
+                      }`}
+                    >
+                      {s === "mine" ? "My Fines" : "Team Fines"}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {scope === "mine" && <FineStatusTabs fines={myFines} canPay />}

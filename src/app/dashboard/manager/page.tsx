@@ -110,19 +110,19 @@ export default async function ManagerDashboardPage() {
           </CardHeader>
           <CardContent><div className="text-2xl font-bold">{pendingTasks ?? 0}</div></CardContent>
         </Card>
-        <a href="/fines-rewards">
-          <Card className="hover:border-white/20 transition-colors cursor-pointer">
+        <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Fines</CardTitle>
+              {pendingFineCount > 0 && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 text-amber-400 text-[11px] font-medium px-2.5 py-0.5">
+                  {pendingFineCount} pending
+                </span>
+              )}
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{(myFines ?? []).length}</div>
-              {pendingFineCount > 0 && (
-                <p className="text-xs text-amber-400 mt-1">{pendingFineCount} pending</p>
-              )}
             </CardContent>
           </Card>
-        </a>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Active Leads</CardTitle>
