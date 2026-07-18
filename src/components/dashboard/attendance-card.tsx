@@ -38,23 +38,6 @@ function StrikeFineBadge({
 }) {
   if (activeStrikeCount === 0 && pendingFineCount === 0) return null;
 
-  let label = "";
-  let tone = "";
-
-  if (pendingFineCount === 0) {
-    label = `${activeStrikeCount} ${activeStrikeCount === 1 ? "strike" : "strikes"}`;
-    tone =
-      activeStrikeCount === 1
-        ? "bg-amber-500/10 text-amber-500 border border-amber-500/30"
-        : "bg-orange-500/10 text-orange-500 border border-orange-500/30";
-  } else {
-    const fineLabel =
-      pendingFineCount === 1
-        ? `fine ₹${fineAmount}`
-        : `fine ₹${fineAmount * pendingFineCount} · ${pendingFineCount}×`;
-    label = activeStrikeCount > 0 ? `${fineLabel} + ${activeStrikeCount} strike${activeStrikeCount > 1 ? "s" : ""}` : fineLabel;
-    tone = "bg-destructive/10 text-destructive border border-destructive/30";
-  }
 
   return (
     <div className={`flex flex-col items-end gap-0.5 rounded-2xl px-3 py-1.5 text-right bg-destructive/10 border border-destructive/30`}>
@@ -307,7 +290,7 @@ export function AttendanceCard({
               <div>
                 <h2 className="text-lg font-semibold">Daily Report</h2>
                 <p className="text-sm text-muted-foreground mt-0.5">
-                  Checkout complete ✓ — please fill in today's report.
+                  Checkout complete ✓ — please fill in today&apos;s report.
                 </p>
               </div>
 
