@@ -156,8 +156,8 @@ export async function createTaskAction(formData: FormData) {
   // manager, or the founder assigning a task to themselves/another admin.
   await notifyUser({
     userId: assignedTo,
-    title: "New task assigned",
-    message: `${profile.name} ne tumhe "${task.title}" task assign ki hai.`,
+    title: "New Task Assigned",
+    message: `${profile.name} has assigned you the task "${task.title}".`,
     link: `/tasks/${task.id}`,
     type: "task_assigned",
     referenceId: task.id,
@@ -221,8 +221,8 @@ export async function updateTaskStatusAction(
     if (task.assigned_to !== profile.id) {
       await notifyUser({
         userId: task.assigned_to,
-        title: "Task force-closed by founder",
-        message: `${profile.name} ne "${task.title}" ko force-close kiya. Reason: ${options.overrideReason.trim()}`,
+        title: "Task Force-Closed by Founder",
+        message: `${profile.name} force-closed "${task.title}". Reason: ${options.overrideReason.trim()}`,
         link: `/tasks/${taskId}`,
         type: "task_override",
         referenceId: taskId,
@@ -259,30 +259,30 @@ export async function updateTaskStatusAction(
     if (otherParty && otherParty !== profile.id) {
       const statusMessages: Partial<Record<TaskStatus, { title: string; message: string; type: string }>> = {
         approved: {
-          title: "Task approved ✓",
-          message: `"${task.title}" task approve ho gayi.`,
+          title: "Task Approved ✓",
+          message: `"${task.title}" has been approved.`,
           type: "task_approved",
         },
         completed: {
-          title: "Task approved ✓",
-          message: `"${task.title}" task approve ho gayi.`,
+          title: "Task Approved ✓",
+          message: `"${task.title}" has been approved.`,
           type: "task_approved",
         },
         revision_required: {
-          title: "Task revision required",
-          message: `"${task.title}" mein revision chahiye.`,
+          title: "Task Revision Required",
+          message: `"${task.title}" requires revision.`,
           type: "task_revision",
         },
         in_progress: {
-          title: "Task in progress",
-          message: `"${task.title}" par kaam shuru ho gaya hai.`,
+          title: "Task In Progress",
+          message: `Work has started on "${task.title}".`,
           type: "task_status",
         },
       };
 
       const notice = statusMessages[newStatus] ?? {
-        title: "Task status updated",
-        message: `"${task.title}" ka status "${TASK_STATUS_LABELS[newStatus]}" ho gaya.`,
+        title: "Task Status Updated",
+        message: `"${task.title}" status changed to "${TASK_STATUS_LABELS[newStatus]}".`,
         type: "task_status",
       };
 
@@ -352,8 +352,8 @@ export async function addTaskCommentAction(taskId: string, message: string, opti
     if (otherParty && otherParty !== profile.id) {
       await notifyUser({
         userId: otherParty,
-        title: "New task comment",
-        message: `${profile.name} ne "${task.title}" par comment kiya: ${trimmed.slice(0, 100)}`,
+        title: "New Task Comment",
+        message: `${profile.name} commented on "${task.title}": ${trimmed.slice(0, 100)}`,
         link: `/tasks/${taskId}`,
         type: "task_comment",
         referenceId: taskId,
@@ -433,7 +433,7 @@ export async function submitTaskAction(
   await notifyAdmins(
     supabase,
     "Task submitted for review",
-    `${profile.name} ne "${task.title}" task submit ki — review karo.`,
+    `${profile.name} has submitted "${task.title}" for review.`,
     `/tasks/${taskId}`,
     "task_review",
     taskId

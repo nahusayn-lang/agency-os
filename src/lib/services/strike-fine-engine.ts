@@ -169,15 +169,15 @@ export async function addStrike(
   // notifications for the same event.
   if (reason !== "missed_checkout") {
     const reasonText: Record<StrikeReason, string> = {
-      late_checkin: "Late check-in ki wajah se",
-      missed_checkout: "Missed checkout ki wajah se",
-      fine_deadline_missed: "Fine deadline miss karne ki wajah se",
-      no_checkin: "Poore din check-in na karne ki wajah se",
+      late_checkin: "Due to late check-in,",
+      missed_checkout: "Due to a missed checkout,",
+      fine_deadline_missed: "Due to missing the fine deadline,",
+      no_checkin: "Due to no check-in for the full day,",
     };
     await notifyUser({
       userId,
-      title: "Strike added",
-      message: `${reasonText[reason]} tumhe 1 strike lagi hai.`,
+      title: "Strike Added",
+      message: `${reasonText[reason]} you have received 1 strike.`,
       link: "/attendance",
       type: "strike",
       referenceId: strike.id,
@@ -269,8 +269,8 @@ export async function checkAndCreateFine(userId: string): Promise<boolean> {
 
     await notifyUser({
       userId,
-      title: `Fine raised — ₹${fineAmount}`,
-      message: `3 strikes complete ho gaye — ₹${fineAmount} ka fine laga hai. Deadline: ${deadline}`,
+      title: `Fine Raised — ₹${fineAmount}`,
+      message: `You have completed 3 strikes — a fine of ₹${fineAmount} has been issued. Deadline: ${deadline}`,
       link: "/attendance",
       type: "fine",
       referenceId: fine.id,
@@ -319,8 +319,8 @@ export async function removeStrike(
   if (strikeRow?.user_id) {
     await notifyUser({
       userId: strikeRow.user_id,
-      title: "Strike removed",
-      message: `Tumhari ek strike founder dwara remove kar di gayi hai. Reason: ${reason}`,
+      title: "Strike Removed",
+      message: `One of your strikes has been removed by the founder. Reason: ${reason}`,
       link: "/attendance",
       type: "strike_removed",
       referenceId: strikeId,
@@ -416,11 +416,11 @@ export async function reviewCannotComplete(
   if (usageRow?.user_id) {
     await notifyUser({
       userId: usageRow.user_id,
-      title: decision === "approved" ? "Cannot-complete approved" : "Cannot-complete rejected",
+      title: decision === "approved" ? "Cannot-Complete Approved" : "Cannot-Complete Rejected",
       message:
         decision === "approved"
-          ? "Founder ne tumhari cannot-complete request approve kar di — checkout ab unblock hai."
-          : "Founder ne tumhari cannot-complete request reject kar di.",
+          ? "The founder has approved your cannot-complete request — checkout is now unblocked."
+          : "The founder has rejected your cannot-complete request.",
       link: usageRow.task_id ? `/tasks/${usageRow.task_id}` : "/tasks",
       type: "cannot_complete_review",
       referenceId: usageId,
@@ -563,8 +563,8 @@ export async function sweepMissedCheckouts(): Promise<number> {
 
     await notifyUser({
       userId: user.id,
-      title: "Auto-checkout",
-      message: "Shift-end + 1hr grace ke baad system ne khud checkout kar diya. 1 strike lagi hai.",
+      title: "Auto-Checkout",
+      message: "The system automatically checked you out after shift end + 1hr grace period. 1 strike has been issued.",
       link: "/attendance",
       type: "attendance",
     });
@@ -656,8 +656,8 @@ export async function sweepAbsentUsers(): Promise<number> {
 
   await notifyUser({
     userId: user.id,
-    title: "Marked absent — fine issued",
-    message: `Check-in nahi hua bina leave ke — direct ₹${fineAmount} fine laga hai. Deadline: ${deadline}`,
+    title: "Marked Absent — Fine Issued",
+    message: `No check-in was recorded without an approved leave — a fine of ₹${fineAmount} has been issued directly. Deadline: ${deadline}`,
     link: "/attendance",
     type: "attendance",
   });
@@ -691,8 +691,8 @@ export async function sweepDeadlineReminders(): Promise<{ taskReminders: number;
   for (const task of dueTasks ?? []) {
     await notifyUser({
       userId: task.assigned_to,
-      title: "Task deadline approaching",
-      message: `"${task.title}" ka deadline 24 ghante mein hai.`,
+      title: "Task Deadline Approaching",
+      message: `"${task.title}" is due in 24 hours.`,
       link: `/tasks/${task.id}`,
       type: "task_deadline_reminder",
       referenceId: task.id,
@@ -714,8 +714,8 @@ export async function sweepDeadlineReminders(): Promise<{ taskReminders: number;
   for (const fine of dueFines ?? []) {
     await notifyUser({
       userId: fine.user_id,
-      title: "Fine deadline approaching",
-      message: `Tumhara ₹${fine.amount} fine ka deadline kal hai.`,
+      title: "Fine Deadline Approaching",
+      message: `Your ₹${fine.amount} fine is due tomorrow.`,
       link: "/attendance",
       type: "fine_deadline_reminder",
       referenceId: fine.id,

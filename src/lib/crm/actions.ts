@@ -176,7 +176,7 @@ export async function updateLeadStageAction(leadId: string, newStage: LeadStage)
   revalidatePath("/crm");
   revalidatePath(`/crm/${leadId}`);
 
-  const stageChangeMessage = `${profile.name} ne "${lead.business_name}" lead ka stage "${oldStage}" se "${newStage}" kiya.`;
+  const stageChangeMessage = `${profile.name} updated the stage of lead "${lead.business_name}" from "${oldStage}" to "${newStage}".`;
 
   // Whoever didn't make the change gets notified (the assignee, if someone
   // else moved their lead).

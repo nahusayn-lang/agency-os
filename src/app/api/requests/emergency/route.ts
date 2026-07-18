@@ -30,15 +30,15 @@ export async function POST(req: Request) {
       await supabase.from("messages").insert({
         sender_id: profile.id,
         recipient_id: admin.id,
-        title: "Emergency checkout request",
+        title: "Emergency Checkout Request",
         content: `${profile.name} requests checkout: ${note}`,
         type: "leave_request",
         status: "pending",
       });
 
       await sendPushToUser(admin.id, {
-        title: "Emergency checkout request",
-        message: `${profile.name} ne emergency checkout maanga: ${note}`,
+        title: "Emergency Checkout Request",
+        message: `${profile.name} requested an emergency checkout: ${note}`,
         link: "/messages",
       });
     }

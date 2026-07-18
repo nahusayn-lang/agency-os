@@ -54,7 +54,7 @@ export async function POST(req: Request) {
       return NextResponse.json(
         {
           error: "checkout_blocked",
-          message: "Kuch tasks abhi bhi pending hain — pehle unhe resolve karo, phir checkout retry karo.",
+          message: "Some tasks are still pending — resolve them before retrying checkout.",
           blockedTasks: blockedTasks.map((t) => ({ id: t.id, title: t.title, status: t.status })),
         },
         { status: 403 }
@@ -66,7 +66,7 @@ export async function POST(req: Request) {
       return NextResponse.json(
         {
           error: "checkout_blocked_pending_approval",
-          message: "Ek 'cannot complete' request super_admin approval ka wait kar rahi hai. Checkout tab tak block hai.",
+          message: "A 'cannot complete' request is awaiting super admin approval. Checkout is blocked until then.",
         },
         { status: 403 }
       );
@@ -125,8 +125,8 @@ export async function POST(req: Request) {
         await supabase.from("notifications").insert(
           admins.map((a) => ({
             user_id: a.id,
-            title: "Early checkout",
-            message: `${profile.name} ne early checkout kiya — ${timeStr}`,
+            title: "Early Checkout",
+            message: `${profile.name} checked out early — ${timeStr}`,
             link: "/attendance",
             type: "attendance",
           }))

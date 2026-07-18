@@ -59,8 +59,8 @@ export async function updateWeeklyTargetCompletionAction(targetId: string, compl
   if (profile.id !== currentTarget.user_id) {
     await notifyUser({
       userId: currentTarget.user_id,
-      title: "Weekly target updated",
-      message: `Tumhare weekly target ka completion ${completionPercentage}% update ho gaya hai.`,
+      title: "Weekly Target Updated",
+      message: `Your weekly target completion has been updated to ${completionPercentage}%.`,
       link: "/targets",
       type: "weekly_target",
       referenceId: targetId,
@@ -88,8 +88,8 @@ export async function updateWeeklyTargetNotesAction(targetId: string, adminNotes
   // is always for the employee — no self-notify check needed here.
   await notifyUser({
     userId: target.user_id,
-    title: "Weekly target note added",
-    message: `${profile.name} ne tumhare weekly target par ek note add kiya hai.`,
+    title: "Weekly Target Note Added",
+    message: `${profile.name} added a note to your weekly target.`,
     link: "/targets",
     type: "weekly_target",
     referenceId: targetId,

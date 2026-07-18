@@ -143,8 +143,8 @@ if (!lockedUsers || lockedUsers.length === 0) {
         await supabase.from("notifications").insert(
           admins.map((a) => ({
             user_id: a.id,
-            title: "Shift ke baad check-in",
-            message: `${profile.name} ne shift khatam hone ke baad (${timeStr}) check-in kiya — attendance abhi bhi "absent" hai, review karke chaho to manually maaf/adjust kar sakte ho.`,
+            title: "Post-Shift Check-in",
+            message: `${profile.name} checked in after shift end (${timeStr}) — attendance is still marked "absent". Review and manually adjust if needed.`,
             link: "/attendance",
             type: "attendance",
           }))
@@ -160,13 +160,13 @@ if (!lockedUsers || lockedUsers.length === 0) {
 
       if (admins?.length) {
         const note = evaluation.strikeTriggered
-          ? `${profile.name} late aaya (${timeStr}) — grace khatam, 1 strike lagi hai.`
-          : `${profile.name} late aaya (${timeStr}) — grace period use hua.`;
+          ? `${profile.name} arrived late (${timeStr}) — grace period exhausted, 1 strike issued.`
+          : `${profile.name} arrived late (${timeStr}) — grace period used.`;
 
         await supabase.from("notifications").insert(
           admins.map((a) => ({
             user_id: a.id,
-            title: "Late check-in",
+            title: "Late Check-in",
             message: note,
             link: "/attendance",
             type: "attendance",

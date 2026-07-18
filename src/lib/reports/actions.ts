@@ -49,8 +49,8 @@ export async function createReportAction(formData: FormData): Promise<{ error?: 
     await notifyUsers(
       recipients.map((r) => r.id),
       {
-        title: "New report submitted",
-        message: `${profile.name} ne apna daily report submit kiya hai.`,
+        title: "New Report Submitted",
+        message: `${profile.name} has submitted their daily report.`,
         link: "/reports",
         type: "report",
         referenceId: report.id,

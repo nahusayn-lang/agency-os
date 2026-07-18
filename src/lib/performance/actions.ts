@@ -187,8 +187,8 @@ export async function overridePerformanceScoreAction(params: {
   if (params.targetUserId !== profile.id) {
     await notifyUser({
       userId: params.targetUserId,
-      title: "Performance score updated",
-      message: `${profile.name} ne tumhara performance score is period ke liye override kiya hai.`,
+      title: "Performance Score Updated",
+      message: `${profile.name} has overridden your performance score for this period.`,
       link: "/dashboard",
       type: "performance_override",
     });

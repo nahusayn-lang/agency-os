@@ -55,14 +55,14 @@ export async function POST(req: Request) {
     });
 
     const messages: Record<string, string> = {
-      paid: `Tumhara ₹${fine.amount} fine paid confirm ho gaya hai.`,
-      waived: "Tumhara fine waive kar diya gaya hai.",
-      reject: `Tumhara ₹${fine.amount} fine ka proof reject hua — dobara submit karo.`,
+      paid: `Your ₹${fine.amount} fine payment has been confirmed.`,
+      waived: "Your fine has been waived.",
+      reject: `Your ₹${fine.amount} fine proof was rejected. Please resubmit.`,
     };
     const titles: Record<string, string> = {
-      paid: "Fine paid confirmed",
-      waived: "Fine waived",
-      reject: "Fine proof rejected",
+      paid: "Fine Payment Confirmed",
+      waived: "Fine Waived",
+      reject: "Fine Proof Rejected",
     };
 
     await notifyUser({
@@ -127,8 +127,8 @@ export async function PATCH(req: Request) {
     for (const f of founders ?? []) {
       await notifyUser({
         userId: f.id,
-        title: "Fine payment awaiting confirmation",
-        message: `${profile.name} ne fine payment proof submit kiya hai.`,
+        title: "Fine Payment Awaiting Confirmation",
+        message: `${profile.name} has submitted proof of fine payment.`,
         link: "/dashboard/founder",
         type: "fine",
         referenceId: fineId,
