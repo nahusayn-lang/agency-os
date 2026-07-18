@@ -126,20 +126,6 @@ export default async function EmployeeDashboardPage() {
         </Card>
 
         <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Fines</CardTitle>
-              {pendingFineCount > 0 && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 text-amber-400 text-[11px] font-medium px-2.5 py-0.5">
-                  {pendingFineCount} pending
-                </span>
-              )}
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{(myFines ?? []).length}</div>
-            </CardContent>
-          </Card>
-
-        <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Weekly Target %</CardTitle>
           </CardHeader>

@@ -1,21 +1,24 @@
-import Link from "next/link";
 import { requireRole } from "@/lib/auth/session";
 import { getRoleDisplayName } from "@/lib/auth/roles";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getWeekStartDateString } from "@/lib/performance/week";
 import { getFounderCommitmentForWeek } from "@/lib/founder-commitment/actions";
-import { FounderCommitmentReadonly } from "@/components/dashboard/founder-commitment-readonly";
+import { getAllGodModeOverrides } from "@/lib/performance/actions";
+import { WeeklyCommitmentCard } from "@/components/dashboard/weekly-commitment-card";
+import { OverrideHistoryTable } from "@/components/dashboard/override-history-table";
+import { TeamProfilesList } from "@/components/dashboard/team-profiles-list";
 import { AttendanceCard } from "@/components/dashboard/attendance-card";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { getTodayDateString } from "@/lib/auth/attendance";
 import { getFineAmount, closeStaleShiftSession } from "@/lib/services/strike-fine-engine";
 
-export default async function ManagerDashboardPage() {
-  const profile = await requireRole("admin");
+export default async function FounderDashboardPage() {
+  const profile = await requireRole("super_admin");
   await closeStaleShiftSession(profile.id);
   const weekStart = getWeekStartDateString();
   const commitment = await getFounderCommitmentForWeek(weekStart);
+  const overrides = await getAllGodModeOverrides();
 
   const supabase = createClient();
   const admin = createAdminClient();
@@ -29,8 +32,6 @@ export default async function ManagerDashboardPage() {
   const isCheckedIn = userRow?.is_checked_in ?? false;
   const reportPending = userRow?.checkout_report_pending ?? false;
   const lastCheckinAt = userRow?.last_checkin_at ?? null;
-  const shiftStart = userRow?.shift_start ?? null;
-  const shiftEnd = userRow?.shift_end ?? null;
 
   const today = getTodayDateString();
   const { data: todayAttendance } = await admin
@@ -45,24 +46,33 @@ export default async function ManagerDashboardPage() {
   // "date = today" ke saath exist karti hai, uska checkout_time null hota hai).
   const checkedOutToday = !isCheckedIn && !!todayAttendance?.checkout_time;
 
-  const { data: members } = await supabase
+  const { data: teamMembers } = await supabase
     .from("users")
-    .select("id, name, email")
-    .eq("role", "member")
+    .select("id, name, email, role")
+    .in("role", ["member", "admin"])
     .eq("is_active", true)
     .order("name");
+
+  const actorIds = Array.from(new Set(overrides.map((row) => row.super_admin_id)));
+  const { data: actors } = await supabase
+    .from("users")
+    .select("id, name")
+    .in("id", actorIds.length ? actorIds : ["00000000-0000-0000-0000-000000000000"]);
+
+  const actorNames = new Map((actors ?? []).map((a) => [a.id, a.name]));
 
   const { count: pendingTasks } = await supabase
     .from("tasks")
     .select("*", { count: "exact", head: true })
     .not("status", "in", '("completed","approved")');
 
-  const { count: activeLeads } = await supabase
-    .from("leads")
-    .select("*", { count: "exact", head: true })
-    .not("stage", "in", '("deal_won","deal_lost")');
+  const { count: totalLeads } = await supabase.from("leads").select("*", { count: "exact", head: true });
+  const { count: activeLeads } = await supabase.from("leads").select("*", { count: "exact", head: true }).not("stage", "in", '("deal_won","deal_lost")');
+  const { count: dealsClosed } = await supabase.from("leads").select("*", { count: "exact", head: true }).eq("stage", "deal_won");
+  const { data: wonLeads } = await supabase.from("leads").select("deal_value").eq("stage", "deal_won");
+  const revenueGenerated = (wonLeads ?? []).reduce((sum, lead) => sum + (lead.deal_value ?? 0), 0);
+  const { count: lostDeals } = await supabase.from("leads").select("*", { count: "exact", head: true }).eq("stage", "deal_lost");
 
-  // Manager's own strikes/fines — for their own Attendance card badge + Fine Pay card
   const { data: myFines } = await admin
     .from("fines")
     .select("id, amount, status, deadline, proof_url, payment_comment")
@@ -80,23 +90,30 @@ export default async function ManagerDashboardPage() {
     (f) => f.status === "pending" || f.status === "submitted"
   ).length;
 
+  // Total Fines card ke liye — poori team/org ka data (sirf apna nahi).
+  const { data: orgFines } = await admin.from("fines").select("id, status");
+  const orgFineCount = (orgFines ?? []).length;
+  const orgPendingFineCount = (orgFines ?? []).filter(
+    (f) => f.status === "pending" || f.status === "submitted"
+  ).length;
+
   const fineAmount = await getFineAmount();
 
   return (
     <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">
-          {getRoleDisplayName("admin")} Dashboard
+          {getRoleDisplayName("super_admin")} Dashboard
         </h1>
         <p className="text-muted-foreground">Welcome, {profile.name}</p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-7">
         <AttendanceCard
           isCheckedIn={isCheckedIn}
           lastCheckinAt={lastCheckinAt}
-          shiftStart={shiftStart}
-          shiftEnd={shiftEnd}
+          shiftStart={userRow?.shift_start ?? null}
+          shiftEnd={userRow?.shift_end ?? null}
           checkedOutToday={checkedOutToday}
           reportPending={reportPending}
           activeStrikeCount={activeStrikeCount ?? 0}
@@ -112,44 +129,53 @@ export default async function ManagerDashboardPage() {
         <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Fines</CardTitle>
-              {pendingFineCount > 0 && (
+              {orgPendingFineCount > 0 && (
                 <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 text-amber-400 text-[11px] font-medium px-2.5 py-0.5">
-                  {pendingFineCount} pending
+                  {orgPendingFineCount} pending
                 </span>
               )}
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{(myFines ?? []).length}</div>
+              <div className="text-2xl font-bold">{orgFineCount}</div>
             </CardContent>
           </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Leads</CardTitle>
+          </CardHeader>
+          <CardContent><div className="text-2xl font-bold">{totalLeads ?? 0}</div></CardContent>
+        </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Active Leads</CardTitle>
           </CardHeader>
           <CardContent><div className="text-2xl font-bold">{activeLeads ?? 0}</div></CardContent>
         </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Deals Closed</CardTitle>
+          </CardHeader>
+          <CardContent><div className="text-2xl font-bold">{dealsClosed ?? 0}</div></CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Revenue</CardTitle>
+          </CardHeader>
+          <CardContent><div className="text-2xl font-bold">${revenueGenerated.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div></CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Lost Deals</CardTitle>
+          </CardHeader>
+          <CardContent><div className="text-2xl font-bold">{lostDeals ?? 0}</div></CardContent>
+        </Card>
       </div>
 
-      <FounderCommitmentReadonly
-        weekStart={weekStart}
-        commitmentText={commitment?.commitment_text ?? null}
-      />
+      <WeeklyCommitmentCard weekStart={weekStart} initialText={commitment?.commitment_text ?? ""} />
 
 
-
-      <section className="rounded-xl border p-6">
-        <h2 className="mb-3 font-medium">Team performance profiles</h2>
-        <ul className="space-y-2">
-          {(members ?? []).map((member) => (
-            <li key={member.id}>
-              <Link href={`/dashboard/team/${member.id}`} className="text-sm font-medium hover:underline">
-                {member.name}
-              </Link>
-              <span className="ml-2 text-xs text-muted-foreground">{member.email}</span>
-            </li>
-          ))}
-        </ul>
-      </section>
+      <TeamProfilesList members={teamMembers ?? []} />
+      <OverrideHistoryTable overrides={overrides} actorNames={actorNames} />
     </div>
   );
 }

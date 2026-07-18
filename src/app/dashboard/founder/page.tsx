@@ -90,6 +90,13 @@ export default async function FounderDashboardPage() {
     (f) => f.status === "pending" || f.status === "submitted"
   ).length;
 
+  // Total Fines card ke liye — poori team/org ka data (sirf apna nahi).
+  const { data: orgFines } = await admin.from("fines").select("id, status");
+  const orgFineCount = (orgFines ?? []).length;
+  const orgPendingFineCount = (orgFines ?? []).filter(
+    (f) => f.status === "pending" || f.status === "submitted"
+  ).length;
+
   const fineAmount = await getFineAmount();
 
   return (
@@ -122,14 +129,14 @@ export default async function FounderDashboardPage() {
         <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Fines</CardTitle>
-              {pendingFineCount > 0 && (
+              {orgPendingFineCount > 0 && (
                 <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 text-amber-400 text-[11px] font-medium px-2.5 py-0.5">
-                  {pendingFineCount} pending
+                  {orgPendingFineCount} pending
                 </span>
               )}
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{(myFines ?? []).length}</div>
+              <div className="text-2xl font-bold">{orgFineCount}</div>
             </CardContent>
           </Card>
         <Card>
