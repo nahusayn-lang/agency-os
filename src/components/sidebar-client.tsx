@@ -12,14 +12,14 @@ export default function SidebarClient({ profile }: {
   const isFounder = profile.role === "super_admin";
   const showTasksLink = ["admin", "super_admin"].includes(profile.role || "");
 
-  const linkClass = "flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-white/40 hover:text-white/80 hover:bg-indigo-500/10 transition-colors";
+  const linkClass = "flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-white/40 hover:text-white/80 hover:bg-violet-500/10 transition-colors";
 
   return (
     <>
       <button
         aria-label="Open menu"
         onClick={() => setOpen(true)}
-        className="p-2 rounded-lg hover:bg-indigo-500/10 lg:hidden text-white/50 hover:text-white/80 transition-colors"
+        className="p-2 rounded-lg hover:bg-violet-500/10 lg:hidden text-white/50 hover:text-white/80 transition-colors"
       >
         <Menu size={20} />
       </button>
@@ -27,11 +27,11 @@ export default function SidebarClient({ profile }: {
       {open && (
         <div className="fixed inset-0 z-50 lg:hidden">
           <div className="absolute inset-0 bg-black/60" onClick={() => setOpen(false)} />
-          <aside className="absolute left-0 top-0 bottom-0 w-72 bg-[#0d0d12] border-r border-white/[0.06] flex flex-col">
-            <div className="flex items-center justify-between px-4 py-5 border-b border-white/[0.06]">
+          <aside className="absolute left-0 top-0 bottom-0 w-72 bg-[#0e0526] border-r border-violet-400/[0.12] flex flex-col">
+            <div className="flex items-center justify-between px-4 py-5 border-b border-violet-400/[0.12]">
               <div className="flex items-center gap-3">
-                <div className="w-7 h-7 rounded-lg bg-indigo-500/20 flex items-center justify-center">
-                  <span className="text-indigo-300 text-xs font-bold">A</span>
+                <div className="w-7 h-7 rounded-lg bg-violet-500/20 flex items-center justify-center">
+                  <span className="text-violet-300 text-xs font-bold">A</span>
                 </div>
                 <span className="text-sm font-semibold text-white">Agency OS</span>
               </div>
@@ -63,7 +63,7 @@ export default function SidebarClient({ profile }: {
                 <FileText size={15} /> Reports
               </Link>
 
-              <div className="border-t border-white/[0.06] my-3" />
+              <div className="border-t border-violet-400/[0.12] my-3" />
 
               <p className="text-[10px] text-white/25 uppercase tracking-widest px-3 pb-1">Tracking</p>
               <Link href="/attendance" onClick={() => setOpen(false)} className={linkClass}>
@@ -81,7 +81,7 @@ export default function SidebarClient({ profile }: {
 
               {isFounder && (
                 <>
-                  <div className="border-t border-white/[0.06] my-3" />
+                  <div className="border-t border-violet-400/[0.12] my-3" />
                   <p className="text-[10px] text-white/25 uppercase tracking-widest px-3 pb-1">Admin</p>
                   <Link href="/admin/users" onClick={() => setOpen(false)} className={linkClass}>
                     <Users size={15} /> Users
@@ -90,7 +90,7 @@ export default function SidebarClient({ profile }: {
               )}
             </nav>
 
-            <div className="px-3 py-4 border-t border-white/[0.06]">
+            <div className="px-3 py-4 border-t border-violet-400/[0.12]">
               <LogoutButton />
             </div>
           </aside>

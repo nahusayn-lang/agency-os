@@ -4,6 +4,7 @@ import { getDashboardPathForRole } from "@/lib/auth/roles";
 import { NotificationBell } from "@/components/notification-bell";
 import Sidebar from "@/components/sidebar";
 import SidebarClient from "@/components/sidebar-client";
+import TopNav from "@/components/topnav";
 
 function formatDisplayName(name?: string | null, email?: string | null) {
   if (name && name.trim() !== "") return name;
@@ -25,7 +26,8 @@ export default async function Header() {
   return (
     <>
       <Sidebar />
-      <header className="border-b border-white/[0.06] bg-[#0d0d12] lg:ml-64 sticky top-0 z-30">
+      <TopNav />
+      <header className="border-b border-violet-400/[0.12] bg-[#0e0526] lg:ml-64 sticky top-14 z-30">
         <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4">
           <div className="flex items-center gap-3">
             <SidebarClient profile={{ id: profile.id, name: displayName, role: profile.role, email: profile.email, dashboardPath }} />
@@ -35,8 +37,8 @@ export default async function Header() {
           </div>
           <div className="flex items-center gap-3">
             <NotificationBell userId={profile.id} />
-            <div className="w-7 h-7 rounded-full bg-indigo-500/20 flex items-center justify-center">
-              <span className="text-indigo-300 text-xs font-semibold">
+            <div className="w-7 h-7 rounded-full bg-violet-500/20 flex items-center justify-center">
+              <span className="text-violet-300 text-xs font-semibold">
                 {displayName.charAt(0).toUpperCase()}
               </span>
             </div>
