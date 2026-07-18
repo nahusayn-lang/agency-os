@@ -55,5 +55,8 @@
 
   body {
     @apply bg-background text-foreground;
+    main {
+    padding-bottom: 5.5rem;
+  }
   }
 }

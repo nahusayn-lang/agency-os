@@ -1,7 +1,6 @@
 import { getAllReportsForAdmin } from "@/lib/reports/actions";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { formatDate } from "@/lib/utils";
 import type { ReportWithUser } from "@/lib/types/reports";
 
 interface AdminReportsViewProps { memberId?: string; dateFilter?: string }
@@ -25,7 +24,12 @@ export async function AdminReportsView({ memberId, dateFilter }: AdminReportsVie
               <p className="font-semibold">{report.user?.name || "Unknown"}</p>
               <p className="text-sm text-muted-foreground">{report.user?.email}</p>
             </div>
-              <Badge variant="outline">{formatDate(report.created_at)}</Badge>
+            <Badge variant="outline">{new Date(report.created_at).toLocaleDateString()}</Badge>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <h3 className="text-sm font-semibold text-muted-foreground">What they did today</h3>
               <p className="mt-1 text-sm">{report.what_i_did_today}</p>
             </div>
 

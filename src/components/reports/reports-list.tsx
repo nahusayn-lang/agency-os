@@ -21,7 +21,8 @@ export async function ReportsList({ userId }: ReportsListProps) {
       {reports.map((report) => (
         <Card key={report.id} className="p-6">
           <div className="mb-4 flex items-center justify-between">
-              <Badge variant="outline">{formatDate(report.created_at)}</Badge>
+            <Badge variant="outline">{formatDate(report.created_at)}</Badge>
+          </div>
 
           <div className="space-y-4">
             <div>
