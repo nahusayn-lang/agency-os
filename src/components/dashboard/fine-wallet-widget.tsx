@@ -46,7 +46,7 @@ export function FineWalletWidget({ fines }: { fines: FineWalletItem[] }) {
 
   function submitPayment(fineId: string) {
     if (!file) {
-      setError("Payment screenshot lagana zaroori hai.");
+      setError("A payment screenshot is required.");
       return;
     }
     setError(null);
@@ -57,7 +57,7 @@ export function FineWalletWidget({ fines }: { fines: FineWalletItem[] }) {
       } = await supabase.auth.getUser();
 
       if (!user) {
-        setError("Session expire ho gaya, dobara login karo.");
+        setError("Your session has expired. Please log in again.");
         return;
       }
 
@@ -86,7 +86,7 @@ export function FineWalletWidget({ fines }: { fines: FineWalletItem[] }) {
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error ?? "Submit nahi hua.");
+        setError(data.error ?? "Submission failed.");
         return;
       }
       setOpenId(null);
@@ -108,7 +108,7 @@ export function FineWalletWidget({ fines }: { fines: FineWalletItem[] }) {
       </CardHeader>
       <CardContent className="space-y-3">
         {fines.length === 0 && (
-          <p className="text-sm text-muted-foreground">Koi fine nahi hai. 🎉</p>
+          <p className="text-sm text-muted-foreground">No fines. 🎉</p>
         )}
 
         {fines.map((fine) => {

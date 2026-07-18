@@ -85,7 +85,7 @@ export function FineStatusTabs({
 
   function submitPayment(fineId: string) {
     if (!file) {
-      setError("Payment screenshot lagana zaroori hai.");
+      setError("A payment screenshot is required.");
       return;
     }
     setError(null);
@@ -93,7 +93,7 @@ export function FineStatusTabs({
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        setError("Session expire ho gaya, dobara login karo.");
+        setError("Your session has expired. Please log in again.");
         return;
       }
       const path = `${user.id}/${fineId}-${Date.now()}-${file.name}`;
@@ -115,7 +115,7 @@ export function FineStatusTabs({
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error ?? "Submit nahi hua.");
+        setError(data.error ?? "Submission failed.");
         return;
       }
       setOpenPayId(null);
@@ -153,12 +153,7 @@ export function FineStatusTabs({
       </div>
 
       <div className="space-y-2">
-        {tab === null && (
-          <p className="text-sm text-muted-foreground py-2">Kisi tab par click karo (To Pay / Paid / Waived) dekhne ke liye.</p>
-        )}
-        {tab !== null && visible.length === 0 && (
-          <p className="text-sm text-muted-foreground py-2">Yahan kuch nahi hai.</p>
-        )}
+        
         {visible.map((fine) => {
           const isOverdue = fine.status === "pending" && fine.deadline < today;
           const isExpanded = expandedFineId === fine.id;

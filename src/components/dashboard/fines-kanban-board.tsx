@@ -99,9 +99,7 @@ export function FinesKanbanBoard({
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-2 flex-1">
-                {colFines.length === 0 && (
-                  <p className="text-xs text-muted-foreground py-2">Khaali hai.</p>
-                )}
+                
                 {colFines.map((fine) => {
                   const isOverdue = fine.status === "pending" && fine.deadline < today;
                   return (

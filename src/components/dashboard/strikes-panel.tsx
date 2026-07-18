@@ -58,7 +58,7 @@ export function StrikesPanel({ strikes }: { strikes: StrikeRow[] }) {
 
   function removeStrike(strikeId: string, userName: string) {
     if (!reasonText.trim()) {
-      setError("Reason likhna zaroori hai.");
+      setError("A reason is required.");
       return;
     }
     setError(null);
@@ -102,16 +102,7 @@ export function StrikesPanel({ strikes }: { strikes: StrikeRow[] }) {
   }
 
   if (grouped.size === 0) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Strike Control</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">Koi strike nahi hai.</p>
-        </CardContent>
-      </Card>
-    );
+    return null;
   }
 
   function handleTouchStart(e: React.TouchEvent) {
@@ -171,9 +162,7 @@ export function StrikesPanel({ strikes }: { strikes: StrikeRow[] }) {
               </CardHeader>
               {expandedUser === userName && (
               <CardContent className="space-y-2.5 px-3.5 pb-3.5">
-                {active.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">Koi active strike nahi.</p>
-                ) : (
+                {active.length === 0 ? null : (
                   <div
                     className="rounded-lg bg-white/[0.03] p-3 space-y-2.5 select-none"
                     onTouchStart={handleTouchStart}

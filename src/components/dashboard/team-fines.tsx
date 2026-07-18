@@ -20,7 +20,7 @@ export function TeamFines({
   const [openUserId, setOpenUserId] = useState<string | null>(null);
 
   if (users.length === 0) {
-    return <p className="text-sm text-muted-foreground">Team mein koi fine nahi hai.</p>;
+    return <p className="text-sm text-muted-foreground">No fines across the team.</p>;
   }
 
   return (

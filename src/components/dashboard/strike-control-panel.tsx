@@ -45,7 +45,7 @@ export function StrikeControlPanel({ strikes, fineAmount }: { strikes: StrikeRow
       });
       const data = await res.json();
       if (!res.ok) {
-        setAmountError(data.error ?? "Save nahi hua.");
+        setAmountError(data.error ?? "Save failed.");
         return;
       }
       setAmountSaved(true);
@@ -54,7 +54,7 @@ export function StrikeControlPanel({ strikes, fineAmount }: { strikes: StrikeRow
 
   function remove(strikeId: string) {
     if (!reason.trim()) {
-      setError("Reason likhna zaroori hai.");
+      setError("A reason is required.");
       return;
     }
     setError(null);
@@ -102,11 +102,11 @@ export function StrikeControlPanel({ strikes, fineAmount }: { strikes: StrikeRow
             </Button>
             {amountSaved && <span className="text-xs text-emerald-500">Saved ✓</span>}
           </div>
-          <p className="text-xs text-muted-foreground">Har 3 strike par isi amount ka fine lagega. Purane fines nahi badlenge.</p>
+          <p className="text-xs text-muted-foreground">Every 3 strikes will trigger a fine of this amount. Existing fines will not be affected.</p>
           {amountError && <p className="text-xs text-destructive">{amountError}</p>}
         </div>
 
-        {active.length === 0 && <p className="text-sm text-muted-foreground">Koi active strike nahi hai.</p>}
+        {active.length === 0 && <p className="text-sm text-muted-foreground">No active strikes.</p>}
         {active.map((strike) => (
           <div key={strike.id} className="flex items-center justify-between rounded-lg border p-2 text-sm">
             <div>

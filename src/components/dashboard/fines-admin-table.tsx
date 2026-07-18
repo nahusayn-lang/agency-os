@@ -57,9 +57,7 @@ export function FinesAdminTable({
         <CardTitle className="text-base">Employee fines</CardTitle>
       </CardHeader>
       <CardContent>
-        {fines.length === 0 && (
-          <p className="text-sm text-muted-foreground py-4 text-center">Koi fine nahi hai.</p>
-        )}
+        
 
         <div className="space-y-2">
           {fines.map((fine) => {

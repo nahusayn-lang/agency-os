@@ -62,7 +62,7 @@ export function PaymentReview({ items }: { items: PaymentReviewItem[] }) {
       </CardHeader>
       <CardContent className="space-y-4">
         {grouped.size === 0 && (
-          <p className="text-sm text-muted-foreground">Koi payment review ke liye pending nahi hai.</p>
+          <p className="text-sm text-muted-foreground">No payments pending review.</p>
         )}
 
         {grouped.size > 0 && (
@@ -89,9 +89,7 @@ export function PaymentReview({ items }: { items: PaymentReviewItem[] }) {
           </div>
         )}
 
-        {!activeUser && grouped.size > 0 && (
-          <p className="text-xs text-muted-foreground">Kisi naam par click karo unki pending fines dekhne ke liye.</p>
-        )}
+        
 
         {activeUser && (
           <div className="space-y-2">

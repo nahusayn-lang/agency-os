@@ -27,7 +27,7 @@ export function FineAmountSetting({ fineAmount }: { fineAmount: number }) {
       });
       const data = await res.json();
       if (!res.ok) {
-        setAmountError(data.error ?? "Save nahi hua.");
+        setAmountError(data.error ?? "Save failed.");
         return;
       }
       setAmountSaved(true);
@@ -58,7 +58,7 @@ export function FineAmountSetting({ fineAmount }: { fineAmount: number }) {
           {amountSaved && <span className="text-xs text-emerald-500">Saved ✓</span>}
         </div>
         <p className="text-xs text-muted-foreground">
-          Har 3 strike par isi amount ka fine lagega. Purane fines nahi badlenge.
+          Every 3 strikes will trigger a fine of this amount. Existing fines will not be affected.
         </p>
         {amountError && <p className="text-xs text-destructive">{amountError}</p>}
       </CardContent>

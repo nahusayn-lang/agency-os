@@ -533,8 +533,8 @@ export async function cannotCompleteTaskAction(taskId: string, reason: string) {
   // only the founder can approve/reject a 2nd+ cannot-complete for the day)
   const adminMessage =
     usage.status === "pending_approval"
-      ? `${profile.name} ne aaj 2nd baar "${task.title}" complete nahi kar saka — approval chahiye. Reason: ${trimmed}`
-      : `${profile.name} ne "${task.title}" complete nahi kar saka. Reason: ${trimmed}`;
+      ? `${profile.name} could not complete "${task.title}" for the 2nd time today — approval needed. Reason: ${trimmed}`
+      : `${profile.name} could not complete "${task.title}". Reason: ${trimmed}`;
 
   await notifyAdmins(
     supabase,
