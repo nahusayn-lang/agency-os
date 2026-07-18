@@ -101,7 +101,7 @@ export default async function FinesRewardsPage() {
         id: f.id,
         user_name:
           f.user_id === profile.id
-            ? `${profile.name} (aap)`
+            ? `${profile.name} (you)`
             : (f.users as unknown as { name: string } | null)?.name ?? "Unknown",
         amount: f.amount,
         deadline: f.deadline,

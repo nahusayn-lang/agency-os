@@ -182,7 +182,7 @@ export function TaskCard({ task, assignerName, assignerRole }: TaskCardProps) {
         onClick={() => setExpanded((p) => !p)}
         className="w-full text-left px-4 py-3 flex flex-col gap-2"
       >
-        {/* Title — apni alag row */}
+        {/* Title — its own row */}
         <span className="break-words font-medium text-sm leading-snug">{task.title}</span>
 
         {/* Details row — badges, date, chevron */}
