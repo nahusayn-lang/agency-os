@@ -205,7 +205,7 @@ export function StrikesPanel({ strikes }: { strikes: StrikeRow[] }) {
                       <>
                         <div>
                           <p className="text-[13px] font-medium">{current.reason.replace(/_/g, " ")}</p>
-                          <p className="text-[11px] text-muted-foreground mt-0.5">{new Date(current.created_at).toLocaleString()}</p>
+                          <p className="text-[11px] text-muted-foreground mt-0.5">{formatDate(current.created_at)}</p>
                         </div>
 
                         {removeReasonFor === current.id ? (

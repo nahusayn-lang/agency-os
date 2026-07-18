@@ -1,5 +1,5 @@
 "use client";
-
+import { formatDateTime } from "@/lib/utils";
 import React, { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ProofUpload } from "@/components/tasks/proof-upload";
@@ -205,7 +205,7 @@ export function TaskCard({ task, assignerName, assignerRole }: TaskCardProps) {
           {/* Deadline (only if exists) */}
           {task.deadline && (
             <span className="text-xs text-muted-foreground shrink-0" suppressHydrationWarning>
-              {new Date(task.deadline).toLocaleString("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+              {formatDateTime(task.deadline)}
             </span>
           )}
 
@@ -240,7 +240,7 @@ export function TaskCard({ task, assignerName, assignerRole }: TaskCardProps) {
               <>
                 <span>Deadline</span>
                 <span className="text-foreground font-medium" suppressHydrationWarning>
-                  {new Date(task.deadline).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}
+                  {formatDateTime(task.deadline)}
                 </span>
               </>
             )}

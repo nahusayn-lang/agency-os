@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getAssignableUsers } from "@/lib/crm/actions";
 import { LeadEditForm } from "@/components/crm/lead-edit-form";
 import { LEAD_STAGE_LABELS, type LeadStage } from "@/lib/types/crm";
+import { formatDate } from "@/lib/utils";
 
 interface LeadDetailPageProps {
   params: { id: string };
@@ -84,7 +85,7 @@ export default async function LeadDetailPage({ params }: LeadDetailPageProps) {
                   {entry.old_value ?? "—"} → {entry.new_value ?? "—"}
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  {new Date(entry.changed_at).toLocaleString()}
+                  {formatDate(entry.changed_at)}
                 </p>
               </li>
             ))

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { createClient } from "@/lib/supabase/client";
+import { formatDate } from "@/lib/utils";
 
 export interface FineTabItem {
   id: string;
@@ -185,7 +186,7 @@ export function FineStatusTabs({
               </div>
               {isExpanded && (
               <>
-              <p className="text-xs text-muted-foreground">Deadline: {fine.deadline}</p>
+              <p className="text-xs text-muted-foreground">Deadline: {formatDate(fine.deadline)}</p>
               {fine.proof_url && (
                 <a href={fine.proof_url} target="_blank" rel="noreferrer" className="text-xs text-primary underline">
                   Screenshot dekho

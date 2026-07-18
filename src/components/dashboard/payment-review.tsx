@@ -1,9 +1,10 @@
 "use client";
-
+import { formatDate } from "@/lib/utils";
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+
 
 export interface PaymentReviewItem {
   id: string;
@@ -100,7 +101,7 @@ export function PaymentReview({ items }: { items: PaymentReviewItem[] }) {
                   <span className="font-medium text-sm">{item.user_name}</span>
                   <span className="text-sm font-semibold">₹{item.amount}</span>
                 </div>
-                <p className="text-xs text-muted-foreground">Deadline: {item.deadline}</p>
+                <p className="text-xs text-muted-foreground">Deadline: {formatDate(item.deadline)}</p>
                 {item.proof_url && (
                   <a href={item.proof_url} target="_blank" rel="noreferrer" className="text-xs text-primary underline block">
                     Screenshot dekho

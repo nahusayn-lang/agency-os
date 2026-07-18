@@ -1,5 +1,5 @@
 "use client";
-
+import { formatDateTime } from "@/lib/utils";
 import { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -120,13 +120,7 @@ function SwipeableRow({
         </div>
         <p className="text-muted-foreground mt-0.5">{notification.message}</p>
         <span className="text-[10px] text-muted-foreground block mt-1">
-          {new Date(notification.created_at).toLocaleString("en-IN", {
-            timeZone: "Asia/Kolkata",
-            day: "numeric",
-            month: "short",
-            hour: "2-digit",
-            minute: "2-digit",
-          })}
+        {formatDateTime(notification.created_at)}
         </span>
 
         {isActionable && (

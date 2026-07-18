@@ -9,6 +9,7 @@ import { ProofUpload } from "@/components/tasks/proof-upload";
 import { Badge } from "@/components/ui/badge";
 import { TASK_PRIORITY_LABELS, TASK_STATUS_LABELS } from "@/lib/tasks/labels";
 import type { TaskPriority, TaskStatus } from "@/lib/types/tasks";
+import { formatDateTime } from "@/lib/utils";
 
 interface TaskDetailPageProps {
   params: { id: string };
@@ -171,8 +172,8 @@ export default async function TaskDetailPage({ params }: TaskDetailPageProps) {
                 <dt className="text-muted-foreground">Deadline</dt>
                 <dd>
                   {task.deadline
-                    ? new Date(task.deadline).toLocaleString()
-                    : "—"}
+  ? formatDateTime(task.deadline)
+  : "—"}
                 </dd>
               </div>
 

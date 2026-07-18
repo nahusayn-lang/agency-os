@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { addTaskCommentAction } from "@/lib/tasks/actions";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { formatDateTime } from "@/lib/utils";
 
 interface TaskCommentsProps {
   taskId: string;
@@ -50,7 +51,7 @@ export function TaskComments({ taskId, comments }: TaskCommentsProps) {
               <p className="text-sm">{stripTimeChunk(comment.message)}</p>
               <p className="mt-1 text-xs text-muted-foreground">
                 {comment.user.name} ·{" "}
-                {new Date(comment.created_at).toLocaleString()}
+                {formatDateTime(comment.created_at)}
               </p>
             </li>
           ))

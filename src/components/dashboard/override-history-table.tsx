@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/table";
 import { parseOverridePayload } from "@/lib/performance/overrides";
 import { PERFORMANCE_OVERRIDE_ACTION } from "@/lib/types/performance";
-
+import { formatDate } from "@/lib/utils";
 interface OverrideRow {
   id: string;
   action: string;
@@ -67,7 +67,7 @@ export function OverrideHistoryTable({
                 return (
                   <TableRow key={row.id}>
                     <TableCell className="text-xs whitespace-nowrap">
-                      {new Date(row.created_at).toLocaleString()}
+                      {formatDate(row.created_at)}
                     </TableCell>
                     <TableCell className="text-sm">
                       {actorNames.get(row.super_admin_id) ?? "Unknown"}

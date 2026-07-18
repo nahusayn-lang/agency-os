@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { formatDate } from "@/lib/utils";
 
 export interface StrikeRow {
   id: string;
@@ -111,7 +112,7 @@ export function StrikeControlPanel({ strikes, fineAmount }: { strikes: StrikeRow
             <div>
               <p className="font-medium">{strike.user_name}</p>
               <p className="text-xs text-muted-foreground">
-                {strike.reason.replace("_", " ")} — {new Date(strike.created_at).toLocaleString()}
+                {strike.reason.replace("_", " ")} — {formatDate(strike.created_at)}
               </p>
             </div>
             {openId === strike.id ? (
