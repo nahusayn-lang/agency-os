@@ -1,6 +1,7 @@
 import { getReportsForMember } from "@/lib/reports/actions";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { formatDate } from "@/lib/utils";
 import type { Report } from "@/lib/types/reports";
 
 interface ReportsListProps { userId: string }
@@ -20,8 +21,7 @@ export async function ReportsList({ userId }: ReportsListProps) {
       {reports.map((report) => (
         <Card key={report.id} className="p-6">
           <div className="mb-4 flex items-center justify-between">
-            <Badge variant="outline">{new Date(report.created_at).toLocaleDateString()}</Badge>
-          </div>
+              <Badge variant="outline">{formatDate(report.created_at)}</Badge>
 
           <div className="space-y-4">
             <div>

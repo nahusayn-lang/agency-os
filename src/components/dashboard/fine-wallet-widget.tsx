@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { formatDate } from "@/lib/utils";
 
 export interface FineWalletItem {
   id: string;
@@ -120,7 +121,7 @@ export function FineWalletWidget({ fines }: { fines: FineWalletItem[] }) {
                   {statusText(fine.status, isOverdue)}
                 </span>
               </div>
-              <p className="text-xs text-muted-foreground">Deadline: {fine.deadline}</p>
+              <p className="text-xs text-muted-foreground">Deadline: {formatDate(fine.deadline)}</p>
 
               {fine.proof_url && (
                 <a href={fine.proof_url} target="_blank" rel="noreferrer" className="text-xs text-primary underline">

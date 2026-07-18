@@ -3,6 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { formatDate } from "@/lib/utils";
 
 export interface FineKanbanRow {
   id: string;
@@ -119,7 +120,7 @@ export function FinesKanbanBoard({
                           </span>
                         )}
                       </div>
-                      <p className="text-[11px] text-muted-foreground">Deadline: {fine.deadline}</p>
+                      <p className="text-[11px] text-muted-foreground">Deadline: {formatDate(fine.deadline)}</p>
                       {fine.proof_url && (
                         <a
                           href={fine.proof_url}

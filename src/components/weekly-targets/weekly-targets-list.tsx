@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { formatDate } from "@/lib/utils";
 import type { WeeklyTargetWithUsers } from "@/lib/types/weekly-targets";
 
 interface WeeklyTargetsListProps { targets: WeeklyTargetWithUsers[]; isMemberView?: boolean }
@@ -43,7 +44,7 @@ export function WeeklyTargetsList({ targets, isMemberView = false }: WeeklyTarge
             <div className="flex-1 min-w-0">
               <h3 className="font-semibold">{target.target_name}</h3>
               {!isMemberView && target.user && <p className="text-sm text-muted-foreground">{target.user.name}</p>}
-              <p className="text-xs text-muted-foreground">{new Date(target.created_at).toLocaleDateString()}</p>
+              <p className="text-xs text-muted-foreground">{formatDate(target.created_at)}</p>
             </div>
             <Badge variant="outline">{target.completion_percentage}%</Badge>
           </div>

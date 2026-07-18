@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ListTree } from "lucide-react";
+import { formatDate } from "@/lib/utils";
 
 export interface StrikeRow {
   id: string;
@@ -283,7 +284,7 @@ export function StrikesPanel({ strikes }: { strikes: StrikeRow[] }) {
                               {s.is_removed ? "removed" : "active"}
                             </span>
                             <span className="text-muted-foreground">
-                              {s.reason.replace(/_/g, " ")} — {new Date(s.created_at).toLocaleDateString()}
+                              {s.reason.replace(/_/g, " ")} — {formatDate(s.created_at)}
                             </span>
                           </div>
                           {s.is_removed ? (

@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { formatDate } from "@/lib/utils";
 
 interface UserProfile {
   id: string;
@@ -318,7 +319,7 @@ export default function MessagesPage() {
                   </div>
                   <div className="text-right">
                     <span className="text-xs text-muted-foreground">
-                      {new Date(selectedMessage.created_at).toLocaleDateString()}
+                      {formatDate(selectedMessage.created_at)}
                     </span>
                     {selectedMessage.type === "leave_request" && (
                       <span
@@ -408,7 +409,7 @@ export default function MessagesPage() {
                           </div>
                           <div className="text-right flex-shrink-0">
                             <span className="text-[10px] text-muted-foreground">
-                              {new Date(msg.created_at).toLocaleDateString()}
+                              {formatDate(msg.created_at)}
                             </span>
                             {msg.type === "leave_request" && (
                               <span

@@ -3,6 +3,7 @@
 import { useTransition } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { formatDate } from "@/lib/utils";
 
 export interface AdminFineRow {
   id: string;
@@ -74,7 +75,7 @@ export function FinesAdminTable({
 
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
                   <span className="text-foreground font-medium text-sm">₹{fine.amount}</span>
-                  <span>Deadline: {fine.deadline}</span>
+                  <span>Deadline: {formatDate(fine.deadline)}</span>
                   {fine.proof_url && (
                     <a href={fine.proof_url} target="_blank" rel="noreferrer" className="text-primary underline">
                       Screenshot dekho

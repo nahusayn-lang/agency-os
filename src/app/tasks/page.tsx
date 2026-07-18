@@ -14,6 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { TASK_STATUS_LABELS } from "@/lib/tasks/labels";
+import { formatDate } from "@/lib/utils";
 import type { TaskStatus } from "@/lib/types/tasks";
 
 export default async function TasksPage() {
@@ -110,7 +111,7 @@ export default async function TasksPage() {
                     </TableCell>
                     <TableCell>
                       <Link href={`/tasks/${task.id}`} className="hover:underline">
-                        {task.deadline ? new Date(task.deadline).toLocaleDateString() : "—"}
+                        {task.deadline ? formatDate(task.deadline) : "—"}
                       </Link>
                     </TableCell>
                   </TableRow>
