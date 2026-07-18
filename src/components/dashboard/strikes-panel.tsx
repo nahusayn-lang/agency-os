@@ -76,6 +76,7 @@ export function StrikesPanel({ strikes }: { strikes: StrikeRow[] }) {
       setReasonText("");
       // Pointer ek step peeche kar do (agla active strike jo dikhega)
       setPointerIndex((prev) => ({ ...prev, [userName]: Math.max(0, currentIndex(userName) - 1) }));
+      window.scrollTo({ top: 0, behavior: "smooth" });
       router.refresh();
     });
   }
@@ -91,7 +92,8 @@ export function StrikesPanel({ strikes }: { strikes: StrikeRow[] }) {
       setBusyId(null);
       if (res.ok) {
         setPointerIndex((prev) => ({ ...prev, [userName]: currentIndex(userName) + 1 }));
-        router.refresh();
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      router.refresh();
       }
     });
   }
@@ -109,6 +111,24 @@ export function StrikesPanel({ strikes }: { strikes: StrikeRow[] }) {
     );
   }
 
+  const [touchStartX, setTouchStartX] = useState<number | null>(null);
+
+  function handleTouchStart(e: React.TouchEvent) {
+    setTouchStartX(e.touches[0].clientX);
+  }
+
+  function handleTouchEnd(e: React.TouchEvent, userName: string, idx: number, max: number) {
+    if (touchStartX === null) return;
+    const deltaX = e.changedTouches[0].clientX - touchStartX;
+    const SWIPE_THRESHOLD = 40;
+    if (deltaX > SWIPE_THRESHOLD && idx > 0) {
+      setPointerIndex((prev) => ({ ...prev, [userName]: idx - 1 })); // swipe right -> previous
+    } else if (deltaX < -SWIPE_THRESHOLD && idx < max - 1) {
+      setPointerIndex((prev) => ({ ...prev, [userName]: idx + 1 })); // swipe left -> next
+    }
+    setTouchStartX(null);
+  }
+
   return (
     <div className="space-y-3">
       <h3 className="text-sm font-medium text-white/70">Strike Control</h3>
@@ -122,40 +142,44 @@ export function StrikesPanel({ strikes }: { strikes: StrikeRow[] }) {
           const isBusy = pending && (busyId === current?.id);
 
           return (
-            <Card key={userName} className="rounded-2xl">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium flex items-center justify-between">
-                  <span className="flex items-center gap-2.5">
-                    <span className="w-8 h-8 rounded-full bg-amber-500/10 text-amber-500 border border-amber-500/30 flex items-center justify-center text-xs font-medium">
+            <Card key={userName} className="rounded-xl">
+              <CardHeader className="pb-2 pt-3 px-3.5">
+                <CardTitle className="text-xs font-medium flex items-center justify-between">
+                  <span className="flex items-center gap-2">
+                    <span className="w-6 h-6 rounded-full bg-amber-500/10 text-amber-500 border border-amber-500/30 flex items-center justify-center text-[10px] font-medium">
                       {userName.charAt(0).toUpperCase()}
                     </span>
-                    {userName}
+                    <span className="text-sm">{userName}</span>
                   </span>
-                  <span className="text-[11px] text-muted-foreground tracking-wide">
+                  <span className="text-[10px] text-muted-foreground tracking-wide">
                     {active.length} ACTIVE
                   </span>
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent className="space-y-2.5 px-3.5 pb-3.5">
                 {active.length === 0 ? (
                   <p className="text-xs text-muted-foreground">Koi active strike nahi.</p>
                 ) : (
-                  <div className="rounded-xl bg-white/[0.03] p-4 space-y-3">
+                  <div
+                    className="rounded-lg bg-white/[0.03] p-3 space-y-2.5 select-none"
+                    onTouchStart={handleTouchStart}
+                    onTouchEnd={(e) => handleTouchEnd(e, userName, idx, active.length)}
+                  >
                     <div className="flex items-center justify-between">
                       <button
                         aria-label="Previous strike"
-                        className="w-7 h-7 rounded-full border border-white/15 flex items-center justify-center text-white/60 hover:bg-white/5 disabled:opacity-30 transition-colors"
+                        className="w-6 h-6 rounded-full border border-white/15 flex items-center justify-center text-white/60 hover:bg-white/5 disabled:opacity-30 transition-colors"
                         disabled={idx <= 0}
                         onClick={() => setPointerIndex((prev) => ({ ...prev, [userName]: idx - 1 }))}
                       >
                         ‹
                       </button>
-                      <span className="text-xs text-muted-foreground">
+                      <span className="text-[11px] text-muted-foreground">
                         {idx + 1} / {active.length}
                       </span>
                       <button
                         aria-label="Next strike"
-                        className="w-7 h-7 rounded-full border border-white/15 flex items-center justify-center text-white/60 hover:bg-white/5 disabled:opacity-30 transition-colors"
+                        className="w-6 h-6 rounded-full border border-white/15 flex items-center justify-center text-white/60 hover:bg-white/5 disabled:opacity-30 transition-colors"
                         disabled={idx >= active.length - 1}
                         onClick={() => setPointerIndex((prev) => ({ ...prev, [userName]: idx + 1 }))}
                       >
@@ -166,8 +190,8 @@ export function StrikesPanel({ strikes }: { strikes: StrikeRow[] }) {
                     {current && (
                       <>
                         <div>
-                          <p className="text-sm font-medium">{current.reason.replace(/_/g, " ")}</p>
-                          <p className="text-xs text-muted-foreground mt-0.5">{new Date(current.created_at).toLocaleString()}</p>
+                          <p className="text-[13px] font-medium">{current.reason.replace(/_/g, " ")}</p>
+                          <p className="text-[11px] text-muted-foreground mt-0.5">{new Date(current.created_at).toLocaleString()}</p>
                         </div>
 
                         {removeReasonFor === current.id ? (
@@ -187,7 +211,7 @@ export function StrikesPanel({ strikes }: { strikes: StrikeRow[] }) {
                             <Button
                               size="sm"
                               variant="outline"
-                              className="flex-1"
+                              className="flex-1 h-7 text-xs"
                               disabled={isBusy}
                               onClick={() => {
                                 setRemoveReasonFor(current.id);

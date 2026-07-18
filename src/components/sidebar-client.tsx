@@ -2,7 +2,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { LogoutButton } from "@/components/logout-button";
-import { LayoutDashboard, ClipboardList, CheckSquare, BookUser, Mail, FileText, CalendarCheck, BarChart2, Target, Users, X, Menu } from "lucide-react";
+import { LayoutDashboard, ClipboardList, CheckSquare, BookUser, Mail, FileText, CalendarCheck, BarChart2, Target, Users, Wallet, X, Menu } from "lucide-react";
 
 export default function SidebarClient({ profile }: { 
   profile: { id: string; name: string; role: string; email?: string; dashboardPath: string } 
@@ -71,6 +71,9 @@ export default function SidebarClient({ profile }: {
               </Link>
               <Link href="/performance" onClick={() => setOpen(false)} className={linkClass}>
                 <BarChart2 size={15} /> Performance
+              </Link>
+              <Link href="/fines-rewards" onClick={() => setOpen(false)} className={linkClass}>
+                <Wallet size={15} /> Fine &amp; Rewards
               </Link>
               <Link href="/targets" onClick={() => setOpen(false)} className={linkClass}>
                 <Target size={15} /> Weekly Targets
