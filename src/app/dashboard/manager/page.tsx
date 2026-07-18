@@ -9,7 +9,6 @@ import { FounderCommitmentReadonly } from "@/components/dashboard/founder-commit
 import { AttendanceCard } from "@/components/dashboard/attendance-card";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { getTodayDateString } from "@/lib/auth/attendance";
-import { FineWalletWidget } from "@/components/dashboard/fine-wallet-widget";
 import { getFineAmount, closeStaleShiftSession } from "@/lib/services/strike-fine-engine";
 
 export default async function ManagerDashboardPage() {
@@ -137,7 +136,6 @@ export default async function ManagerDashboardPage() {
       />
 
 
-      <FineWalletWidget fines={myFines ?? []} />
 
       <section className="rounded-xl border p-6">
         <h2 className="mb-3 font-medium">Team performance profiles</h2>

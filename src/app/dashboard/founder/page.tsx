@@ -11,7 +11,6 @@ import { TeamProfilesList } from "@/components/dashboard/team-profiles-list";
 import { AttendanceCard } from "@/components/dashboard/attendance-card";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { getTodayDateString } from "@/lib/auth/attendance";
-import { FineWalletWidget } from "@/components/dashboard/fine-wallet-widget";
 import { getFineAmount, closeStaleShiftSession } from "@/lib/services/strike-fine-engine";
 
 export default async function FounderDashboardPage() {
@@ -167,7 +166,6 @@ export default async function FounderDashboardPage() {
 
       <WeeklyCommitmentCard weekStart={weekStart} initialText={commitment?.commitment_text ?? ""} />
 
-      <FineWalletWidget fines={myFines ?? []} />
 
       <TeamProfilesList members={teamMembers ?? []} />
       <OverrideHistoryTable overrides={overrides} actorNames={actorNames} />

@@ -11,7 +11,6 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { AttendanceCard } from "@/components/dashboard/attendance-card";
 import { getTodayDateString } from "@/lib/auth/attendance";
-import { FineWalletWidget } from "@/components/dashboard/fine-wallet-widget";
 import { getFineAmount, closeStaleShiftSession } from "@/lib/services/strike-fine-engine";
 
 export default async function EmployeeDashboardPage() {
@@ -164,7 +163,6 @@ export default async function EmployeeDashboardPage() {
         commitmentText={commitment?.commitment_text ?? null}
       />
 
-      <FineWalletWidget fines={myFines ?? []} />
 
       <section className="rounded-xl border p-6">
         <h2 className="mb-4 font-medium">Your performance score</h2>

@@ -25,22 +25,27 @@ const CATEGORY_LABELS: Record<string, string> = {
   uncategorized: "Other",
 };
 
-const TABS = [
+const TABS_BASE = [
   { key: "topay", label: "To Pay" },
   { key: "paid", label: "Paid" },
   { key: "waived", label: "Waived" },
 ] as const;
 
-type TabKey = (typeof TABS)[number]["key"];
+const TAB_SUBMITTED = { key: "submitted", label: "Submitted" } as const;
+
+type TabKey = "topay" | "submitted" | "paid" | "waived";
 
 function matchesTab(status: FineTabItem["status"], tab: TabKey) {
-  if (tab === "topay") return status === "pending" || status === "submitted";
+  if (tab === "topay") return status === "pending";
   return status === tab;
 }
 
 /**
- * canPay: true for the employee's own list (shows Pay button on "pending" fines).
- * adminActions: true for founder viewing a team member's fines (Mark paid / Waive inline).
+ * canPay: true for the employee's own list (shows Pay button on "pending"
+ * fines, and a "Submitted" tab to track their own awaiting-confirmation fines).
+ * adminActions: true for founder viewing a team member's fines (Waive only —
+ * submitted/awaiting-confirmation fines are NOT shown here at all; they live
+ * exclusively in Payment Review to avoid the same fine appearing in two places).
  */
 export function FineStatusTabs({
   fines,
@@ -52,6 +57,12 @@ export function FineStatusTabs({
   adminActions?: boolean;
 }) {
   const router = useRouter();
+  // Team Fines (adminActions) never shows a "submitted" tab — those fines
+  // live only in Payment Review. Own "My Fines" view keeps it, so the person
+  // can track their own payment while it's awaiting confirmation.
+  const TABS = adminActions ? TABS_BASE : [TABS_BASE[0], TAB_SUBMITTED, TABS_BASE[1], TABS_BASE[2]];
+  const visibleFines = adminActions ? fines.filter((f) => f.status !== "submitted") : fines;
+
   const [tab, setTab] = useState<TabKey>("topay");
   const [pending, startTransition] = useTransition();
   const [openPayId, setOpenPayId] = useState<string | null>(null);
@@ -62,12 +73,12 @@ export function FineStatusTabs({
   const today = new Date().toISOString().slice(0, 10);
 
   const counts = useMemo(() => {
-    const c: Record<TabKey, number> = { topay: 0, paid: 0, waived: 0 };
-    fines.forEach((f) => TABS.forEach((t) => matchesTab(f.status, t.key) && c[t.key]++));
+    const c: Record<TabKey, number> = { topay: 0, submitted: 0, paid: 0, waived: 0 };
+    visibleFines.forEach((f) => TABS.forEach((t) => matchesTab(f.status, t.key) && c[t.key]++));
     return c;
-  }, [fines]);
+  }, [visibleFines, TABS]);
 
-  const visible = fines.filter((f) => matchesTab(f.status, tab));
+  const visible = visibleFines.filter((f) => matchesTab(f.status, tab));
 
   function submitPayment(fineId: string) {
     if (!file) {
@@ -156,7 +167,7 @@ export function FineStatusTabs({
                     overdue
                   </span>
                 )}
-                {fine.status === "submitted" && (
+                {!adminActions && fine.status === "submitted" && (
                   <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-sky-500/10 text-sky-500 border border-sky-500/30">
                     awaiting confirmation
                   </span>
@@ -207,10 +218,7 @@ export function FineStatusTabs({
 
               {adminActions && fine.status === "pending" && (
                 <div className="flex gap-2 pt-1">
-                  <Button size="sm" disabled={pending} onClick={() => act(fine.id, "paid")}>
-                    Mark paid
-                  </Button>
-                  <Button size="sm" variant="ghost" disabled={pending} onClick={() => act(fine.id, "waived")}>
+                  <Button size="sm" variant="outline" disabled={pending} onClick={() => act(fine.id, "waived")}>
                     Waive
                   </Button>
                 </div>
