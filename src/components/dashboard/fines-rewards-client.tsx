@@ -12,6 +12,7 @@ export function FinesRewardsClient({
   role,
   totalDue,
   totalFineCount,
+  myActiveStrikeCount,
   myFines,
   teamUsers,
   strikes,
@@ -21,6 +22,7 @@ export function FinesRewardsClient({
   role: "super_admin" | "admin" | "member";
   totalDue: number;
   totalFineCount: number;
+  myActiveStrikeCount: number;
   myFines: FineTabItem[];
   teamUsers: TeamFineUser[];
   strikes: StrikeRow[];
@@ -64,24 +66,27 @@ export function FinesRewardsClient({
 
       {mainTab === "fine" && (
         <div className="space-y-6">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Due (Aapka)</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">₹{totalDue.toLocaleString()}</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Fines (Aapka)</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{totalFineCount}</div>
-              </CardContent>
-            </Card>
-          </div>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-base">My fines</CardTitle>
+              <span className="text-[10px] px-2 py-1 rounded-full bg-amber-500/10 text-amber-500 border border-amber-500/30 tracking-wide">
+                {myActiveStrikeCount} ACTIVE STRIKE{myActiveStrikeCount === 1 ? "" : "S"}
+              </span>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-stretch gap-6">
+                <div className="flex-1">
+                  <p className="text-xs text-muted-foreground mb-1">Total due</p>
+                  <p className="text-2xl font-bold">₹{totalDue.toLocaleString()}</p>
+                </div>
+                <div className="w-px bg-border" />
+                <div className="flex-1">
+                  <p className="text-xs text-muted-foreground mb-1">Total fines</p>
+                  <p className="text-2xl font-bold">{totalFineCount}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
           {isSuperAdmin && <StrikesPanel strikes={strikes} />}
 

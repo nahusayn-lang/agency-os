@@ -35,7 +35,8 @@ const TAB_SUBMITTED = { key: "submitted", label: "Submitted" } as const;
 
 type TabKey = "topay" | "submitted" | "paid" | "waived";
 
-function matchesTab(status: FineTabItem["status"], tab: TabKey) {
+function matchesTab(status: FineTabItem["status"], tab: TabKey | null) {
+  if (tab === null) return false;
   if (tab === "topay") return status === "pending";
   return status === tab;
 }
@@ -63,12 +64,13 @@ export function FineStatusTabs({
   const TABS = adminActions ? TABS_BASE : [TABS_BASE[0], TAB_SUBMITTED, TABS_BASE[1], TABS_BASE[2]];
   const visibleFines = adminActions ? fines.filter((f) => f.status !== "submitted") : fines;
 
-  const [tab, setTab] = useState<TabKey>("topay");
+  const [tab, setTab] = useState<TabKey | null>(null);
   const [pending, startTransition] = useTransition();
   const [openPayId, setOpenPayId] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [comment, setComment] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [expandedFineId, setExpandedFineId] = useState<string | null>(null);
 
   const today = new Date().toISOString().slice(0, 10);
 
@@ -139,7 +141,7 @@ export function FineStatusTabs({
         {TABS.map((t) => (
           <button
             key={t.key}
-            onClick={() => setTab(t.key)}
+            onClick={() => setTab(tab === t.key ? null : t.key)}
             className={`text-xs px-3 py-1.5 rounded-md transition-colors ${
               tab === t.key ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-white/5"
             }`}
@@ -150,14 +152,21 @@ export function FineStatusTabs({
       </div>
 
       <div className="space-y-2">
-        {visible.length === 0 && (
+        {tab === null && (
+          <p className="text-sm text-muted-foreground py-2">Kisi tab par click karo (To Pay / Paid / Waived) dekhne ke liye.</p>
+        )}
+        {tab !== null && visible.length === 0 && (
           <p className="text-sm text-muted-foreground py-2">Yahan kuch nahi hai.</p>
         )}
         {visible.map((fine) => {
           const isOverdue = fine.status === "pending" && fine.deadline < today;
+          const isExpanded = expandedFineId === fine.id;
           return (
             <div key={fine.id} className="rounded-lg border p-3 space-y-2">
-              <div className="flex flex-wrap items-center justify-between gap-2">
+              <div
+                className="flex flex-wrap items-center justify-between gap-2 cursor-pointer select-none"
+                onClick={() => setExpandedFineId(isExpanded ? null : fine.id)}
+              >
                 <span className="font-medium">₹{fine.amount}</span>
                 <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-white/5 text-white/60 border border-white/10">
                   {CATEGORY_LABELS[fine.category] ?? fine.category}
@@ -172,7 +181,10 @@ export function FineStatusTabs({
                     awaiting confirmation
                   </span>
                 )}
+                <span className={`text-white/40 text-xs transition-transform ${isExpanded ? "rotate-180" : ""}`}>▾</span>
               </div>
+              {isExpanded && (
+              <>
               <p className="text-xs text-muted-foreground">Deadline: {fine.deadline}</p>
               {fine.proof_url && (
                 <a href={fine.proof_url} target="_blank" rel="noreferrer" className="text-xs text-primary underline">
@@ -222,6 +234,8 @@ export function FineStatusTabs({
                     Waive
                   </Button>
                 </div>
+              )}
+              </>
               )}
             </div>
           );

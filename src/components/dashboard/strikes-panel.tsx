@@ -24,6 +24,8 @@ export function StrikesPanel({ strikes }: { strikes: StrikeRow[] }) {
   const [removeReasonFor, setRemoveReasonFor] = useState<string | null>(null);
   const [reasonText, setReasonText] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [touchStartX, setTouchStartX] = useState<number | null>(null);
+  const [expandedUser, setExpandedUser] = useState<string | null>(null);
 
   // Har user ke liye: sirf active strikes, oldest→newest sorted (index 0 = pehli,
   // last index = sabse latest). Pointer hamesha "sabse latest active" strike ko
@@ -111,8 +113,6 @@ export function StrikesPanel({ strikes }: { strikes: StrikeRow[] }) {
     );
   }
 
-  const [touchStartX, setTouchStartX] = useState<number | null>(null);
-
   function handleTouchStart(e: React.TouchEvent) {
     setTouchStartX(e.touches[0].clientX);
   }
@@ -143,7 +143,10 @@ export function StrikesPanel({ strikes }: { strikes: StrikeRow[] }) {
 
           return (
             <Card key={userName} className="rounded-xl">
-              <CardHeader className="pb-2 pt-3 px-3.5">
+              <CardHeader
+                className="pb-2 pt-3 px-3.5 cursor-pointer select-none"
+                onClick={() => setExpandedUser(expandedUser === userName ? null : userName)}
+              >
                 <CardTitle className="text-xs font-medium flex items-center justify-between">
                   <span className="flex items-center gap-2">
                     <span className="w-6 h-6 rounded-full bg-amber-500/10 text-amber-500 border border-amber-500/30 flex items-center justify-center text-[10px] font-medium">
@@ -151,11 +154,21 @@ export function StrikesPanel({ strikes }: { strikes: StrikeRow[] }) {
                     </span>
                     <span className="text-sm">{userName}</span>
                   </span>
-                  <span className="text-[10px] text-muted-foreground tracking-wide">
-                    {active.length} ACTIVE
+                  <span className="flex items-center gap-2">
+                    <span className="text-[10px] text-muted-foreground tracking-wide">
+                      {active.length} ACTIVE
+                    </span>
+                    <span
+                      className={`text-white/40 text-xs transition-transform ${
+                        expandedUser === userName ? "rotate-180" : ""
+                      }`}
+                    >
+                      ▾
+                    </span>
                   </span>
                 </CardTitle>
               </CardHeader>
+              {expandedUser === userName && (
               <CardContent className="space-y-2.5 px-3.5 pb-3.5">
                 {active.length === 0 ? (
                   <p className="text-xs text-muted-foreground">Koi active strike nahi.</p>
@@ -316,6 +329,7 @@ export function StrikesPanel({ strikes }: { strikes: StrikeRow[] }) {
                   </div>
                 )}
               </CardContent>
+              )}
             </Card>
           );
         })}

@@ -61,6 +61,17 @@ export default async function FinesRewardsPage() {
     .filter((f) => f.status === "pending" || f.status === "submitted")
     .reduce((sum, f) => sum + Number(f.amount), 0);
 
+  // Meri apni "remaining" strikes — sirf woh jo abhi tak kisi fine mein
+  // convert nahi hui (fine_id null) aur remove nahi ki gayi. Har 3 = 1 fine
+  // ban jaati hai (checkAndCreateFine), isliye ye count hamesha 0-2 ke beech
+  // rahega (fine ban te hi 3 ka batch consume ho jaata hai).
+  const { count: myActiveStrikeCount } = await admin
+    .from("strikes")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", profile.id)
+    .eq("is_removed", false)
+    .is("fine_id", null);
+
   // Team Fines: sabke fines, founder ka apna naam is list se exclude
   // (uska apna record "My Fines" mein already hai).
   let teamUsers: TeamFineUser[] = [];
@@ -122,6 +133,7 @@ export default async function FinesRewardsPage() {
         role={role}
         totalDue={totalDue}
         totalFineCount={myFines.length}
+        myActiveStrikeCount={myActiveStrikeCount ?? 0}
         myFines={myFines}
         teamUsers={teamUsers}
         strikes={strikes}
