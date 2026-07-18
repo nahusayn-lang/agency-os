@@ -32,7 +32,7 @@ export function TaskActions({ taskId, status, role }: TaskActionsProps) {
 
   function requestRevision() {
     if (!revisionReason.trim()) {
-      setError("Revision reason likhna zaroori hai.");
+      setError("Please enter a revision reason.");
       return;
     }
     setError(null);

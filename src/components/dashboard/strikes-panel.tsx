@@ -28,9 +28,9 @@ export function StrikesPanel({ strikes }: { strikes: StrikeRow[] }) {
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
 
-  // Har user ke liye: sirf active strikes, oldest→newest sorted (index 0 = pehli,
-  // last index = sabse latest). Pointer hamesha "sabse latest active" strike ko
-  // point karta hai jab tak user khud navigate na kare.
+  // For each user: only active strikes, sorted oldest→newest (index 0 = first,
+  // last index = most recent). The pointer always points to the "most recent active"
+  // strike until the user navigates manually.
   const grouped = useMemo(() => {
     const map = new Map<string, StrikeRow[]>();
     strikes.forEach((s) => {
@@ -77,7 +77,7 @@ export function StrikesPanel({ strikes }: { strikes: StrikeRow[] }) {
       }
       setRemoveReasonFor(null);
       setReasonText("");
-      // Pointer ek step peeche kar do (agla active strike jo dikhega)
+      // Move the pointer back one step (the next active strike that will show)
       setPointerIndex((prev) => ({ ...prev, [userName]: Math.max(0, currentIndex(userName) - 1) }));
       window.scrollTo({ top: 0, behavior: "smooth" });
       router.refresh();

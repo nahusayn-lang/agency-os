@@ -16,7 +16,6 @@ export async function POST(req: Request) {
 
   try {
     if (action === "start") {
-      // Session start time save karo DB mein
       await supabase
         .from("tasks")
         .update({ session_start_time: new Date().toISOString() })
@@ -31,7 +30,6 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "Pause note required" }, { status: 400 });
       }
 
-      // Session ka time calculate karo
       const { data: t } = await supabase
         .from("tasks")
         .select("total_time_spent_seconds, session_start_time")
@@ -49,7 +47,6 @@ export async function POST(req: Request) {
 
       const newTotal = current + sessionSeconds;
 
-      // Total time update karo aur session_start_time clear karo
       await supabase
         .from("tasks")
         .update({
@@ -58,7 +55,6 @@ export async function POST(req: Request) {
         })
         .eq("id", taskId);
 
-      // Comment add karo pause reason ke saath
       const msgParts = [String(note).trim(), `Time this session: ${sessionSeconds}s`];
       const c = await addTaskCommentAction(taskId, msgParts.join("\n"));
 
@@ -67,7 +63,6 @@ export async function POST(req: Request) {
     }
 
     if (action === "submit") {
-      // Session ka time calculate karo
       const { data: t } = await supabase
         .from("tasks")
         .select("total_time_spent_seconds, session_start_time")
@@ -85,7 +80,6 @@ export async function POST(req: Request) {
 
       const newTotal = current + sessionSeconds;
 
-      // Final total save karo aur session clear karo
       await supabase
         .from("tasks")
         .update({

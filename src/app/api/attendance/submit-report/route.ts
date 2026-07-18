@@ -6,9 +6,9 @@ import { isEarlyExit, getTodayDateString } from "@/lib/auth/attendance";
 import { hasPendingCannotCompleteApproval } from "@/lib/services/strike-fine-engine";
 
 // Asli checkout + report submission, EK HI request mein.
-// Iska matlab: jab tak ye poori tarah complete nahi hota (report insert
-// tak), attendance/users table mein koi change save hi nahi hota — refresh
-// karne se checkout "half-done" state mein kabhi nahi phasega.
+// This means: until this fully completes (including the report insert),
+// no changes are saved to the attendance/users tables — a refresh can
+// never leave checkout stuck in a "half-done" state.
 export async function POST(req: Request) {
   const profile = await requireUserProfile();
 
@@ -20,7 +20,7 @@ export async function POST(req: Request) {
     const blockers = String(form.get("blockers") ?? "").trim();
 
     if (!what || !completed || !pending || !blockers) {
-      return NextResponse.json({ error: "Saare fields required hain." }, { status: 400 });
+      return NextResponse.json({ error: "All fields are required." }, { status: 400 });
     }
 
     const supabase = createClient();
@@ -28,7 +28,7 @@ export async function POST(req: Request) {
     const now = new Date();
     const today = getTodayDateString(now);
 
-    // --- Re-validate (race-safe: kuch mins report form khula reh sakta hai) ---
+    // --- Re-validate (race-safe: the report form may stay open for a few minutes) ---
     const { data: userRow } = await admin
       .from("users")
       .select("shift_end, is_checked_in")
@@ -36,12 +36,12 @@ export async function POST(req: Request) {
       .single();
 
     if (!userRow?.is_checked_in) {
-      // Defensive cleanup — kisi race/dusre tab ki wajah se ho sakta hai.
+      // Defensive cleanup — can happen due to a race condition or another tab.
       await admin
         .from("users")
         .update({ checkout_report_pending: false })
         .eq("id", profile.id);
-      return NextResponse.json({ error: "Aap already checked out ho." }, { status: 400 });
+      return NextResponse.json({ error: "You have already checked out." }, { status: 400 });
     }
 
     const { data: blockedTasks } = await supabase
@@ -134,7 +134,7 @@ export async function POST(req: Request) {
       }
     }
 
-    // --- Report insert (checkout ke turant baad, same request) ---
+    // --- Report insert (immediately after checkout, same request) ---
     const { data: report, error } = await supabase
       .from("reports")
       .insert({

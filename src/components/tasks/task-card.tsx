@@ -113,7 +113,7 @@ export function TaskCard({ task, assignerName, assignerRole }: TaskCardProps) {
   if (isStarting) return;
   const existing = window.localStorage.getItem("running_task");
   if (existing && existing !== task.id) {
-    alert("Pehle chalta hua task pause ya submit karo, tab hi doosra start hoga.");
+    alert("Pause or submit the current task before starting another.");
     return;
   }
   setIsStarting(true);
@@ -136,7 +136,7 @@ export function TaskCard({ task, assignerName, assignerRole }: TaskCardProps) {
 
   async function handleConfirmPause() {
   if (isPausing) return;
-  if (!pauseNote.trim()) { setPauseError("Pause karne ki wajah likhna zaroori hai."); return; }
+  if (!pauseNote.trim()) { setPauseError("Please enter a reason for pausing."); return; }
   setPauseError("");
   setIsPausing(true);
   stopTimerLocally();
@@ -151,8 +151,8 @@ export function TaskCard({ task, assignerName, assignerRole }: TaskCardProps) {
   else { setPauseNote(""); setElapsed(0); window.location.reload(); }
 }
   async function handleConfirmSubmit() {
-    if (!proofUrl) { setSubmitError("Screenshot upload karna zaroori hai."); return; }
-    if (!submitNote.trim()) { setSubmitError("Completion note likhna zaroori hai."); return; }
+    if (!proofUrl) { setSubmitError("Please upload a screenshot."); return; }
+    if (!submitNote.trim()) { setSubmitError("Please enter a completion note."); return; }
     setSubmitError("");
     setIsSubmitting(true);
     const res = await fetch("/api/tasks/perform", {
@@ -304,7 +304,7 @@ export function TaskCard({ task, assignerName, assignerRole }: TaskCardProps) {
               <p className="text-sm font-medium">Pause reason</p>
               <Textarea
                 id={`pause-note-${task.id}`}
-                placeholder="Kyu pause kar rahe ho?"
+                placeholder="Why are you pausing?"
                 value={pauseNote}
                 onChange={(e) => setPauseNote(e.target.value)}
                 rows={2}
@@ -330,7 +330,7 @@ export function TaskCard({ task, assignerName, assignerRole }: TaskCardProps) {
                   onUploadComplete={(url) => setProofUrl(url)}
                 />
                 {!proofUrl && submitError && (
-                  <p className="text-xs text-red-500">Screenshot upload karna zaroori hai.</p>
+                  <p className="text-xs text-red-500">Please upload a screenshot.</p>
                 )}
               </div>
 

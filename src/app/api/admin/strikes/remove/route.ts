@@ -16,7 +16,7 @@ export async function POST(req: Request) {
     const reason = String(body.reason ?? "").trim();
 
     if (!strikeId || !reason) {
-      return NextResponse.json({ error: "strikeId aur reason required hai." }, { status: 400 });
+      return NextResponse.json({ error: "strikeId and reason are required." }, { status: 400 });
     }
 
     await removeStrike(strikeId, profile.id, reason);

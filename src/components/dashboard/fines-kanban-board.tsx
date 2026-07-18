@@ -126,7 +126,7 @@ export function FinesKanbanBoard({
                           rel="noreferrer"
                           className="text-[11px] text-primary underline block"
                         >
-                          Screenshot dekho
+                          View screenshot
                         </a>
                       )}
                       {fine.payment_comment && (

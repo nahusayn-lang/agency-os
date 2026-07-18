@@ -184,7 +184,7 @@ export function FineStatusTabs({
               <p className="text-xs text-muted-foreground">Deadline: {formatDate(fine.deadline)}</p>
               {fine.proof_url && (
                 <a href={fine.proof_url} target="_blank" rel="noreferrer" className="text-xs text-primary underline">
-                  Screenshot dekho
+                  View screenshot
                 </a>
               )}
               {fine.payment_comment && (

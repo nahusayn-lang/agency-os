@@ -40,7 +40,7 @@ export default async function AdminUsersPage() {
             href="/fines-rewards"
             className="block rounded-xl border border-white/10 bg-card p-4 text-sm text-primary underline underline-offset-2"
           >
-            Fine amount, strikes aur fines ab yahan hain → Fine &amp; Rewards page
+            Fine amount, strikes, and fines have moved to the Fine &amp; Rewards page
           </a>
         )}
         {rows.map((u) => (

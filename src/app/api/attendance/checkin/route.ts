@@ -27,10 +27,10 @@ export async function POST() {
     const shiftStart = userRow?.shift_start ?? "00:00:00";
     const shiftEnd = userRow?.shift_end ?? null;
 
-    // Step 1: Purani "open" absent entry dhoondo — koi bhi record jiska
-    // checkin_time null hai (matlab kabhi check-in nahi hua, sirf absent
-    // lagi thi). Aisa record tab tak "open" rehta hai jab tak uski *agli*
-    // shift-occurrence shuru nahi ho jaati (shift daily repeat hoti hai).
+    // Step 1: Find the old "open" absent entry — any record whose
+    // checkin_time is null (meaning check-in never happened, only marked
+    // absent). Such a record stays "open" until its *next* shift-occurrence
+    // begins (shifts repeat daily).
     const { data: openAbsent } = await admin
       .from("attendance")
       .select("id, date")
@@ -44,15 +44,15 @@ export async function POST() {
     let linkToRecordId: string | null = null;
 
     if (openAbsent && shiftStart) {
-      // Agli occurrence ka start-time = us purani entry ki date + 1 din, shift_start pe.
+      // Next occurrence's start-time = that old entry's date + 1 day, at shift_start.
       const nextOccurrenceStart = new Date(
         `${openAbsent.date}T${shiftStart}+05:30`
       );
       nextOccurrenceStart.setDate(nextOccurrenceStart.getDate() + 1);
 
       if (now < nextOccurrenceStart) {
-        // Abhi bhi dead-zone mein hai — agla shift start nahi hua — isliye
-        // ye check-in purani hi absent-entry mein jaayega, naya row nahi.
+        // Still in the dead-zone — next shift hasn't started — so this
+        // check-in goes into the old absent-entry, not a new row.
         linkToRecordId = openAbsent.id;
       }
     }

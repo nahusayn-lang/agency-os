@@ -12,7 +12,7 @@ export async function POST(req: Request) {
   const profile = await requireUserProfile();
 
   if (profile.role !== "super_admin") {
-    return NextResponse.json({ error: "Sirf founder fine amount change kar sakta hai." }, { status: 403 });
+    return NextResponse.json({ error: "Only the founder can change the fine amount." }, { status: 403 });
   }
 
   try {

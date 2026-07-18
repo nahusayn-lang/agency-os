@@ -41,9 +41,9 @@ export default async function EmployeeDashboardPage() {
     .eq("date", today)
     .maybeSingle();
 
-  // "Marked for today" sirf tab dikhna chahiye jab actually checkout ho
-  // chuka ho — sirf row exist karna kaafi nahi (absent-marked row bhi
-  // "date = today" ke saath exist karti hai, uska checkout_time null hota hai).
+  // "Marked for today" should only show once checkout has actually
+  // happened — a row simply existing isn't enough (an absent-marked row
+  // also exists with "date = today", but its checkout_time is null).
   const checkedOutToday = !isCheckedIn && !!todayAttendance?.checkout_time;
 
   const { count: todaysTasks } = await supabase

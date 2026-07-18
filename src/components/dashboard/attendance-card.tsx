@@ -57,14 +57,19 @@ function StrikeFineBadge({
   }
 
   return (
-    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ${tone}`}>
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-3">
-        <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" />
-        <line x1="12" y1="9" x2="12" y2="13" />
-        <line x1="12" y1="17" x2="12.01" y2="17" />
-      </svg>
-      {label}
-    </span>
+    <div className={`flex flex-col items-end gap-0.5 rounded-2xl px-3 py-1.5 text-right bg-destructive/10 border border-destructive/30`}>
+      <span className="flex items-center gap-1 text-[13px] font-semibold text-destructive">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-3.5">
+          <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" />
+          <line x1="12" y1="9" x2="12" y2="13" />
+          <line x1="12" y1="17" x2="12.01" y2="17" />
+        </svg>
+        {pendingFineCount > 0 ? `₹${fineAmount * pendingFineCount} fine pending` : `${activeStrikeCount} strike${activeStrikeCount > 1 ? "s" : ""}`}
+      </span>
+      <span className="text-[11px] text-destructive/70">
+        {pendingFineCount} fine{pendingFineCount !== 1 ? "s" : ""} and {activeStrikeCount} active strike{activeStrikeCount !== 1 ? "s" : ""}
+      </span>
+    </div>
   );
 }
 
@@ -112,10 +117,10 @@ export function AttendanceCard({
     blockers: "",
   });
 
-  // Refresh ke baad bhi report modal wapas dikhao agar server keh raha hai
-  // ki checkout initiate ho chuka hai par report abhi submit nahi hua.
-  // Isse pehle wala bug fix hota hai jaha refresh karne par modal state
-  // (jo sirf client memory mein tha) gayab ho jaata tha.
+  // Show the report modal again after a refresh if the server says
+  // checkout has been initiated but the report hasn't been submitted yet.
+  // This fixes the earlier bug where refreshing made the modal state
+  // (which only lived in client memory) disappear.
   useEffect(() => {
     if (reportPending && isCheckedIn) {
       setReportFields({ what_i_did_today: "", completed_work: "", pending_work: "", blockers: "" });
@@ -151,7 +156,7 @@ export function AttendanceCard({
     });
   }
 
-  // Step 1: tasks check karo, phir report modal kholo
+  // Step 1: check tasks, then open the report modal
   function handleCheckout() {
     setError(null);
     setBlockedTasks([]);
@@ -173,11 +178,11 @@ export function AttendanceCard({
     });
   }
 
-  // Step 2: report submit karo
+  // Step 2: submit the report
   async function handleReportSubmit() {
     const { what_i_did_today, completed_work, pending_work, blockers } = reportFields;
     if (!what_i_did_today.trim() || !completed_work.trim() || !pending_work.trim() || !blockers.trim()) {
-      setReportError("Saare fields fill karna zaroori hai.");
+      setReportError("Please fill in all fields.");
       return;
     }
     setReportSubmitting(true);
@@ -199,7 +204,7 @@ export function AttendanceCard({
           setBlockedTasks(data.blockedTasks);
           return;
         }
-        setReportError(data.message ?? data.error ?? "Report submit nahi hua.");
+        setReportError(data.message ?? data.error ?? "Report submission failed.");
         return;
       }
       setShowReportModal(false);
@@ -302,14 +307,14 @@ export function AttendanceCard({
               <div>
                 <h2 className="text-lg font-semibold">Daily Report</h2>
                 <p className="text-sm text-muted-foreground mt-0.5">
-                  Checkout complete hua ✓ — ab aaj ka report fill karo.
+                  Checkout complete ✓ — please fill in today's report.
                 </p>
               </div>
 
               <div className="space-y-3">
                 <div>
                   <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                    Aaj maine kya kiya
+                    What I did today
                   </label>
                   <textarea
                     rows={2}

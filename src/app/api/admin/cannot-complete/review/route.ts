@@ -6,7 +6,7 @@ export async function POST(req: Request) {
   const profile = await requireUserProfile();
 
   if (profile.role !== "super_admin") {
-    return NextResponse.json({ error: "Sirf super_admin approve/reject kar sakta hai." }, { status: 403 });
+    return NextResponse.json({ error: "Only a super admin can approve or reject this." }, { status: 403 });
   }
 
   try {
@@ -15,7 +15,7 @@ export async function POST(req: Request) {
     const decision = body.decision as "approved" | "rejected";
 
     if (!usageId || (decision !== "approved" && decision !== "rejected")) {
-      return NextResponse.json({ error: "usageId aur decision required hai." }, { status: 400 });
+      return NextResponse.json({ error: "usageId and decision are required." }, { status: 400 });
     }
 
     await reviewCannotComplete(usageId, profile.id, decision);

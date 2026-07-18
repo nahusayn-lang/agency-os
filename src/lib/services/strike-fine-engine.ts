@@ -197,7 +197,7 @@ export async function getFineAmount(): Promise<number> {
 /** Super_admin-only: updates the fine amount used for all future fines. */
 export async function setFineAmount(amount: number, updatedBy: string): Promise<void> {
   if (!Number.isFinite(amount) || amount <= 0) {
-    throw new Error("Fine amount valid positive number honi chahiye.");
+    throw new Error("Fine amount must be a valid positive number.");
   }
   const admin = createAdminClient();
   const { error } = await admin
@@ -429,17 +429,18 @@ export async function reviewCannotComplete(
 }
 
 /**
- * Jab bhi naye shift ka start-time aa jaaye, aur user abhi bhi purani
- * (pichli shift-occurrence ki) session mein checked-in ho, to usko turant
- * force-checkout kar do — grace/1hr wait ka intezaar nahi. Isse fresh
- * "Check In" card turant available ho jaata hai naye shift ke liye.
+ * Whenever a new shift's start-time arrives and the user is still
+ * checked in to an old (previous shift-occurrence) session, force
+ * checkout them immediately — don't wait for the grace/1hr window.
+ * This makes a fresh "Check In" card available right away for the new shift.
  *
- * Pehchaan: attendance row ka `date` (shift-occurrence date) agar aaj ki
- * date se alag hai, aur aaj ka shift-start time already aa chuka hai,
- * to wo session "stale" hai — force close.
+ * Detection: if the attendance row's `date` (shift-occurrence date) differs
+ * from today's date, and today's shift-start time has already passed,
+ * that session is "stale" — force close it.
  *
- * Ise dashboard load par call karo (turant reflect ho) + cron sweep mein
- * bhi (background safety net) taaki page reload na hone par bhi close ho.
+ * Call this on dashboard load (for immediate effect) as well as in the
+ * cron sweep (as a background safety net) so it still closes even if
+ * the page isn't reloaded.
  */
 export async function closeStaleShiftSession(userId: string): Promise<void> {
   const admin = createAdminClient();
@@ -455,7 +456,7 @@ export async function closeStaleShiftSession(userId: string): Promise<void> {
   if (!user?.is_checked_in || !user.shift_start) return;
 
   const shiftStartToday = new Date(`${today}T${user.shift_start}+05:30`);
-  if (now < shiftStartToday) return; // aaj ka shift abhi shuru nahi hua
+  if (now < shiftStartToday) return; // today's shift hasn't started yet
 
   const { data: attendance } = await admin
     .from("attendance")
@@ -597,9 +598,9 @@ export async function sweepAbsentUsers(): Promise<number> {
   let processed = 0;
 
   for (const user of activeUsers) {
-    // Absent sirf tab lagta hai jab poori shift nikal jaaye aur user ne
-    // ek baar bhi check-in na kiya ho — shift start + thodi der grace par
-    // nahi (wo "late" ke liye hai, evaluateCheckin mein handle hota hai).
+    // Absent is only marked once the entire shift has passed and the user
+    // never checked in even once — not right at shift start + a short grace
+    // period (that's for "late", handled in evaluateCheckin).
     if (!user.shift_end) continue;
     const shiftEndToday = new Date(`${today}T${user.shift_end}+05:30`);
     const cutoff = shiftEndToday;

@@ -159,7 +159,7 @@ export async function updateLeaveRequestStatusAction(
           console.error("Failed to record logout for emergency approval:", e);
         }
 
-        // ✅ FIX: member ko actually checkout karo
+        // ✅ FIX: actually check the member out
         await supabase
           .from("users")
           .update({ is_checked_in: false })

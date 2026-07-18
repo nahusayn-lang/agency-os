@@ -7,7 +7,7 @@ export async function POST(req: Request) {
   const profile = await requireUserProfile();
 
   if (profile.role !== "super_admin") {
-    return NextResponse.json({ error: "Sirf founder fine mark/waive kar sakta hai." }, { status: 403 });
+    return NextResponse.json({ error: "Only the founder can mark or waive a fine." }, { status: 403 });
   }
 
   try {
@@ -16,7 +16,7 @@ export async function POST(req: Request) {
     const action = body.action as "paid" | "waived" | "reject";
 
     if (!fineId || (action !== "paid" && action !== "waived" && action !== "reject")) {
-      return NextResponse.json({ error: "fineId aur valid action required hai." }, { status: 400 });
+      return NextResponse.json({ error: "fineId and a valid action are required." }, { status: 400 });
     }
 
     const admin = createAdminClient();
@@ -93,8 +93,8 @@ export async function PATCH(req: Request) {
     const proofUrl = String(body.proofUrl ?? "").trim();
     const paymentComment = String(body.paymentComment ?? "").trim();
 
-    if (!fineId) return NextResponse.json({ error: "fineId required hai." }, { status: 400 });
-    if (!proofUrl) return NextResponse.json({ error: "Payment screenshot lagana zaroori hai." }, { status: 400 });
+    if (!fineId) return NextResponse.json({ error: "fineId is required." }, { status: 400 });
+    if (!proofUrl) return NextResponse.json({ error: "A payment screenshot is required." }, { status: 400 });
 
     const admin = createAdminClient();
 
@@ -106,9 +106,9 @@ export async function PATCH(req: Request) {
 
     if (fetchError || !fine) return NextResponse.json({ error: "Fine not found." }, { status: 404 });
     if (fine.user_id !== profile.id)
-      return NextResponse.json({ error: "Ye fine tumhara nahi hai." }, { status: 403 });
+      return NextResponse.json({ error: "This fine does not belong to you." }, { status: 403 });
     if (fine.status !== "pending")
-      return NextResponse.json({ error: "Sirf pending fine par payment submit kar sakte ho." }, { status: 400 });
+      return NextResponse.json({ error: "You can only submit payment for a pending fine." }, { status: 400 });
 
     const { error } = await admin
       .from("fines")

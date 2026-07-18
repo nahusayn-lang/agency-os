@@ -4,10 +4,10 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { hasPendingCannotCompleteApproval } from "@/lib/services/strike-fine-engine";
 
-// Ye route SIRF validation karta hai (blocked tasks / pending approval).
-// Asli checkout (is_checked_in=false, checkout_time, audit log) ab
-// /api/attendance/submit-report route mein hota hai — taaki report
-// submit kiye bina checkout kabhi bhi DB mein complete na ho (refresh-safe).
+// This route ONLY performs validation (blocked tasks / pending approval).
+// The actual checkout (is_checked_in=false, checkout_time, audit log) now
+// happens in the /api/attendance/submit-report route — so checkout is
+// never marked complete in the DB without a submitted report (refresh-safe).
 export async function POST() {
   const profile = await requireUserProfile();
 
@@ -46,15 +46,15 @@ export async function POST() {
       return NextResponse.json(
         {
           error: "checkout_blocked_pending_approval",
-          message: "Ek 'cannot complete' request super_admin approval ka wait kar rahi hai. Checkout tab tak block hai.",
+          message: "A 'cannot complete' request is awaiting super admin approval. Checkout is blocked until then.",
         },
         { status: 403 }
       );
     }
 
-    // Validation pass ho gayi — report abhi bhi baaki hai. Ye flag set
-    // karo taaki refresh hone par bhi dashboard ko pata rahe ki report
-    // modal dobara dikhana hai.
+    // Validation passed — the report is still pending. Set this flag so
+    // that even after a refresh, the dashboard knows to show the report
+    // modal again.
     await admin
       .from("users")
       .update({ checkout_report_pending: true })

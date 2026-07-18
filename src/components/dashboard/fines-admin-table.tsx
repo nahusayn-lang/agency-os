@@ -76,7 +76,7 @@ export function FinesAdminTable({
                   <span>Deadline: {formatDate(fine.deadline)}</span>
                   {fine.proof_url && (
                     <a href={fine.proof_url} target="_blank" rel="noreferrer" className="text-primary underline">
-                      Screenshot dekho
+                      View screenshot
                     </a>
                   )}
                 </div>

@@ -102,7 +102,7 @@ export function PaymentReview({ items }: { items: PaymentReviewItem[] }) {
                 <p className="text-xs text-muted-foreground">Deadline: {formatDate(item.deadline)}</p>
                 {item.proof_url && (
                   <a href={item.proof_url} target="_blank" rel="noreferrer" className="text-xs text-primary underline block">
-                    Screenshot dekho
+                    View screenshot
                   </a>
                 )}
                 {item.payment_comment && (
