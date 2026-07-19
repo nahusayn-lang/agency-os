@@ -154,7 +154,10 @@ export async function addStrike(
   // Grace-usage counter resets whenever ANY strike lands (per spec rule 1).
   await resetGraceUsage(userId, now);
 
-  const fineCreated = await checkAndCreateFine(userId);
+  // fine_deadline_missed strikes are standalone — they must NOT feed into
+  // the general 3-strikes-to-fine pool, else it cascades into new fines.
+  const fineCreated =
+    reason === "fine_deadline_missed" ? false : await checkAndCreateFine(userId);
 
   await admin.from("audit_log").insert({
     user_id: userId,
@@ -227,6 +230,7 @@ export async function checkAndCreateFine(userId: string): Promise<boolean> {
     .eq("user_id", userId)
     .eq("is_removed", false)
     .is("fine_id", null)
+    .neq("reason", "fine_deadline_missed") // due-strikes never join the general pool
     .order("created_at", { ascending: true });
 
   if (error) throw new Error(`Failed to check strikes for fine: ${error.message}`);
@@ -335,21 +339,34 @@ export async function removeStrike(
 export async function sweepOverdueFines(): Promise<number> {
   const admin = createAdminClient();
   const today = getISTDateString();
+  const currentWeek = getWeekStart(new Date()); // this week's Monday (IST)
 
   const { data: overdue, error } = await admin
     .from("fines")
-    .select("id, user_id")
+    .select("id, user_id, last_overdue_strike_week")
     .eq("status", "pending")
     .lt("deadline", today);
 
   if (error) throw new Error(`Failed to sweep overdue fines: ${error.message}`);
   if (!overdue || overdue.length === 0) return 0;
 
+  let processed = 0;
+
   for (const fine of overdue) {
+    // Already struck for THIS week — skip (prevents the every-few-minutes
+    // repeat bug), but allow it again next week if still unpaid (recurring).
+    if (fine.last_overdue_strike_week === currentWeek) continue;
+
     await addStrike(fine.user_id, "fine_deadline_missed", fine.id);
+    await admin
+      .from("fines")
+      .update({ last_overdue_strike_week: currentWeek })
+      .eq("id", fine.id);
+
+    processed += 1;
   }
 
-  return overdue.length;
+  return processed;
 }
 
 // ============================================================
