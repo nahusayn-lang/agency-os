@@ -1,6 +1,7 @@
 import { requireUserProfile } from "@/lib/auth/session";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getFineAmount } from "@/lib/services/strike-fine-engine";
+
 import { FinesRewardsClient } from "@/components/dashboard/fines-rewards-client";
 import type { FineTabItem } from "@/components/dashboard/fine-status-tabs";
 import type { TeamFineUser } from "@/components/dashboard/team-fines";

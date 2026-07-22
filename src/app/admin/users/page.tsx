@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { requireUserProfile } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
-import { toggleUserActiveAction, setUserRoleAction, setShiftAction } from "@/lib/admin/users";
+import { UsersList } from "@/components/admin/user-row-list";
+import { HolidaySettings } from "@/components/dashboard/holiday-settings";
+import { getSundayOffSetting, listHolidays } from "@/lib/services/attendance-settings";
 
 export default async function AdminUsersPage() {
   const profile = await requireUserProfile();
@@ -30,97 +32,21 @@ export default async function AdminUsersPage() {
     shift_end?: string | null;
   }>;
 
+  const isSuperAdmin = profile.role === "super_admin";
+  const sundayOff = isSuperAdmin ? await getSundayOffSetting() : true;
+  const holidays = isSuperAdmin ? await listHolidays() : [];
+
   return (
     <div className="px-4 py-6 max-w-lg mx-auto">
       <h1 className="mb-6 text-2xl font-bold">Admin Users</h1>
 
-      <div className="space-y-4">
-        {profile.role === "super_admin" && (
-          <a
-            href="/fines-rewards"
-            className="block rounded-xl border border-white/10 bg-card p-4 text-sm text-primary underline underline-offset-2"
-          >
-            Fine amount, strikes, and fines have moved to the Fine &amp; Rewards page
-          </a>
-        )}
-        {rows.map((u) => (
-          <div key={u.id} className="rounded-xl border border-border bg-card p-4 space-y-3">
+      {isSuperAdmin && (
+        <div className="mb-6">
+          <HolidaySettings initialSundayOff={sundayOff} initialHolidays={holidays} />
+        </div>
+      )}
 
-            <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0">
-                <div className="font-semibold text-base truncate">{u.name}</div>
-                <div className="text-xs text-muted-foreground truncate">{u.email}</div>
-              </div>
-              <span className="shrink-0 text-xs font-medium px-2 py-1 rounded-full bg-muted text-muted-foreground">
-                {u.role}
-              </span>
-            </div>
-
-            <form action={toggleUserActiveAction}>
-              <input type="hidden" name="userId" value={u.id} />
-              <input type="hidden" name="isActive" value={u.is_active ? "false" : "true"} />
-              <button
-                type="submit"
-                className={`w-full text-sm font-medium py-2 rounded-lg border transition-colors ${
-                  u.is_active
-                    ? "border-destructive text-destructive hover:bg-destructive hover:text-white"
-                    : "border-green-500 text-green-600 hover:bg-green-500 hover:text-white"
-                }`}
-              >
-                {u.is_active ? "Deactivate" : "Activate"}
-              </button>
-            </form>
-
-            <form action={setUserRoleAction} className="flex items-center gap-2">
-              <input type="hidden" name="userId" value={u.id} />
-              <select
-                name="role"
-                defaultValue={u.role}
-                className="flex-1 border border-border rounded-lg px-3 py-2 bg-background text-sm text-foreground"
-              >
-                <option value="member">member</option>
-                <option value="admin">admin</option>
-                <option value="super_admin">super_admin</option>
-              </select>
-              <button
-                type="submit"
-                className="shrink-0 text-sm font-medium px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-              >
-                Set role
-              </button>
-            </form>
-
-            <div className="text-xs text-muted-foreground">
-              Shift: {u.shift_start?.slice(0, 5) ?? "—"} → {u.shift_end?.slice(0, 5) ?? "—"}
-            </div>
-
-            {profile.role === "super_admin" && (
-              <form action={setShiftAction} className="flex items-center gap-2">
-                <input type="hidden" name="userId" value={u.id} />
-                <input
-                  type="time"
-                  name="shift_start"
-                  defaultValue={u.shift_start?.slice(0, 5) ?? "09:00"}
-                  className="flex-1 border border-border rounded-lg px-2 py-2 text-sm bg-background text-foreground"
-                />
-                <span className="text-xs text-muted-foreground shrink-0">to</span>
-                <input
-                  type="time"
-                  name="shift_end"
-                  defaultValue={u.shift_end?.slice(0, 5) ?? "17:00"}
-                  className="flex-1 border border-border rounded-lg px-2 py-2 text-sm bg-background text-foreground"
-                />
-                <button
-                  type="submit"
-                  className="shrink-0 text-sm font-medium px-3 py-2 rounded-lg bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors"
-                >
-                  Save
-                </button>
-              </form>
-            )}
-          </div>
-        ))}
-      </div>
+      <UsersList rows={rows} isSuperAdmin={isSuperAdmin} />
 
       <div className="mt-6">
         <Link

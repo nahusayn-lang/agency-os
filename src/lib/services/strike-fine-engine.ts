@@ -594,6 +594,35 @@ export async function sweepMissedCheckouts(): Promise<number> {
 }
 
 // ============================================================
+// OFF-DAY CHECK (Sunday toggle + manual holidays)
+// Returns true if today is a company-wide non-working day —
+// absent/strike/fine must not apply on these dates.
+// ============================================================
+export async function isGlobalOffDay(dateStr: string): Promise<boolean> {
+  const admin = createAdminClient();
+
+  const { data: settings } = await admin
+    .from("attendance_settings")
+    .select("sunday_off")
+    .eq("id", 1)
+    .maybeSingle();
+
+  if (settings?.sunday_off) {
+    const dayOfWeek = new Date(`${dateStr}T00:00:00`).getDay(); // 0 = Sunday
+    if (dayOfWeek === 0) return true;
+  }
+
+  const { data: holiday } = await admin
+    .from("holidays")
+    .select("id")
+    .lte("start_date", dateStr)
+    .gte("end_date", dateStr)
+    .maybeSingle();
+
+  return !!holiday;
+}
+
+// ============================================================
 // ABSENT SWEEP (run via cron once daily)
 // Any active user who hasn't checked in within 1hr of their shift-start,
 // and isn't covered by an approved leave for today, gets marked absent
@@ -603,6 +632,8 @@ export async function sweepAbsentUsers(): Promise<number> {
   const admin = createAdminClient();
   const now = new Date();
   const today = getISTDateString(now);
+
+  if (await isGlobalOffDay(today)) return 0;
 
   const { data: activeUsers, error } = await admin
     .from("users")

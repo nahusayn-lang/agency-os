@@ -113,7 +113,7 @@ export async function updateLeaveRequestStatusAction(
 
   const { data: messageRow, error: fetchError } = await supabase
     .from("messages")
-    .select("id, sender_id, title, content, type")
+    .select("id, sender_id, title, content, type, is_emergency_checkout")
     .eq("id", messageId)
     .single();
 
@@ -121,7 +121,7 @@ export async function updateLeaveRequestStatusAction(
     return { error: fetchError?.message ?? "Message not found." };
   }
 
-  if (messageRow.title === "Emergency checkout request" && profile.role !== "super_admin") {
+  if (messageRow.is_emergency_checkout && profile.role !== "super_admin") {
     return { error: "Only founders can review emergency checkout requests." };
   }
 
@@ -130,7 +130,7 @@ export async function updateLeaveRequestStatusAction(
     return { error: error.message };
   }
 
-  const isEmergencyCheckout = messageRow.title === "Emergency checkout request";
+  const isEmergencyCheckout = messageRow.is_emergency_checkout;
 
   if (messageRow.type === "leave_request" && !isEmergencyCheckout) {
     // Regular leave request: the DB trigger already writes the notification

@@ -26,10 +26,16 @@ interface Message {
   type: "direct" | "announcement" | "leave_request" | "task_clarification";
   task_id: string | null;
   leave_date: string | null;
+  is_emergency_checkout: boolean;
   status: "pending" | "approved" | "rejected";
   created_at: string;
   sender: { name: string; email: string } | null;
   recipient: { name: string; email: string } | null;
+}
+
+function messageTypeLabel(msg: Message): string {
+  if (msg.is_emergency_checkout) return "Emergency Checkout";
+  return msg.type.replace("_", " ");
 }
 
 interface TaskItem {
@@ -78,7 +84,7 @@ export default function MessagesPage() {
     supabase
       .from("messages")
       .select(`
-        id, sender_id, recipient_id, title, content, type, task_id, leave_date, status, created_at,
+        id, sender_id, recipient_id, title, content, type, task_id, leave_date, is_emergency_checkout, status, created_at,
         sender:users!messages_sender_id_fkey(name, email),
         recipient:users!messages_recipient_id_fkey(name, email)
       `)
@@ -308,7 +314,7 @@ export default function MessagesPage() {
                       )}
                       <p>
                         <strong>Type:</strong>{" "}
-                        {selectedMessage.type.replace("_", " ").toUpperCase()}
+                        {messageTypeLabel(selectedMessage).toUpperCase()}
                       </p>
                       {selectedMessage.type === "leave_request" && selectedMessage.leave_date && (
                         <p>
@@ -392,7 +398,7 @@ export default function MessagesPage() {
                           <div className="space-y-1 min-w-0">
                             <div className="flex items-center gap-2">
                               <span className="text-xs font-bold text-primary capitalize">
-                                {msg.type.replace("_", " ")}
+                                {messageTypeLabel(msg)}
                               </span>
                               <span className="text-xs text-muted-foreground">
                                 {activeTab === "inbox"

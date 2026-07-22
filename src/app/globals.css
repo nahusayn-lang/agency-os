@@ -60,3 +60,11 @@
   }
   }
 }
+.holiday-date-input::-webkit-calendar-picker-indicator {
+  opacity: 0.8;
+  cursor: pointer;
+}
+
+.holiday-date-input {
+  accent-color: #7f14e3;
+}

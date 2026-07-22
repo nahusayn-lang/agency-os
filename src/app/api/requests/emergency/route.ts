@@ -34,6 +34,7 @@ export async function POST(req: Request) {
         content: `${profile.name} requests checkout: ${note}`,
         type: "leave_request",
         status: "pending",
+        is_emergency_checkout: true,
       });
 
       await sendPushToUser(admin.id, {
