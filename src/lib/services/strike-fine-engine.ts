@@ -136,7 +136,8 @@ export type StrikeReason = "late_checkin" | "missed_checkout" | "fine_deadline_m
 export async function addStrike(
   userId: string,
   reason: StrikeReason,
-  sourceId: string | null = null
+  sourceId: string | null = null,
+  options?: { notify?: boolean }
 ): Promise<{ strikeId: string; fineCreated: boolean }> {
   const admin = createAdminClient();
   const now = new Date();
@@ -170,7 +171,7 @@ export async function addStrike(
   // sends its own, more detailed notification (mentions the auto-checkout
   // itself, not just the strike), so this avoids sending the user two
   // notifications for the same event.
-  if (reason !== "missed_checkout") {
+  if (reason !== "missed_checkout" && (options?.notify ?? true)) {
     const reasonText: Record<StrikeReason, string> = {
       late_checkin: "Due to late check-in,",
       missed_checkout: "Due to a missed checkout,",
@@ -351,19 +352,36 @@ export async function sweepOverdueFines(): Promise<number> {
   if (!overdue || overdue.length === 0) return 0;
 
   let processed = 0;
+  const strikesByUser = new Map<string, number>();
 
   for (const fine of overdue) {
     // Already struck for THIS week — skip (prevents the every-few-minutes
     // repeat bug), but allow it again next week if still unpaid (recurring).
     if (fine.last_overdue_strike_week === currentWeek) continue;
 
-    await addStrike(fine.user_id, "fine_deadline_missed", fine.id);
+    // notify: false — we batch one combined notification per user below,
+    // instead of one notification per overdue fine.
+    await addStrike(fine.user_id, "fine_deadline_missed", fine.id, { notify: false });
     await admin
       .from("fines")
       .update({ last_overdue_strike_week: currentWeek })
       .eq("id", fine.id);
 
+    strikesByUser.set(fine.user_id, (strikesByUser.get(fine.user_id) ?? 0) + 1);
     processed += 1;
+  }
+
+  for (const [userId, count] of strikesByUser) {
+    await notifyUser({
+      userId,
+      title: "Strike Added",
+      message:
+        count === 1
+          ? "Due to missing the fine deadline, you have received 1 strike."
+          : `Due to missing the fine deadline, you have received ${count} strikes.`,
+      link: "/attendance",
+      type: "strike",
+    });
   }
 
   return processed;
@@ -655,12 +673,24 @@ export async function sweepAbsentUsers(): Promise<number> {
 
     if (now <= cutoff) continue;
 
-    // Already has a record for today (checked in, or already swept) — skip.
+    // Already has a record for THIS shift-occurrence — skip. Checked by
+    // checkin_time falling inside the shift's actual window (start→end),
+    // not by "today's date", since an overnight shift's check-in date can
+    // be the previous calendar day.
+    const crossesMidnight = user.shift_start > user.shift_end;
+    const shiftStartRefDate = new Date(shiftEndToday);
+    if (crossesMidnight) shiftStartRefDate.setDate(shiftStartRefDate.getDate() - 1);
+    const shiftStartRefDateStr = shiftStartRefDate.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+    const shiftStartInstant = new Date(`${shiftStartRefDateStr}T${user.shift_start}+05:30`);
+
     const { data: attendance } = await admin
       .from("attendance")
       .select("id")
       .eq("user_id", user.id)
-      .eq("date", today)
+      .gte("checkin_time", shiftStartInstant.toISOString())
+      .lte("checkin_time", shiftEndToday.toISOString())
+      .order("checkin_time", { ascending: false })
+      .limit(1)
       .maybeSingle();
 
     if (attendance) continue;
@@ -737,16 +767,28 @@ export async function sweepDeadlineReminders(): Promise<{ taskReminders: number;
 
   if (taskError) throw new Error(`Failed to sweep task deadlines: ${taskError.message}`);
 
+  // Group by user so someone with several tasks due gets ONE notification,
+  // not one per task.
+  const tasksByUser = new Map<string, { id: string; title: string }[]>();
   for (const task of dueTasks ?? []) {
-    await notifyUser({
-      userId: task.assigned_to,
-      title: "Task Deadline Approaching",
-      message: `"${task.title}" is due in 24 hours.`,
-      link: `/tasks/${task.id}`,
-      type: "task_deadline_reminder",
-      referenceId: task.id,
-    });
+    const list = tasksByUser.get(task.assigned_to) ?? [];
+    list.push({ id: task.id, title: task.title });
+    tasksByUser.set(task.assigned_to, list);
     await admin.from("tasks").update({ deadline_reminder_sent: true }).eq("id", task.id);
+  }
+
+  for (const [userId, tasks] of tasksByUser) {
+    const isSingle = tasks.length === 1;
+    await notifyUser({
+      userId,
+      title: "Task Deadline Approaching",
+      message: isSingle
+        ? `"${tasks[0].title}" is due in 24 hours.`
+        : `${tasks.length} tasks are due in 24 hours: ${tasks.map((t) => `"${t.title}"`).join(", ")}.`,
+      link: isSingle ? `/tasks/${tasks[0].id}` : "/tasks",
+      type: "task_deadline_reminder",
+      referenceId: isSingle ? tasks[0].id : undefined,
+    });
   }
 
   const tomorrow = getISTDateString(new Date(now.getTime() + 24 * 60 * 60 * 1000));
@@ -760,16 +802,28 @@ export async function sweepDeadlineReminders(): Promise<{ taskReminders: number;
 
   if (fineError) throw new Error(`Failed to sweep fine deadlines: ${fineError.message}`);
 
+  // Same batching for fines — one combined notification per user.
+  const finesByUser = new Map<string, { id: string; amount: number }[]>();
   for (const fine of dueFines ?? []) {
+    const list = finesByUser.get(fine.user_id) ?? [];
+    list.push({ id: fine.id, amount: fine.amount });
+    finesByUser.set(fine.user_id, list);
+    await admin.from("fines").update({ reminder_sent: true }).eq("id", fine.id);
+  }
+
+  for (const [userId, fines] of finesByUser) {
+    const isSingle = fines.length === 1;
+    const total = fines.reduce((sum, f) => sum + f.amount, 0);
     await notifyUser({
-      userId: fine.user_id,
+      userId,
       title: "Fine Deadline Approaching",
-      message: `Your ₹${fine.amount} fine is due tomorrow.`,
+      message: isSingle
+        ? `Your ₹${fines[0].amount} fine is due tomorrow.`
+        : `You have ${fines.length} fines (₹${total} total) due tomorrow.`,
       link: "/attendance",
       type: "fine_deadline_reminder",
-      referenceId: fine.id,
+      referenceId: isSingle ? fines[0].id : undefined,
     });
-    await admin.from("fines").update({ reminder_sent: true }).eq("id", fine.id);
   }
 
   return { taskReminders: dueTasks?.length ?? 0, fineReminders: dueFines?.length ?? 0 };

@@ -49,13 +49,13 @@ export async function recordLogoutAttendance(
   logoutTime: Date = new Date()
 ): Promise<string | null> {
   const admin = createAdminClient();
-  const date = getTodayDateString(logoutTime);
 
+  // Finds the latest open session directly, not by "today's date" — an
+  // overnight shift's approval can land on the next calendar day.
   const { data: attendance, error: fetchError } = await admin
     .from("attendance")
     .select("id, status")
     .eq("user_id", userId)
-    .eq("date", date)
     .is("logout_time", null)
     .order("login_time", { ascending: false })
     .limit(1)

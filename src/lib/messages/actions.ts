@@ -7,6 +7,7 @@ import { requireUserProfile } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { recordLogoutAttendance } from "@/lib/services/attendance-service";
 import { sendPushToUser, sendPushToUsers } from "@/lib/notifications/push";
+import { notifyUser } from "@/lib/notifications/notify";
 
 export async function getActiveUsers() {
   const supabase = createClient();
@@ -173,13 +174,8 @@ export async function updateLeaveRequestStatusAction(
           reason: `Approved emergency checkout for ${messageRow.sender_id}`,
         });
 
-        await supabase.from("notifications").insert({
-          user_id: messageRow.sender_id,
-          title: "Emergency checkout approved",
-          message: `Your emergency checkout request was approved by ${profile.name}. You have been checked out.`,
-          link: "/dashboard",
-        });
-        await sendPushToUser(messageRow.sender_id, {
+        await notifyUser({
+          userId: messageRow.sender_id,
           title: "Emergency checkout approved",
           message: `Your emergency checkout request was approved by ${profile.name}. You have been checked out.`,
           link: "/dashboard",
@@ -211,13 +207,8 @@ export async function updateLeaveRequestStatusAction(
           reason: "Rejected by founder",
         });
 
-        await supabase.from("notifications").insert({
-          user_id: messageRow.sender_id,
-          title: "Emergency checkout rejected",
-          message: "Your emergency checkout request was rejected and a strike was applied.",
-          link: "/dashboard",
-        });
-        await sendPushToUser(messageRow.sender_id, {
+        await notifyUser({
+          userId: messageRow.sender_id,
           title: "Emergency checkout rejected",
           message: "Your emergency checkout request was rejected and a strike was applied.",
           link: "/dashboard",

@@ -35,6 +35,38 @@ export async function setSundayOffSetting(sundayOff: boolean, updatedBy: string)
   }
 }
 
+export interface OffDayInfo {
+  isOffDay: boolean;
+  reason: string | null;
+}
+
+/** Returns whether today is a company-wide off day, and why (Sunday / holiday name). */
+export async function getGlobalOffDayInfo(dateStr: string): Promise<OffDayInfo> {
+  const admin = createAdminClient();
+
+  const { data: settings } = await admin
+    .from("attendance_settings")
+    .select("sunday_off")
+    .eq("id", 1)
+    .maybeSingle();
+
+  if (settings?.sunday_off) {
+    const dayOfWeek = new Date(`${dateStr}T00:00:00`).getDay();
+    if (dayOfWeek === 0) return { isOffDay: true, reason: "Sunday" };
+  }
+
+  const { data: holiday } = await admin
+    .from("holidays")
+    .select("name")
+    .lte("start_date", dateStr)
+    .gte("end_date", dateStr)
+    .maybeSingle();
+
+  if (holiday) return { isOffDay: true, reason: holiday.name };
+
+  return { isOffDay: false, reason: null };
+}
+
 export interface HolidayRow {
   id: string;
   name: string;

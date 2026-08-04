@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getTodayDateString } from "@/lib/auth/attendance";
 import { createClient } from "@/lib/supabase/server";
 import { evaluateCheckin, addStrike } from "@/lib/services/strike-fine-engine";
+import { notifyAdmins } from "@/lib/notifications/notify";
 
 export async function POST() {
   const profile = await requireUserProfile();
@@ -26,6 +27,31 @@ export async function POST() {
 
     const shiftStart = userRow?.shift_start ?? "00:00:00";
     const shiftEnd = userRow?.shift_end ?? null;
+
+    // Step 0: If the user's most recent shift is already fully complete
+    // (checkin_time AND checkout_time both set), lock check-in until the
+    // *next* shift-occurrence begins. Uses the record's own stored date +
+    // shiftStart, not "today", so overnight shifts are handled correctly.
+    const { data: lastRecord } = await admin
+      .from("attendance")
+      .select("id, date, checkout_time")
+      .eq("user_id", profile.id)
+      .not("checkin_time", "is", null)
+      .order("checkin_time", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (lastRecord?.checkout_time && shiftStart) {
+      const nextShiftStart = new Date(`${lastRecord.date}T${shiftStart}+05:30`);
+      nextShiftStart.setDate(nextShiftStart.getDate() + 1);
+
+      if (now < nextShiftStart) {
+        return NextResponse.json(
+          { error: "Your shift is already complete. Check-in opens again when your next shift starts." },
+          { status: 400 }
+        );
+      }
+    }
 
     // Step 1: Find the old "open" absent entry — any record whose
     // checkin_time is null (meaning check-in never happened, only marked
@@ -133,46 +159,24 @@ if (!lockedUsers || lockedUsers.length === 0) {
 
     if (isRecovery) {
       const timeStr = now.toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit" });
-      const { data: admins } = await admin
-        .from("users")
-        .select("id")
-        .in("role", ["super_admin", "admin"])
-        .eq("is_active", true);
-
-      if (admins?.length) {
-        await supabase.from("notifications").insert(
-          admins.map((a) => ({
-            user_id: a.id,
-            title: "Post-Shift Check-in",
-            message: `${profile.name} checked in after shift end (${timeStr}) — attendance is still marked "absent". Review and manually adjust if needed.`,
-            link: "/attendance",
-            type: "attendance",
-          }))
-        );
-      }
+      await notifyAdmins({
+        title: "Post-Shift Check-in",
+        message: `${profile.name} checked in after shift end (${timeStr}) — attendance is still marked "absent". Review and manually adjust if needed.`,
+        link: "/attendance",
+        type: "attendance",
+      });
     } else if (status === "late" || evaluation.graceUsed) {
       const timeStr = now.toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit" });
-      const { data: admins } = await admin
-        .from("users")
-        .select("id")
-        .in("role", ["super_admin", "admin"])
-        .eq("is_active", true);
+      const note = evaluation.strikeTriggered
+        ? `${profile.name} arrived late (${timeStr}) — grace period exhausted, 1 strike issued.`
+        : `${profile.name} arrived late (${timeStr}) — grace period used.`;
 
-      if (admins?.length) {
-        const note = evaluation.strikeTriggered
-          ? `${profile.name} arrived late (${timeStr}) — grace period exhausted, 1 strike issued.`
-          : `${profile.name} arrived late (${timeStr}) — grace period used.`;
-
-        await supabase.from("notifications").insert(
-          admins.map((a) => ({
-            user_id: a.id,
-            title: "Late Check-in",
-            message: note,
-            link: "/attendance",
-            type: "attendance",
-          }))
-        );
-      }
+      await notifyAdmins({
+        title: "Late Check-in",
+        message: note,
+        link: "/attendance",
+        type: "attendance",
+      });
     }
 
     return NextResponse.json({

@@ -12,6 +12,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { AttendanceCard } from "@/components/dashboard/attendance-card";
 import { getTodayDateString } from "@/lib/auth/attendance";
 import { getFineAmount, closeStaleShiftSession } from "@/lib/services/strike-fine-engine";
+import { getGlobalOffDayInfo } from "@/lib/services/attendance-settings";
 
 export default async function EmployeeDashboardPage() {
   const profile = await requireRole("member");
@@ -106,6 +107,7 @@ export default async function EmployeeDashboardPage() {
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <AttendanceCard
           isCheckedIn={isCheckedIn}
+          offDayReason={(await getGlobalOffDayInfo(getTodayDateString())).reason}
           lastCheckinAt={lastCheckinAt}
           shiftStart={userRow?.shift_start ?? null}
           shiftEnd={userRow?.shift_end ?? null}

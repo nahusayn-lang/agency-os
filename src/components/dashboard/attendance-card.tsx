@@ -17,6 +17,8 @@ interface AttendanceCardProps {
   shiftStart: string | null;
   shiftEnd: string | null;
   checkedOutToday?: boolean;
+  /** If set, today is a company-wide off day (Sunday / holiday) — hides Check In. */
+  offDayReason?: string | null;
   /** True if checkout was initiated but the mandatory report hasn't been submitted yet. */
   reportPending?: boolean;
   /** Active (not removed) strikes not yet folded into a fine — normally 0, 1 or 2. */
@@ -78,6 +80,7 @@ export function AttendanceCard({
   shiftStart,
   shiftEnd,
   checkedOutToday,
+  offDayReason = null,
   reportPending = false,
   activeStrikeCount = 0,
   pendingFineCount = 0,
@@ -246,6 +249,10 @@ export function AttendanceCard({
                 {pending ? "Checking out…" : "Check Out"}
               </Button>
             </>
+          ) : offDayReason ? (
+            <p className="text-sm text-amber-400 font-medium">
+              {offDayReason === "Sunday" ? "Sunday is off today." : `Today is a holiday — ${offDayReason}.`}
+            </p>
           ) : checkedOutToday ? (
             <p className="text-sm text-emerald-400 font-medium">Attendance marked for today ✓</p>
           ) : (

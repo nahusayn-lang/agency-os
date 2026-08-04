@@ -2,8 +2,9 @@ import { NextResponse } from "next/server";
 import { requireUserProfile } from "@/lib/auth/session";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { isEarlyExit, getTodayDateString } from "@/lib/auth/attendance";
+import { isEarlyExit } from "@/lib/auth/attendance";
 import { hasPendingCannotCompleteApproval } from "@/lib/services/strike-fine-engine";
+import { notifyAdmins } from "@/lib/notifications/notify";
 
 // Asli checkout + report submission, EK HI request mein.
 // This means: until this fully completes (including the report insert),
@@ -26,7 +27,6 @@ export async function POST(req: Request) {
     const supabase = createClient();
     const admin = createAdminClient();
     const now = new Date();
-    const today = getTodayDateString(now);
 
     // --- Re-validate (race-safe: the report form may stay open for a few minutes) ---
     const { data: userRow } = await admin
@@ -77,11 +77,15 @@ export async function POST(req: Request) {
     const isEarly = isEarlyExit(shiftEnd, now);
     const statusUpdate = isEarly ? "early_exit" : undefined;
 
+    // Find the currently-open session (checked in, not yet checked out) —
+    // not by "today's date", since an overnight shift's checkout can happen
+    // on the next calendar day and would otherwise never be found.
     const { data: attendance } = await admin
       .from("attendance")
       .select("id, status")
       .eq("user_id", profile.id)
-      .eq("date", today)
+      .not("checkin_time", "is", null)
+      .is("checkout_time", null)
       .order("checkin_time", { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -115,23 +119,12 @@ export async function POST(req: Request) {
 
     if (isEarly) {
       const timeStr = now.toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit" });
-      const { data: admins } = await admin
-        .from("users")
-        .select("id")
-        .in("role", ["super_admin", "admin"])
-        .eq("is_active", true);
-
-      if (admins?.length) {
-        await supabase.from("notifications").insert(
-          admins.map((a) => ({
-            user_id: a.id,
-            title: "Early Checkout",
-            message: `${profile.name} checked out early — ${timeStr}`,
-            link: "/attendance",
-            type: "attendance",
-          }))
-        );
-      }
+      await notifyAdmins({
+        title: "Early Checkout",
+        message: `${profile.name} checked out early — ${timeStr}`,
+        link: "/attendance",
+        type: "attendance",
+      });
     }
 
     // --- Report insert (immediately after checkout, same request) ---
