@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import { cn } from "@/lib/utils";
-import { AppSplash } from "@/components/app-splash";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -30,7 +29,6 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
       </head>
       <body className={cn("min-h-screen bg-background font-sans antialiased", GeistSans.className)}>
-        <AppSplash />
         {children}
       </body>
     </html>

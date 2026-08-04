@@ -8,5 +8,6 @@
       "path": "/api/cron/deadline-reminders",
       "schedule": "0 9 * * *"
     }
-  ]
+  ],
+  "regions": ["icn1"]
 }
