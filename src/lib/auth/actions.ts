@@ -1,6 +1,7 @@
 "use server";
 
 import "server-only";
+import { cookies } from "next/headers";
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
@@ -90,9 +91,11 @@ export async function logoutAction(): Promise<void> {
     });
   } catch {
     await supabase.auth.signOut();
+    cookies().delete("agencyos_role_cache");
     redirect("/login?error=audit_failed");
   }
 
   await supabase.auth.signOut();
+  cookies().delete("agencyos_role_cache");
   redirect("/login");
 }

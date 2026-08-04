@@ -14,81 +14,114 @@ import { getGlobalOffDayInfo } from "@/lib/services/attendance-settings";
 
 export default async function ManagerDashboardPage() {
   const profile = await requireRole("admin");
+
+  // Writes to the DB (auto-checkout for stale sessions) — must finish
+  // before we read is_checked_in below, so this stays sequential.
   await closeStaleShiftSession(profile.id);
+
   const weekStart = getWeekStartDateString();
-  const commitment = await getFounderCommitmentForWeek(weekStart);
+  const today = getTodayDateString();
 
   const supabase = createClient();
   const admin = createAdminClient();
 
-  const { data: userRow } = await admin
-    .from("users")
-    .select("is_checked_in, last_checkin_at, shift_start, shift_end, checkout_report_pending")
-    .eq("id", profile.id)
-    .single();
+  // All of these are independent of each other — fetch them in parallel
+  // instead of one-by-one.
+  const [
+    commitment,
+    userRowResult,
+    todayAttendanceResult,
+    teamMembersResult,
+    pendingTasksResult,
+    totalLeadsResult,
+    activeLeadsResult,
+    dealsClosedResult,
+    wonLeadsResult,
+    lostDealsResult,
+    myFinesResult,
+    activeStrikeCountResult,
+    orgFinesResult,
+    fineAmount,
+    offDayInfo,
+  ] = await Promise.all([
+    getFounderCommitmentForWeek(weekStart),
+    admin
+      .from("users")
+      .select("is_checked_in, last_checkin_at, shift_start, shift_end, checkout_report_pending")
+      .eq("id", profile.id)
+      .single(),
+    admin
+      .from("attendance")
+      .select("id, checkout_time")
+      .eq("user_id", profile.id)
+      .eq("date", today)
+      .maybeSingle(),
+    supabase
+      .from("users")
+      .select("id, name, email, role")
+      .in("role", ["member", "admin"])
+      .eq("is_active", true)
+      .order("name"),
+    supabase
+      .from("tasks")
+      .select("*", { count: "exact", head: true })
+      .not("status", "in", '("completed","approved")'),
+    supabase.from("leads").select("*", { count: "exact", head: true }),
+    supabase
+      .from("leads")
+      .select("*", { count: "exact", head: true })
+      .not("stage", "in", '("deal_won","deal_lost")'),
+    supabase.from("leads").select("*", { count: "exact", head: true }).eq("stage", "deal_won"),
+    supabase.from("leads").select("deal_value").eq("stage", "deal_won"),
+    supabase.from("leads").select("*", { count: "exact", head: true }).eq("stage", "deal_lost"),
+    admin
+      .from("fines")
+      .select("id, amount, status, deadline, proof_url, payment_comment")
+      .eq("user_id", profile.id)
+      .order("created_at", { ascending: false }),
+    admin
+      .from("strikes")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", profile.id)
+      .eq("is_removed", false)
+      .is("fine_id", null),
+    admin.from("fines").select("id, status"),
+    getFineAmount(),
+    getGlobalOffDayInfo(today),
+  ]);
 
+  const userRow = userRowResult.data;
   const isCheckedIn = userRow?.is_checked_in ?? false;
   const reportPending = userRow?.checkout_report_pending ?? false;
   const lastCheckinAt = userRow?.last_checkin_at ?? null;
 
-  const today = getTodayDateString();
-  const { data: todayAttendance } = await admin
-    .from("attendance")
-    .select("id, checkout_time")
-    .eq("user_id", profile.id)
-    .eq("date", today)
-    .maybeSingle();
-
+  const todayAttendance = todayAttendanceResult.data;
   // "Marked for today" should only show once checkout has actually
   // happened — a row simply existing isn't enough (an absent-marked row
   // also exists with "date = today", but its checkout_time is null).
   const checkedOutToday = !isCheckedIn && !!todayAttendance?.checkout_time;
 
-  const { data: teamMembers } = await supabase
-    .from("users")
-    .select("id, name, email, role")
-    .in("role", ["member", "admin"])
-    .eq("is_active", true)
-    .order("name");
-
-
-  const { count: pendingTasks } = await supabase
-    .from("tasks")
-    .select("*", { count: "exact", head: true })
-    .not("status", "in", '("completed","approved")');
-
-  const { count: totalLeads } = await supabase.from("leads").select("*", { count: "exact", head: true });
-  const { count: activeLeads } = await supabase.from("leads").select("*", { count: "exact", head: true }).not("stage", "in", '("deal_won","deal_lost")');
-  const { count: dealsClosed } = await supabase.from("leads").select("*", { count: "exact", head: true }).eq("stage", "deal_won");
-  const { data: wonLeads } = await supabase.from("leads").select("deal_value").eq("stage", "deal_won");
+  const teamMembers = teamMembersResult.data;
+  const pendingTasks = pendingTasksResult.count;
+  const totalLeads = totalLeadsResult.count;
+  const activeLeads = activeLeadsResult.count;
+  const dealsClosed = dealsClosedResult.count;
+  const wonLeads = wonLeadsResult.data;
   const revenueGenerated = (wonLeads ?? []).reduce((sum, lead) => sum + (lead.deal_value ?? 0), 0);
-  const { count: lostDeals } = await supabase.from("leads").select("*", { count: "exact", head: true }).eq("stage", "deal_lost");
+  const lostDeals = lostDealsResult.count;
 
-  const { data: myFines } = await admin
-    .from("fines")
-    .select("id, amount, status, deadline, proof_url, payment_comment")
-    .eq("user_id", profile.id)
-    .order("created_at", { ascending: false });
-
-  const { count: activeStrikeCount } = await admin
-    .from("strikes")
-    .select("id", { count: "exact", head: true })
-    .eq("user_id", profile.id)
-    .eq("is_removed", false)
-    .is("fine_id", null);
-
+  const myFines = myFinesResult.data;
+  const activeStrikeCount = activeStrikeCountResult.count;
   const pendingFineCount = (myFines ?? []).filter(
     (f) => f.status === "pending" || f.status === "submitted"
   ).length;
 
   // For the Total Fines card — data for the whole team/org (not just your own).
-  const { data: orgFines } = await admin.from("fines").select("id, status");
+  const orgFines = orgFinesResult.data;
   const orgFineCount = (orgFines ?? []).length;
   const orgPendingFineCount = (orgFines ?? []).filter(
     (f) => f.status === "pending" || f.status === "submitted"
   ).length;
-
-  const fineAmount = await getFineAmount();
 
   return (
     <div className="space-y-8">
@@ -102,7 +135,7 @@ export default async function ManagerDashboardPage() {
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-7">
         <AttendanceCard
           isCheckedIn={isCheckedIn}
-          offDayReason={(await getGlobalOffDayInfo(getTodayDateString())).reason}
+          offDayReason={offDayInfo.reason}
           lastCheckinAt={lastCheckinAt}
           shiftStart={userRow?.shift_start ?? null}
           shiftEnd={userRow?.shift_end ?? null}
