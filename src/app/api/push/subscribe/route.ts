@@ -1,11 +1,16 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { requireUserProfile } from "@/lib/auth/session";
 
 export async function POST(req: Request) {
   try {
-    const { subscription, userId } = await req.json();
+    // Always use the logged-in user's own id — never trust a userId sent
+    // from the client, or anyone could hijack someone else's push
+    // subscription by simply sending a different id.
+    const profile = await requireUserProfile();
+    const { subscription } = await req.json();
 
-    if (!subscription || !userId) {
+    if (!subscription) {
       return NextResponse.json({ error: "Missing data" }, { status: 400 });
     }
 
@@ -15,7 +20,7 @@ export async function POST(req: Request) {
       .from("push_subscriptions")
       .upsert(
         {
-          user_id: userId,
+          user_id: profile.id,
           subscription: JSON.stringify(subscription),
         },
         { onConflict: "user_id" }

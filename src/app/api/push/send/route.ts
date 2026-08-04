@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import webpush from "web-push";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { requireUserProfile } from "@/lib/auth/session";
 
 webpush.setVapidDetails(
   process.env.VAPID_SUBJECT!,
@@ -10,14 +11,18 @@ webpush.setVapidDetails(
 
 export async function POST(req: Request) {
   try {
-    const { userId, title, message, link } = await req.json();
+    // This route was reachable with no login check at all — anyone could
+    // push a fake notification to any user. Only allow it now, and only
+    // to the logged-in user themself.
+    const profile = await requireUserProfile();
+    const { title, message, link } = await req.json();
 
     const admin = createAdminClient();
 
     const { data: sub } = await admin
       .from("push_subscriptions")
       .select("subscription")
-      .eq("user_id", userId)
+      .eq("user_id", profile.id)
       .single();
 
     if (!sub) return NextResponse.json({ error: "No subscription" }, { status: 404 });
