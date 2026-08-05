@@ -217,6 +217,109 @@ export async function updateLeadStageAction(leadId: string, newStage: LeadStage)
   return { success: true };
 }
 
+export async function updateLeadAssigneeAction(
+  leadId: string,
+  newAssigneeId: string
+) {
+  const profile = await requireUserProfile();
+
+  if (profile.role === "member") {
+    return { error: "Only admins can reassign leads." };
+  }
+
+  const supabase = createClient();
+
+  const { data: lead, error: fetchError } = await supabase
+    .from("leads")
+    .select("id, assigned_to, business_name")
+    .eq("id", leadId)
+    .single();
+
+  if (fetchError || !lead) {
+    return { error: "Lead not found." };
+  }
+
+  const oldAssigneeId = lead.assigned_to as string;
+  if (oldAssigneeId === newAssigneeId) {
+    return { success: true };
+  }
+
+  const assigneeError = await validateLeadAssignee(supabase, newAssigneeId);
+  if (assigneeError) {
+    return { error: assigneeError };
+  }
+
+  const { error: updateError } = await supabase
+    .from("leads")
+    .update({ assigned_to: newAssigneeId })
+    .eq("id", leadId);
+
+  if (updateError) {
+    return { error: updateError.message };
+  }
+
+  try {
+    await writeLeadAuditEntries(supabase, {
+      leadId,
+      userId: profile.id,
+      changes: [
+        {
+          field: "assigned_to",
+          oldValue: oldAssigneeId,
+          newValue: newAssigneeId,
+        },
+      ],
+    });
+  } catch (err) {
+    await supabase
+      .from("leads")
+      .update({ assigned_to: oldAssigneeId })
+      .eq("id", leadId);
+    return {
+      error: err instanceof Error ? err.message : "Failed to write audit.",
+    };
+  }
+
+  revalidatePath("/crm");
+  revalidatePath(`/crm/${leadId}`);
+
+  const reassignMessage = `${profile.name} assigned lead "${lead.business_name}" to you.`;
+
+  if (newAssigneeId !== profile.id) {
+    await notifyUser({
+      userId: newAssigneeId,
+      title: "Lead assigned to you",
+      message: reassignMessage,
+      link: `/crm/${leadId}`,
+      type: "lead_reassigned",
+      referenceId: leadId,
+    });
+  }
+
+  if (profile.role !== "super_admin") {
+    const { data: founders } = await supabase
+      .from("users")
+      .select("id")
+      .eq("role", "super_admin")
+      .eq("is_active", true);
+
+    if (founders?.length) {
+      await notifyUsers(
+        founders.map((f) => f.id),
+        {
+          title: "Lead reassigned",
+          message: `${profile.name} reassigned lead "${lead.business_name}".`,
+          link: `/crm/${leadId}`,
+          type: "lead_reassigned",
+          referenceId: leadId,
+        }
+      );
+    }
+  }
+
+  return { success: true };
+}
+
 export async function updateLeadAction(
   leadId: string,
   updates: Partial<Record<LeadEditableField, string | number | null>>

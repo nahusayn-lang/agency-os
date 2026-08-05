@@ -2,6 +2,7 @@ import { requireUserProfile } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { KanbanBoard } from "@/components/crm/kanban-board";
 import { CreateLeadForm } from "@/components/crm/create-lead-form";
+import { getAssignableUsers } from "@/lib/crm/actions";
 import { LEAD_STAGES } from "@/lib/types/crm";
 
 export default async function CrmPage() {
@@ -28,6 +29,7 @@ export default async function CrmPage() {
     .in("id", assigneeIds.length ? assigneeIds : ["00000000-0000-0000-0000-000000000000"]);
 
   const userMap = new Map((users ?? []).map((u) => [u.id, u.name]));
+  const assignableUsers = await getAssignableUsers();
 
   const kanbanLeads = (leads ?? []).map((lead) => ({
     id: lead.id,
@@ -36,7 +38,10 @@ export default async function CrmPage() {
     phone: lead.phone,
     deal_value: lead.deal_value,
     stage: lead.stage,
-    assignee: { name: userMap.get(lead.assigned_to) ?? "Unknown" },
+    assignee: {
+      id: lead.assigned_to,
+      name: userMap.get(lead.assigned_to) ?? "Unknown",
+    },
   }));
 
   return (
@@ -52,7 +57,12 @@ export default async function CrmPage() {
 
       {profile.role !== "member" && <CreateLeadForm />}
 
-      <KanbanBoard leads={kanbanLeads} stages={LEAD_STAGES} />
+      <KanbanBoard
+        leads={kanbanLeads}
+        stages={LEAD_STAGES}
+        assignableUsers={assignableUsers}
+        canReassign={profile.role !== "member"}
+      />
     </div>
   );
 }

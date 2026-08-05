@@ -38,7 +38,10 @@ export default async function MyTasksPage() {
   const userMap = new Map((users ?? []).map((u: UserInfo) => [u.id, u]));
 
   const activeTasks = rows.filter(
-    (task) => task.status === "in_progress" || task.status === "revision_required"
+    (task) =>
+      task.status === "in_progress" ||
+      task.status === "revision_required" ||
+      task.status === "paused"
   );
   const pendingTasks = rows.filter((task) => task.status === "pending");
   const reviewTasks = rows.filter((task) => task.status === "waiting_review");

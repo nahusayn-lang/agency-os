@@ -38,6 +38,7 @@ const PRIORITY_STYLES: Record<string, string> = {
 const STATUS_STYLES: Record<string, string> = {
   pending:          "border-l-blue-500",
   in_progress:      "border-l-amber-500",
+  paused:           "border-l-orange-500",
   revision_required:"border-l-red-500",
   waiting_review:   "border-l-purple-500",
   approved:         "border-l-emerald-500",
@@ -47,6 +48,7 @@ const STATUS_STYLES: Record<string, string> = {
 const STATUS_CHIP: Record<string, string> = {
   pending:          "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
   in_progress:      "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
+  paused:           "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400",
   revision_required:"bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
   waiting_review:   "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400",
   approved:         "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
@@ -56,6 +58,7 @@ const STATUS_CHIP: Record<string, string> = {
 const STATUS_LABEL: Record<string, string> = {
   pending:          "Pending",
   in_progress:      "In Progress",
+  paused:           "Paused",
   revision_required:"Needs Revision",
   waiting_review:   "In Review",
   approved:         "Approved",
@@ -169,7 +172,7 @@ export function TaskCard({ task, assignerName, assignerRole }: TaskCardProps) {
   const formatTime = (s: number) => `${Math.floor(s / 60)}m ${s % 60}s`;
   const totalDisplay = accumulated + elapsed;
   const isDone = task.status === "approved" || task.status === "completed";
-  const showStartResume = task.status === "pending" || task.status === "revision_required" || task.status === "in_progress";
+  const showStartResume = task.status === "pending" || task.status === "revision_required" || task.status === "in_progress" || task.status === "paused";
   const startLabel = task.status === "in_progress" || accumulated > 0 ? "Resume" : "Start";
   const borderColor = STATUS_STYLES[task.status] ?? "border-l-gray-400";
 
@@ -276,6 +279,11 @@ export function TaskCard({ task, assignerName, assignerRole }: TaskCardProps) {
           {/* Revision notice */}
           {task.status === "revision_required" && (
             <p className="text-sm text-red-600 dark:text-red-400 font-medium">⚠️ Revision required — resume to continue</p>
+          )}
+
+          {/* Paused notice */}
+          {task.status === "paused" && (
+            <p className="text-sm text-orange-600 dark:text-orange-400 font-medium">⏸ Paused — resume when you're ready</p>
           )}
 
           {/* ── IDLE ACTIONS ── */}

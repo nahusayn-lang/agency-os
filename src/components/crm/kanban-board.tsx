@@ -1,9 +1,17 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
-import { updateLeadStageAction } from "@/lib/crm/actions";
+import {
+  updateLeadStageAction,
+  updateLeadAssigneeAction,
+} from "@/lib/crm/actions";
 import { LEAD_STAGE_LABELS, type LeadStage } from "@/lib/types/crm";
+
+export interface AssignableUser {
+  id: string;
+  name: string;
+}
 
 export interface KanbanLead {
   id: string;
@@ -12,12 +20,14 @@ export interface KanbanLead {
   phone: string | null;
   deal_value: number | null;
   stage: LeadStage;
-  assignee: { name: string };
+  assignee: { id: string; name: string };
 }
 
 interface KanbanBoardProps {
   leads: KanbanLead[];
   stages: LeadStage[];
+  assignableUsers: AssignableUser[];
+  canReassign: boolean;
 }
 
 const STAGE_COLORS: Record<
@@ -63,16 +73,152 @@ function toWhatsappNumber(phone: string) {
   return digits;
 }
 
+function AssigneeDropdown({
+  currentAssignee,
+  users,
+  disabled,
+  onSelect,
+}: {
+  currentAssignee: { id: string; name: string };
+  users: AssignableUser[];
+  disabled: boolean;
+  onSelect: (userId: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+
+    function handleClickOutside(e: MouseEvent) {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    // small delay so the same click that opens it doesn't also close it
+    const focusTimer = setTimeout(() => inputRef.current?.focus(), 30);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      clearTimeout(focusTimer);
+    };
+  }, [open]);
+
+  const filtered = users.filter((u) =>
+    u.name.toLowerCase().includes(query.trim().toLowerCase())
+  );
+
+  if (!users.length) {
+    // no permission / nothing to pick from — plain text
+    return (
+      <span className="text-xs text-muted-foreground">
+        {currentAssignee.name}
+      </span>
+    );
+  }
+
+  return (
+    <div ref={wrapRef} className="relative">
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => {
+          setQuery("");
+          setOpen((v) => !v);
+        }}
+        className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50 disabled:pointer-events-none max-w-[140px]"
+      >
+        <span className="truncate">{currentAssignee.name}</span>
+        <svg
+          viewBox="0 0 24 24"
+          width="11"
+          height="11"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          className="shrink-0"
+        >
+          <path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+
+      {open && (
+        <div className="absolute right-0 z-20 mt-1.5 w-56 max-w-[80vw] rounded-lg border bg-popover shadow-lg overflow-hidden">
+          <div className="p-1.5 border-b">
+            <input
+              ref={inputRef}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search name..."
+              className="w-full rounded-md border bg-background px-2 py-1.5 text-xs outline-none focus:ring-1 focus:ring-primary"
+            />
+          </div>
+
+          <div className="max-h-52 overflow-y-auto py-1">
+            {filtered.length === 0 ? (
+              <p className="px-3 py-2 text-xs text-muted-foreground">
+                No matches.
+              </p>
+            ) : (
+              filtered.map((u) => (
+                <button
+                  key={u.id}
+                  type="button"
+                  onClick={() => {
+                    setOpen(false);
+                    if (u.id !== currentAssignee.id) onSelect(u.id);
+                  }}
+                  className={
+                    "flex w-full items-center justify-between gap-2 px-3 py-1.5 text-left text-xs transition-colors hover:bg-muted " +
+                    (u.id === currentAssignee.id
+                      ? "text-foreground font-medium"
+                      : "text-muted-foreground")
+                  }
+                >
+                  <span className="truncate">{u.name}</span>
+                  {u.id === currentAssignee.id && (
+                    <svg
+                      viewBox="0 0 24 24"
+                      width="12"
+                      height="12"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      className="shrink-0 text-primary"
+                    >
+                      <path d="M20 6 9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  )}
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function LeadCard({
   lead,
   onStageChange,
+  onAssigneeChange,
   stages,
   pending,
+  assignableUsers,
+  canReassign,
 }: {
   lead: KanbanLead;
   onStageChange: (id: string, stage: LeadStage) => void;
+  onAssigneeChange: (id: string, userId: string) => void;
   stages: LeadStage[];
   pending: boolean;
+  assignableUsers: AssignableUser[];
+  canReassign: boolean;
 }) {
   const [showMove, setShowMove] = useState(false);
   const colors = STAGE_COLORS[lead.stage];
@@ -136,9 +282,12 @@ function LeadCard({
           <span />
         )}
 
-        <span className="text-xs text-muted-foreground">
-          {lead.assignee.name}
-        </span>
+        <AssigneeDropdown
+          currentAssignee={lead.assignee}
+          users={canReassign ? assignableUsers : []}
+          disabled={pending}
+          onSelect={(userId) => onAssigneeChange(lead.id, userId)}
+        />
       </div>
 
       {/* Stage move dropdown */}
@@ -187,6 +336,8 @@ function LeadCard({
 export function KanbanBoard({
   leads: initialLeads,
   stages,
+  assignableUsers,
+  canReassign,
 }: KanbanBoardProps) {
   const [items, setItems] = useState(initialLeads);
   const [activeStage, setActiveStage] = useState<LeadStage>(stages[0]);
@@ -203,6 +354,26 @@ export function KanbanBoard({
 
     startTransition(async () => {
       const result = await updateLeadStageAction(leadId, newStage);
+
+      if (result?.error) {
+        setItems(previous);
+      }
+    });
+  }
+
+  function handleAssigneeChange(leadId: string, userId: string) {
+    const previous = items;
+    const newAssignee = assignableUsers.find((u) => u.id === userId);
+    if (!newAssignee) return;
+
+    setItems((cur) =>
+      cur.map((l) =>
+        l.id === leadId ? { ...l, assignee: newAssignee } : l
+      )
+    );
+
+    startTransition(async () => {
+      const result = await updateLeadAssigneeAction(leadId, userId);
 
       if (result?.error) {
         setItems(previous);
@@ -286,8 +457,11 @@ export function KanbanBoard({
               key={lead.id}
               lead={lead}
               onStageChange={handleStageChange}
+              onAssigneeChange={handleAssigneeChange}
               stages={stages}
               pending={pending}
+              assignableUsers={assignableUsers}
+              canReassign={canReassign}
             />
           ))}
         </div>
