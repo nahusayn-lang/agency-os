@@ -418,14 +418,14 @@ function LeadCard({
             </p>
           )}
 
-          {lead.phone && (
-            <div className="flex items-center gap-1.5 mt-0.5">
-              <a
-                href={"tel:" + lead.phone}
-                className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
-              >
-                {"📞 " + lead.phone}
-              </a>
+         {lead.phone && (
+  <div className="flex items-center gap-1.5 mt-0.5">
+    <a
+      href={"tel:" + lead.phone}
+      className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
+    >
+      {"📞 " + lead.phone}
+    </a>
               <a
                 href={"https://wa.me/" + toWhatsappNumber(lead.phone)}
                 target="_blank"
@@ -454,15 +454,25 @@ function LeadCard({
         </button>
       </div>
 
-      {/* Deal value + assignee */}
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        {lead.deal_value != null ? (
-          <span className="text-xs font-medium text-foreground">
-            {"$" + Number(lead.deal_value).toLocaleString()}
-          </span>
-        ) : (
-          <span />
-        )}
+      {/* Deal value + quick dates (left, stacked) / assignee (right) */}
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex flex-col items-start gap-0.5 min-w-0">
+          {lead.deal_value != null && (
+            <span className="text-xs font-medium text-foreground">
+              {"$" + Number(lead.deal_value).toLocaleString()}
+            </span>
+          )}
+          <LastContactChip
+            value={lead.last_contact}
+            disabled={pending}
+            onChange={(iso) => onDateChange(lead.id, "last_contact", iso)}
+          />
+          <NextFollowupChip
+            value={lead.next_followup}
+            disabled={pending}
+            onChange={(iso) => onDateChange(lead.id, "next_followup", iso)}
+          />
+        </div>
 
         <AssigneeDropdown
           currentAssignee={lead.assignee}
@@ -497,21 +507,8 @@ function LeadCard({
         </div>
       )}
 
-      {/* Quick date edit + Edit link */}
-      <div className="flex items-center justify-between gap-2 flex-wrap pt-1 border-t">
-        <div className="flex items-center gap-1 flex-wrap">
-          <LastContactChip
-            value={lead.last_contact}
-            disabled={pending}
-            onChange={(iso) => onDateChange(lead.id, "last_contact", iso)}
-          />
-          <NextFollowupChip
-            value={lead.next_followup}
-            disabled={pending}
-            onChange={(iso) => onDateChange(lead.id, "next_followup", iso)}
-          />
-        </div>
-
+      {/* Edit link */}
+      <div className="flex justify-end pt-1 border-t">
         <Link
           href={"/crm/" + lead.id}
           className="text-xs text-primary hover:underline shrink-0"

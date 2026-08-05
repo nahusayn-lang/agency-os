@@ -11,7 +11,9 @@ export default async function CrmPage() {
 
   const { data: leads, error } = await supabase
     .from("leads")
-    .select("id, name, business_name, phone, deal_value, stage, assigned_to")
+    .select(
+      "id, name, business_name, phone, deal_value, stage, assigned_to, last_contact, next_followup"
+    )
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -38,6 +40,8 @@ export default async function CrmPage() {
     phone: lead.phone,
     deal_value: lead.deal_value,
     stage: lead.stage,
+    last_contact: lead.last_contact,
+    next_followup: lead.next_followup,
     assignee: {
       id: lead.assigned_to,
       name: userMap.get(lead.assigned_to) ?? "Unknown",
