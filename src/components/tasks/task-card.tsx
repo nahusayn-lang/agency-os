@@ -283,7 +283,7 @@ export function TaskCard({ task, assignerName, assignerRole }: TaskCardProps) {
 
           {/* Paused notice */}
           {task.status === "paused" && (
-            <p className="text-sm text-orange-600 dark:text-orange-400 font-medium">⏸ Paused — resume when you're ready</p>
+            <p className="text-sm text-orange-600 dark:text-orange-400 font-medium">⏸ Paused — resume when you&apos;re ready</p>
           )}
 
           {/* ── IDLE ACTIONS ── */}
