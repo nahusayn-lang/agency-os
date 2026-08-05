@@ -1,51 +1,72 @@
-"use client";
+import { requireUserProfile } from "@/lib/auth/session";
+import { createClient } from "@/lib/supabase/server";
+import { KanbanBoard } from "@/components/crm/kanban-board";
+import { CreateLeadForm } from "@/components/crm/create-lead-form";
+import { getAssignableUsers } from "@/lib/crm/actions";
+import { LEAD_STAGES } from "@/lib/types/crm";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
-import { getDashboardPathForRole } from "@/lib/auth/roles";
+export default async function CrmPage() {
+  const profile = await requireUserProfile();
+  const supabase = createClient();
 
-export default function HomePage() {
-  const router = useRouter();
+  const { data: leads, error } = await supabase
+    .from("leads")
+    .select(
+      "id, name, business_name, phone, deal_value, stage, assigned_to, last_contact, next_followup"
+    )
+    .order("created_at", { ascending: false });
 
-  useEffect(() => {
-    // If URL hash contains an access_token (e.g., recovery link landed on /#access_token=...)
-    // forward the user to /reset-password preserving search and hash so the
-    // ResetPasswordForm can pick up tokens.
-    const { search, hash } = window.location;
-    const hasHashToken = hash && (hash.includes("access_token=") || hash.includes("type=recovery"));
-    const params = new URLSearchParams(search);
-    const hasRecoveryQuery = params.get("type") === "recovery" || params.get("code") || params.get("access_token") || params.get("refresh_token");
+  if (error) {
+    return (
+      <p className="text-destructive">Failed to load leads: {error.message}</p>
+    );
+  }
 
-    if (hasHashToken || hasRecoveryQuery) {
-      const target = `/reset-password${search}${hash}`;
-      router.replace(target);
-      return;
-    }
+  const assigneeIds = Array.from(
+    new Set((leads ?? []).map((l) => l.assigned_to))
+  );
+  const { data: users } = await supabase
+    .from("users")
+    .select("id, name")
+    .in("id", assigneeIds.length ? assigneeIds : ["00000000-0000-0000-0000-000000000000"]);
 
-    // Otherwise check session and route accordingly
-    const supabase = createClient();
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (!user) {
-        router.replace("/login");
-        return;
-      }
+  const userMap = new Map((users ?? []).map((u) => [u.id, u.name]));
+  const assignableUsers = await getAssignableUsers();
 
-      supabase
-        .from("users")
-        .select("role")
-        .eq("id", user.id)
-        .single()
-        .then(
-          ({ data }) => {
-            const role = data?.role;
-            const path = role ? getDashboardPathForRole(role) : "/login";
-            router.replace(path);
-          },
-          () => router.replace("/login")
-        );
-    });
-  }, [router]);
+  const kanbanLeads = (leads ?? []).map((lead) => ({
+    id: lead.id,
+    name: lead.name,
+    business_name: lead.business_name,
+    phone: lead.phone,
+    deal_value: lead.deal_value,
+    stage: lead.stage,
+    last_contact: lead.last_contact,
+    next_followup: lead.next_followup,
+    assignee: {
+      id: lead.assigned_to,
+      name: userMap.get(lead.assigned_to) ?? "Unknown",
+    },
+  }));
 
-  return null;
+  return (
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight">CRM</h1>
+        <p className="text-sm text-muted-foreground">
+          {profile.role === "member"
+            ? "Your leads pipeline"
+            : "Team leads pipeline"}
+        </p>
+      </div>
+
+      {profile.role !== "member" && <CreateLeadForm />}
+
+      <KanbanBoard
+        leads={kanbanLeads}
+        stages={LEAD_STAGES}
+        assignableUsers={assignableUsers}
+        canReassign={profile.role !== "member"}
+      />
+    </div>
+  );
 }

@@ -5,6 +5,7 @@ import Link from "next/link";
 import {
   updateLeadStageAction,
   updateLeadAssigneeAction,
+  updateLeadAction,
 } from "@/lib/crm/actions";
 import { LEAD_STAGE_LABELS, type LeadStage } from "@/lib/types/crm";
 
@@ -20,6 +21,8 @@ export interface KanbanLead {
   phone: string | null;
   deal_value: number | null;
   stage: LeadStage;
+  last_contact: string | null;
+  next_followup: string | null;
   assignee: { id: string; name: string };
 }
 
@@ -203,10 +206,185 @@ function AssigneeDropdown({
   );
 }
 
+function formatShortDate(iso: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  return d.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+}
+
+function isOverdue(iso: string | null): boolean {
+  if (!iso) return false;
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return false;
+  return d.getTime() < Date.now();
+}
+
+function addDaysIso(days: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  return d.toISOString();
+}
+
+function useClickOutside(open: boolean, onClose: () => void) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        onClose();
+      }
+    }
+
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [open, onClose]);
+
+  return ref;
+}
+
+function LastContactChip({
+  value,
+  disabled,
+  onChange,
+}: {
+  value: string | null;
+  disabled: boolean;
+  onChange: (iso: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useClickOutside(open, () => setOpen(false));
+
+  const label = value ? "Last: " + formatShortDate(value) : "Last contact";
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={(e) => {
+          e.stopPropagation();
+          setOpen((v) => !v);
+        }}
+        className="text-[11px] px-1.5 py-0.5 rounded-md border border-transparent text-muted-foreground hover:text-foreground hover:border-border transition-colors disabled:opacity-50 whitespace-nowrap"
+      >
+        🕓 {label}
+      </button>
+
+      {open && (
+        <div className="absolute left-0 z-20 mt-1.5 w-48 rounded-lg border bg-popover shadow-lg p-1.5 space-y-1">
+          <button
+            type="button"
+            onClick={() => {
+              setOpen(false);
+              onChange(new Date().toISOString());
+            }}
+            className="w-full text-left text-xs px-2 py-1.5 rounded-md hover:bg-muted transition-colors font-medium text-emerald-400"
+          >
+            ✓ Mark contacted today
+          </button>
+
+          <label className="flex items-center justify-between gap-2 px-2 py-1.5 rounded-md hover:bg-muted transition-colors cursor-pointer text-xs text-muted-foreground">
+            Custom date
+            <input
+              type="date"
+              defaultValue={value ? value.slice(0, 10) : ""}
+              className="text-xs bg-transparent outline-none w-[92px]"
+              onChange={(e) => {
+                if (!e.target.value) return;
+                setOpen(false);
+                onChange(e.target.value);
+              }}
+            />
+          </label>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function NextFollowupChip({
+  value,
+  disabled,
+  onChange,
+}: {
+  value: string | null;
+  disabled: boolean;
+  onChange: (iso: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useClickOutside(open, () => setOpen(false));
+
+  const overdue = isOverdue(value);
+  const label = value ? "Next: " + formatShortDate(value) : "Next follow-up";
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={(e) => {
+          e.stopPropagation();
+          setOpen((v) => !v);
+        }}
+        className={
+          "text-[11px] px-1.5 py-0.5 rounded-md border transition-colors disabled:opacity-50 whitespace-nowrap " +
+          (overdue
+            ? "border-red-500/30 text-red-400 bg-red-500/10"
+            : "border-transparent text-muted-foreground hover:text-foreground hover:border-border")
+        }
+      >
+        📅 {label}
+      </button>
+
+      {open && (
+        <div className="absolute left-0 z-20 mt-1.5 w-48 rounded-lg border bg-popover shadow-lg p-1.5 space-y-1">
+          <div className="flex gap-1">
+            {[
+              { label: "Tomorrow", days: 1 },
+              { label: "+3d", days: 3 },
+              { label: "+1w", days: 7 },
+            ].map((opt) => (
+              <button
+                key={opt.label}
+                type="button"
+                onClick={() => {
+                  setOpen(false);
+                  onChange(addDaysIso(opt.days));
+                }}
+                className="flex-1 text-[11px] px-1.5 py-1 rounded-md border hover:bg-muted transition-colors"
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+
+          <label className="flex items-center justify-between gap-2 px-2 py-1.5 rounded-md hover:bg-muted transition-colors cursor-pointer text-xs text-muted-foreground">
+            Custom date
+            <input
+              type="date"
+              defaultValue={value ? value.slice(0, 10) : ""}
+              className="text-xs bg-transparent outline-none w-[92px]"
+              onChange={(e) => {
+                if (!e.target.value) return;
+                setOpen(false);
+                onChange(e.target.value);
+              }}
+            />
+          </label>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function LeadCard({
   lead,
   onStageChange,
   onAssigneeChange,
+  onDateChange,
   stages,
   pending,
   assignableUsers,
@@ -215,13 +393,17 @@ function LeadCard({
   lead: KanbanLead;
   onStageChange: (id: string, stage: LeadStage) => void;
   onAssigneeChange: (id: string, userId: string) => void;
+  onDateChange: (
+    id: string,
+    field: "last_contact" | "next_followup",
+    iso: string
+  ) => void;
   stages: LeadStage[];
   pending: boolean;
   assignableUsers: AssignableUser[];
   canReassign: boolean;
 }) {
   const [showMove, setShowMove] = useState(false);
-  const colors = STAGE_COLORS[lead.stage];
 
   return (
     <div className="rounded-xl border bg-card p-4 space-y-3 hover:border-primary/40 transition-colors">
@@ -315,16 +497,24 @@ function LeadCard({
         </div>
       )}
 
-      {/* Edit link */}
-      <div className="flex items-center justify-between pt-1 border-t">
-        <span className={"flex items-center gap-1.5 text-xs " + colors.tab}>
-          <span className={"h-1.5 w-1.5 rounded-full " + colors.dot} />
-          {LEAD_STAGE_LABELS[lead.stage]}
-        </span>
+      {/* Quick date edit + Edit link */}
+      <div className="flex items-center justify-between gap-2 flex-wrap pt-1 border-t">
+        <div className="flex items-center gap-1 flex-wrap">
+          <LastContactChip
+            value={lead.last_contact}
+            disabled={pending}
+            onChange={(iso) => onDateChange(lead.id, "last_contact", iso)}
+          />
+          <NextFollowupChip
+            value={lead.next_followup}
+            disabled={pending}
+            onChange={(iso) => onDateChange(lead.id, "next_followup", iso)}
+          />
+        </div>
 
         <Link
           href={"/crm/" + lead.id}
-          className="text-xs text-primary hover:underline"
+          className="text-xs text-primary hover:underline shrink-0"
         >
           Edit →
         </Link>
@@ -374,6 +564,26 @@ export function KanbanBoard({
 
     startTransition(async () => {
       const result = await updateLeadAssigneeAction(leadId, userId);
+
+      if (result?.error) {
+        setItems(previous);
+      }
+    });
+  }
+
+  function handleDateChange(
+    leadId: string,
+    field: "last_contact" | "next_followup",
+    value: string
+  ) {
+    const previous = items;
+
+    setItems((cur) =>
+      cur.map((l) => (l.id === leadId ? { ...l, [field]: value } : l))
+    );
+
+    startTransition(async () => {
+      const result = await updateLeadAction(leadId, { [field]: value });
 
       if (result?.error) {
         setItems(previous);
@@ -458,6 +668,7 @@ export function KanbanBoard({
               lead={lead}
               onStageChange={handleStageChange}
               onAssigneeChange={handleAssigneeChange}
+              onDateChange={handleDateChange}
               stages={stages}
               pending={pending}
               assignableUsers={assignableUsers}
