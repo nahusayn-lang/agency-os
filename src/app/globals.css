@@ -68,3 +68,86 @@
 .holiday-date-input {
   accent-color: #7f14e3;
 }
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 3.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 3.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 3.9%;
+    --primary: 0 0% 9%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 0 0% 96.1%;
+    --secondary-foreground: 0 0% 9%;
+    --muted: 0 0% 96.1%;
+    --muted-foreground: 0 0% 45.1%;
+    --accent: 0 0% 96.1%;
+    --accent-foreground: 0 0% 9%;
+    --destructive: 0 84.2% 60.2%;
+    --border: 0 0% 89.8%;
+    --input: 0 0% 89.8%;
+    --ring: 0 0% 3.9%;
+    --radius: 0.625rem;
+    --violet: 266 80% 58%;
+    --violet-dim: 266 80% 58% / 0.15;
+    --accent-lime: 96 62% 68%;
+  }
+
+  .dark {
+    --background: 260 45% 6%;
+    --foreground: 0 0% 98%;
+    --card: 262 40% 10%;
+    --card-foreground: 0 0% 98%;
+    --popover: 262 40% 10%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 266 80% 58%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 262 30% 14%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 262 25% 14%;
+    --muted-foreground: 0 0% 55%;
+    --accent: 262 30% 16%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --border: 262 35% 22%;
+    --input: 262 30% 14%;
+    --ring: 266 80% 58%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    main {
+    padding-bottom: 5.5rem;
+  }
+  }
+}
+.holiday-date-input::-webkit-calendar-picker-indicator {
+  opacity: 0.8;
+  cursor: pointer;
+}
+
+.holiday-date-input {
+  accent-color: #7f14e3;
+}
+
+/* Splash boot sequence: a tiny blocking inline script in <head> (see
+   layout.tsx) adds "splash-pending" to <html> synchronously, before the
+   browser paints anything, whenever this is a fresh session that hasn't
+   seen the splash yet. That keeps the real app invisible from the very
+   first paint so there's no flash of app content before the splash
+   animation appears. AppSplash removes this class itself the instant it
+   mounts (whether it goes on to show the animation or skips it), so this
+   is purely an anti-flash guard, not a duplicate splash. */
+html.splash-pending #app-content {
+  visibility: hidden;
+}

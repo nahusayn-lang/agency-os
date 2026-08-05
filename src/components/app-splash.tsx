@@ -5,21 +5,18 @@ import Image from "next/image";
 
 /**
  * Full-screen splash shown once per browser session when the app boots.
- *  0.00s-2.00s  logo zooms in from small, centered
- *  2.00s-4.00s  logo shrinks (100px -> 60px), still centered
- *  4.00s-5.80s  "zuhrainfo.in" types out in a monospace/coding font at the bottom, blinking cursor
- *  6.60s-8.40s  terminal-style "initializing..." replaces the loading spinner
- *  8.40s-8.80s  everything fades out, app is revealed
+ *  0.00s-0.30s  logo fades in, centered
+ *  0.30s-1.14s  "zuhrainfo.in" types out in a monospace/coding font at the bottom, blinking cursor
+ *  1.14s-2.94s  terminal-style "initializing..." loader with animated dots
+ *  2.94s-3.34s  everything fades out, app is revealed
  */
 const BRAND_TEXT = "zuhrainfo.in";
-const LOGO_START_PX = 100;
-const LOGO_END_PX = 60;
-const TYPE_INTERVAL_MS = 150;
+const LOGO_PX = 72;
+const TYPE_INTERVAL_MS = 70;
 
 export function AppSplash() {
   const [mounted, setMounted] = useState(false);
   const [logoIn, setLogoIn] = useState(false);
-  const [shrink, setShrink] = useState(false);
   const [displayedText, setDisplayedText] = useState("");
   const [showLoader, setShowLoader] = useState(false);
   const [loaderDots, setLoaderDots] = useState("");
@@ -27,13 +24,19 @@ export function AppSplash() {
   const typeIndex = useRef(0);
 
   useEffect(() => {
+    // Whatever happens next, the anti-flash guard from layout.tsx has done
+    // its job the moment we're here (React has hydrated) — release the
+    // real app immediately. If we're skipping the splash below, the app
+    // just appears normally; if we're not, AppSplash (z-index 9999) is
+    // about to cover it anyway, so revealing #app-content underneath is
+    // invisible to the user either way.
+    document.documentElement.classList.remove("splash-pending");
+
     const alreadyShown = sessionStorage.getItem("agencyos-splash-shown");
     if (alreadyShown) return;
 
     setMounted(true);
     const raf = requestAnimationFrame(() => setLogoIn(true));
-
-    const tShrink = setTimeout(() => setShrink(true), 2000);
 
     let typeTimer: ReturnType<typeof setInterval>;
     const tTypeStart = setTimeout(() => {
@@ -44,7 +47,7 @@ export function AppSplash() {
           clearInterval(typeTimer);
         }
       }, TYPE_INTERVAL_MS);
-    }, 4000);
+    }, 300);
 
     const typingDuration = BRAND_TEXT.length * TYPE_INTERVAL_MS;
     let dotsTimer: ReturnType<typeof setInterval>;
@@ -55,16 +58,15 @@ export function AppSplash() {
         dotCount = (dotCount + 1) % 4;
         setLoaderDots(".".repeat(dotCount));
       }, 300);
-    }, 4000 + typingDuration + 800);
-    const tExit = setTimeout(() => setExiting(true), 4000 + typingDuration + 800 + 1800);
+    }, 300 + typingDuration);
+    const tExit = setTimeout(() => setExiting(true), 300 + typingDuration + 1800);
     const tUnmount = setTimeout(() => {
       setMounted(false);
       sessionStorage.setItem("agencyos-splash-shown", "1");
-    }, 4000 + typingDuration + 800 + 1800 + 400);
+    }, 300 + typingDuration + 1800 + 400);
 
     return () => {
       cancelAnimationFrame(raf);
-      clearTimeout(tShrink);
       clearTimeout(tTypeStart);
       clearInterval(typeTimer);
       clearTimeout(tLoader);
@@ -82,11 +84,10 @@ export function AppSplash() {
         <Image
           src="/N2.png"
           alt=""
-          width={LOGO_START_PX}
-          height={LOGO_START_PX}
+          width={LOGO_PX}
+          height={LOGO_PX}
           priority
           className="app-splash__logo"
-          data-shrink={shrink}
         />
       </div>
 
@@ -123,25 +124,17 @@ export function AppSplash() {
 
         .app-splash__logo-wrap {
           opacity: 0;
-          transform: scale(0.4);
-          transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1),
-            transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+          transition: opacity 0.3s ease-out;
         }
         .app-splash__logo-wrap[data-in="true"] {
           opacity: 1;
-          transform: scale(1);
         }
 
         .app-splash__logo {
-          width: ${LOGO_START_PX}px;
-          height: ${LOGO_START_PX}px;
-          transition: width 2s ease-in-out, height 2s ease-in-out;
+          width: ${LOGO_PX}px;
+          height: ${LOGO_PX}px;
           filter: drop-shadow(0 0 10px rgba(199, 125, 255, 0.55))
             drop-shadow(0 0 26px rgba(157, 78, 221, 0.4));
-        }
-        .app-splash__logo[data-shrink="true"] {
-          width: ${LOGO_END_PX}px;
-          height: ${LOGO_END_PX}px;
         }
 
         .app-splash__bottom {

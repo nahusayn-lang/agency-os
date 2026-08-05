@@ -28,10 +28,23 @@ export default function RootLayout({
         <meta name="theme-color" content="#09090b" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        {/* Runs synchronously before the browser paints anything, so on a
+            fresh session the real app is hidden (via the CSS rule for
+            html.splash-pending in globals.css) from the very first frame.
+            Without this, the SSR'd app HTML paints for a moment before
+            React hydrates and the splash overlay mounts — that flash is
+            what was making the boot animation feel like it "stutters" in.
+            AppSplash removes this class itself the instant it mounts. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "try{if(!sessionStorage.getItem('agencyos-splash-shown')){document.documentElement.classList.add('splash-pending')}}catch(e){}",
+          }}
+        />
       </head>
       <body className={cn("min-h-screen bg-background font-sans antialiased", GeistSans.className)}>
         <AppSplash />
-        {children}
+        <div id="app-content">{children}</div>
       </body>
     </html>
   );
