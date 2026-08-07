@@ -41,6 +41,25 @@ export async function setUserRoleAction(formData: FormData): Promise<void> {
   revalidatePath("/admin/users");
 }
 
+export async function setUserNameAction(formData: FormData): Promise<{ error?: string }> {
+  const profile = await requireUserProfile();
+  if (profile.role !== "admin" && profile.role !== "super_admin") {
+    return { error: "Not authorized" };
+  }
+
+  const id = String(formData.get("userId") ?? "");
+  const name = String(formData.get("name") ?? "").trim();
+
+  if (!id || !name) return { error: "Name cannot be empty" };
+
+  const admin = createAdminClient();
+  const { error } = await admin.from("users").update({ name }).eq("id", id);
+  if (error) return { error: error.message };
+
+  revalidatePath("/admin/users");
+  return {};
+}
+
 export async function setShiftAction(formData: FormData): Promise<{ error?: string }> {
   const profile = await requireUserProfile();
   if (profile.role !== "super_admin") {

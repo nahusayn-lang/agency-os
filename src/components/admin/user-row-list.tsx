@@ -1,7 +1,55 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { toggleUserActiveAction, setUserRoleAction, setShiftAction } from "@/lib/admin/users";
+import { toggleUserActiveAction, setUserRoleAction, setShiftAction, setUserNameAction } from "@/lib/admin/users";
+
+function NameForm({ userId, name }: { userId: string; name: string }) {
+  const [value, setValue] = useState(name);
+  const [pending, startTransition] = useTransition();
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  function handleSave() {
+    setSaved(false);
+    setError(null);
+    startTransition(async () => {
+      const formData = new FormData();
+      formData.set("userId", userId);
+      formData.set("name", value);
+      const result = await setUserNameAction(formData);
+      if (result?.error) {
+        setError(result.error);
+        return;
+      }
+      setSaved(true);
+    });
+  }
+
+  return (
+    <div className="flex items-center gap-2 flex-wrap">
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => {
+          setValue(e.target.value);
+          setSaved(false);
+        }}
+        placeholder="Name"
+        className="flex-1 min-w-0 border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground"
+      />
+      <button
+        type="button"
+        disabled={pending}
+        onClick={handleSave}
+        className="shrink-0 text-sm font-medium px-3 py-2 rounded-lg bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors disabled:opacity-60"
+      >
+        {pending ? "Saving…" : "Save"}
+      </button>
+      {saved && !pending && <span className="text-xs text-emerald-500 shrink-0">Saved ✓</span>}
+      {error && <span className="text-xs text-destructive shrink-0">{error}</span>}
+    </div>
+  );
+}
 
 function ShiftForm({ userId, shiftStart, shiftEnd }: { userId: string; shiftStart: string; shiftEnd: string }) {
   const [start, setStart] = useState(shiftStart);
@@ -105,6 +153,8 @@ export function UsersList({ rows, isSuperAdmin }: { rows: AdminUserRow[]; isSupe
 
             {isOpen && (
               <div className="p-4 pt-0 space-y-3 border-t border-border">
+                <NameForm userId={u.id} name={u.name} />
+
                 <form action={toggleUserActiveAction}>
                   <input type="hidden" name="userId" value={u.id} />
                   <input type="hidden" name="isActive" value={u.is_active ? "false" : "true"} />
