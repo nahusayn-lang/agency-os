@@ -695,6 +695,19 @@ export async function sweepAbsentUsers(): Promise<number> {
 
     if (attendance) continue;
 
+    // Already marked absent for this shift-occurrence in a previous sweep
+    // run — skip, otherwise every cron run re-inserts a fresh absent row
+    // + fine + strikes for the same missed shift.
+    const { data: alreadyAbsent } = await admin
+      .from("attendance")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("date", shiftStartRefDateStr)
+      .eq("status", "absent")
+      .maybeSingle();
+
+    if (alreadyAbsent) continue;
+
     // Covered by an approved leave for today — not absent, skip.
     const { data: approvedLeave } = await admin
       .from("messages")
@@ -709,7 +722,7 @@ export async function sweepAbsentUsers(): Promise<number> {
 
     const { error: insertError } = await admin.from("attendance").insert({
       user_id: user.id,
-      date: today,
+      date: shiftStartRefDateStr,
       status: "absent",
     });
 
