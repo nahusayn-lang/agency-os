@@ -1,7 +1,66 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { toggleUserActiveAction, setUserRoleAction, setShiftAction } from "@/lib/admin/users";
+
+function ShiftForm({ userId, shiftStart, shiftEnd }: { userId: string; shiftStart: string; shiftEnd: string }) {
+  const [start, setStart] = useState(shiftStart);
+  const [end, setEnd] = useState(shiftEnd);
+  const [pending, startTransition] = useTransition();
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  function handleSave() {
+    setSaved(false);
+    setError(null);
+    startTransition(async () => {
+      const formData = new FormData();
+      formData.set("userId", userId);
+      formData.set("shift_start", start);
+      formData.set("shift_end", end);
+      const result = await setShiftAction(formData);
+      if (result?.error) {
+        setError(result.error);
+        return;
+      }
+      setSaved(true);
+    });
+  }
+
+  return (
+    <div className="flex items-center gap-2 flex-wrap">
+      <input
+        type="time"
+        value={start}
+        onChange={(e) => {
+          setStart(e.target.value);
+          setSaved(false);
+        }}
+        className="flex-1 border border-border rounded-lg px-2 py-2 text-sm bg-background text-foreground"
+      />
+      <span className="text-xs text-muted-foreground shrink-0">to</span>
+      <input
+        type="time"
+        value={end}
+        onChange={(e) => {
+          setEnd(e.target.value);
+          setSaved(false);
+        }}
+        className="flex-1 border border-border rounded-lg px-2 py-2 text-sm bg-background text-foreground"
+      />
+      <button
+        type="button"
+        disabled={pending}
+        onClick={handleSave}
+        className="shrink-0 text-sm font-medium px-3 py-2 rounded-lg bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors disabled:opacity-60"
+      >
+        {pending ? "Saving…" : "Save"}
+      </button>
+      {saved && !pending && <span className="text-xs text-emerald-500 shrink-0">Saved ✓</span>}
+      {error && <span className="text-xs text-destructive shrink-0">{error}</span>}
+    </div>
+  );
+}
 
 export interface AdminUserRow {
   id: string;
@@ -85,28 +144,11 @@ export function UsersList({ rows, isSuperAdmin }: { rows: AdminUserRow[]; isSupe
                 </div>
 
                 {isSuperAdmin && (
-                  <form action={setShiftAction} className="flex items-center gap-2">
-                    <input type="hidden" name="userId" value={u.id} />
-                    <input
-                      type="time"
-                      name="shift_start"
-                      defaultValue={u.shift_start?.slice(0, 5) ?? "09:00"}
-                      className="flex-1 border border-border rounded-lg px-2 py-2 text-sm bg-background text-foreground"
-                    />
-                    <span className="text-xs text-muted-foreground shrink-0">to</span>
-                    <input
-                      type="time"
-                      name="shift_end"
-                      defaultValue={u.shift_end?.slice(0, 5) ?? "17:00"}
-                      className="flex-1 border border-border rounded-lg px-2 py-2 text-sm bg-background text-foreground"
-                    />
-                    <button
-                      type="submit"
-                      className="shrink-0 text-sm font-medium px-3 py-2 rounded-lg bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors"
-                    >
-                      Save
-                    </button>
-                  </form>
+                  <ShiftForm
+                    userId={u.id}
+                    shiftStart={u.shift_start?.slice(0, 5) ?? "09:00"}
+                    shiftEnd={u.shift_end?.slice(0, 5) ?? "17:00"}
+                  />
                 )}
               </div>
             )}

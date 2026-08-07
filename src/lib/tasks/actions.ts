@@ -179,7 +179,7 @@ export async function createTaskAction(formData: FormData) {
   }
 
   revalidatePath("/tasks");
-  redirect(`/tasks/${task.id}`);
+  redirect(`/tasks`);
 }
 
 export async function updateTaskStatusAction(
