@@ -25,7 +25,7 @@ export default async function TasksPage() {
 
   const { data: tasks, error } = await supabase
     .from("tasks")
-    .select("id, title, status, deadline, assigned_to, assigned_by, created_at")
+    .select("id, title, status, deadline, assigned_to, assigned_by, created_at, is_mandatory")
     .or(`assigned_to.eq.${profile.id},assigned_by.eq.${profile.id}`)
     .order("created_at", { ascending: false });
 
@@ -98,6 +98,11 @@ export default async function TasksPage() {
                       <Link href={`/tasks/${task.id}`} className="font-medium hover:underline break-words">
                         {task.title}
                       </Link>
+                      {task.is_mandatory && (
+                        <span className="ml-2 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-fuchsia-100 text-fuchsia-700 dark:bg-fuchsia-900/30 dark:text-fuchsia-400 align-middle">
+                          Mandatory
+                        </span>
+                      )}
                     </TableCell>
                     <TableCell>
                       <Link href={`/tasks/${task.id}`} className="text-muted-foreground hover:text-foreground">

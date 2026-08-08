@@ -45,6 +45,7 @@ export default async function EmployeeDashboardPage() {
     activeStrikeCountResult,
     fineAmount,
     offDayInfo,
+    coldCallTaskResult,
   ] = await Promise.all([
     getFounderCommitmentForWeek(weekStart),
     getLatestPerformanceScoreForUser(profile.id),
@@ -86,6 +87,13 @@ export default async function EmployeeDashboardPage() {
       .is("fine_id", null),
     getFineAmount(),
     getGlobalOffDayInfo(today),
+    supabase
+      .from("tasks")
+      .select("id, status, mandatory_target_count, mandatory_actual_count, mandatory_type")
+      .eq("assigned_to", profile.id)
+      .eq("is_mandatory", true)
+      .eq("mandatory_date", today)
+      .maybeSingle(),
   ]);
 
   const userRow = userRowResult.data;
@@ -110,6 +118,11 @@ export default async function EmployeeDashboardPage() {
     (f) => f.status === "pending" || f.status === "submitted"
   ).length;
 
+  const coldCallTask = coldCallTaskResult.data;
+  const coldCallSubmitted = coldCallTask
+    ? !["pending", "in_progress", "paused", "revision_required"].includes(coldCallTask.status)
+    : false;
+
   return (
     <div className="space-y-8">
       <div>
@@ -132,6 +145,38 @@ export default async function EmployeeDashboardPage() {
           pendingFineCount={pendingFineCount}
           fineAmount={fineAmount}
         />
+
+        {coldCallTask && (
+          <Link href="/my-tasks">
+            <Card
+              className={`transition-colors hover:bg-muted/40 ${
+                coldCallSubmitted
+                  ? "border-l-4 border-l-green-500"
+                  : "border-l-4 border-l-fuchsia-500"
+              }`}
+            >
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">
+                  Cold Calls {coldCallSubmitted ? "· Submitted" : "· Mandatory"}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {coldCallTask.mandatory_actual_count ?? 0}
+                  <span className="text-base text-muted-foreground">
+                    {" "}
+                    / {coldCallTask.mandatory_target_count} target
+                  </span>
+                </div>
+                {!coldCallSubmitted && (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Submit before checkout — screenshot required.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          </Link>
+        )}
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">

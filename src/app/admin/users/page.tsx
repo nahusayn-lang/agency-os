@@ -3,7 +3,9 @@ import { requireUserProfile } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { UsersList } from "@/components/admin/user-row-list";
 import { HolidaySettings } from "@/components/dashboard/holiday-settings";
+import { ColdCallSettings } from "@/components/dashboard/cold-call-settings";
 import { getSundayOffSetting, listHolidays } from "@/lib/services/attendance-settings";
+import { getDefaultColdCallTarget, listColdCallTargets } from "@/lib/services/cold-call-settings";
 
 export default async function AdminUsersPage() {
   const profile = await requireUserProfile();
@@ -35,14 +37,17 @@ export default async function AdminUsersPage() {
   const isSuperAdmin = profile.role === "super_admin";
   const sundayOff = isSuperAdmin ? await getSundayOffSetting() : true;
   const holidays = isSuperAdmin ? await listHolidays() : [];
+  const defaultColdCallTarget = isSuperAdmin ? await getDefaultColdCallTarget() : 15;
+  const coldCallMembers = isSuperAdmin ? await listColdCallTargets() : [];
 
   return (
     <div className="px-4 py-6 max-w-lg mx-auto">
       <h1 className="mb-6 text-2xl font-bold">Admin Users</h1>
 
       {isSuperAdmin && (
-        <div className="mb-6">
+        <div className="mb-6 space-y-4">
           <HolidaySettings initialSundayOff={sundayOff} initialHolidays={holidays} />
+          <ColdCallSettings initialDefaultTarget={defaultColdCallTarget} initialMembers={coldCallMembers} />
         </div>
       )}
 

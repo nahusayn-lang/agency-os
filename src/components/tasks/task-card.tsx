@@ -22,6 +22,10 @@ interface TaskCardProps {
     created_at: string;
     total_time_spent_seconds?: number | null;
     session_start_time?: string | null;
+    is_mandatory?: boolean;
+    mandatory_type?: string | null;
+    mandatory_target_count?: number | null;
+    mandatory_actual_count?: number | null;
   };
   assignerName?: string;
   assignerRole?: string;
@@ -84,6 +88,7 @@ export function TaskCard({ task, assignerName, assignerRole }: TaskCardProps) {
   const [pauseError, setPauseError] = useState("");
   const [submitNote, setSubmitNote] = useState("");
   const [optionalLink, setOptionalLink] = useState("");
+  const [actualCount, setActualCount] = useState("");
   const [proofUrl, setProofUrl] = useState<string | null>(task.proof_url ?? null);
   const [submitError, setSubmitError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -156,12 +161,29 @@ export function TaskCard({ task, assignerName, assignerRole }: TaskCardProps) {
   async function handleConfirmSubmit() {
     if (!proofUrl) { setSubmitError("Please upload a screenshot."); return; }
     if (!submitNote.trim()) { setSubmitError("Please enter a completion note."); return; }
+    if (task.is_mandatory) {
+      const n = Number(actualCount);
+      if (actualCount.trim() === "" || !Number.isFinite(n) || n < 0) {
+        setSubmitError(
+          task.mandatory_type === "cold_calls"
+            ? "Please enter how many calls you made."
+            : "Please enter the completed count."
+        );
+        return;
+      }
+    }
     setSubmitError("");
     setIsSubmitting(true);
     const res = await fetch("/api/tasks/perform", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "submit", taskId: task.id, note: submitNote, optionalLink }),
+      body: JSON.stringify({
+        action: "submit",
+        taskId: task.id,
+        note: submitNote,
+        optionalLink,
+        actualCount: task.is_mandatory ? Number(actualCount) : undefined,
+      }),
     });
     const data = await res.json();
     setIsSubmitting(false);
@@ -174,7 +196,9 @@ export function TaskCard({ task, assignerName, assignerRole }: TaskCardProps) {
   const isDone = task.status === "approved" || task.status === "completed";
   const showStartResume = task.status === "pending" || task.status === "revision_required" || task.status === "in_progress" || task.status === "paused";
   const startLabel = task.status === "in_progress" || accumulated > 0 ? "Resume" : "Start";
-  const borderColor = STATUS_STYLES[task.status] ?? "border-l-gray-400";
+  const borderColor = task.is_mandatory
+    ? "border-l-fuchsia-500"
+    : STATUS_STYLES[task.status] ?? "border-l-gray-400";
 
   return (
     <div
@@ -190,6 +214,13 @@ export function TaskCard({ task, assignerName, assignerRole }: TaskCardProps) {
 
         {/* Details row — badges, date, chevron */}
         <div className="flex items-center gap-2 flex-wrap">
+          {/* Mandatory badge */}
+          {task.is_mandatory && (
+            <span className="text-xs font-semibold px-2 py-0.5 rounded-full shrink-0 bg-fuchsia-100 text-fuchsia-700 dark:bg-fuchsia-900/30 dark:text-fuchsia-400">
+              Mandatory{task.mandatory_target_count ? ` · ${task.mandatory_target_count} target` : ""}
+            </span>
+          )}
+
           {/* Priority badge */}
           <span className={`text-xs font-semibold px-2 py-0.5 rounded-full capitalize shrink-0 ${PRIORITY_STYLES[task.priority] ?? "bg-muted text-muted-foreground"}`}>
             {task.priority}
@@ -341,6 +372,24 @@ export function TaskCard({ task, assignerName, assignerRole }: TaskCardProps) {
                   <p className="text-xs text-red-500">Please upload a screenshot.</p>
                 )}
               </div>
+
+              {task.is_mandatory && (
+                <div className="space-y-1">
+                  <Label htmlFor={`actual-count-${task.id}`}>
+                    {task.mandatory_type === "cold_calls"
+                      ? `Calls made (target: ${task.mandatory_target_count ?? "—"})`
+                      : `Completed count (target: ${task.mandatory_target_count ?? "—"})`}
+                  </Label>
+                  <Input
+                    id={`actual-count-${task.id}`}
+                    type="number"
+                    min={0}
+                    value={actualCount}
+                    onChange={(e) => setActualCount(e.target.value)}
+                    placeholder="0"
+                  />
+                </div>
+              )}
 
               <div className="space-y-1">
                 <Label htmlFor={`submit-note-${task.id}`}>Completion note (required)</Label>

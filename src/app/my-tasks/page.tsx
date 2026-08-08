@@ -17,6 +17,10 @@ type TaskRow = {
   created_at: string;
   total_time_spent_seconds?: number | null;
   session_start_time?: string | null;
+  is_mandatory?: boolean;
+  mandatory_type?: string | null;
+  mandatory_target_count?: number | null;
+  mandatory_actual_count?: number | null;
 };
 
 export default async function MyTasksPage() {
@@ -25,7 +29,9 @@ export default async function MyTasksPage() {
 
   const { data: tasks } = await supabase
     .from("tasks")
-    .select("id, title, description, priority, estimated_hours, deadline, assigned_by, assigned_to, status, proof_url, created_at, total_time_spent_seconds, session_start_time")
+    .select(
+      "id, title, description, priority, estimated_hours, deadline, assigned_by, assigned_to, status, proof_url, created_at, total_time_spent_seconds, session_start_time, is_mandatory, mandatory_type, mandatory_target_count, mandatory_actual_count"
+    )
     .eq("assigned_to", profile.id)
     .order("created_at", { ascending: false });
 

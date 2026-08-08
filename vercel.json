@@ -9,8 +9,8 @@
       "schedule": "0 9 * * *"
     },
     {
-      "path": "/api/cron/meeting-reminders",
-      "schedule": "*/15 * * * *"
+      "path": "/api/cron/cold-call-tasks",
+      "schedule": "30 1 * * *"
     }
   ],
   "regions": ["icn1"]

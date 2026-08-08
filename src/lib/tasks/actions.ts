@@ -401,14 +401,15 @@ export async function setTaskProofUrlAction(taskId: string, proofUrl: string) {
 export async function submitTaskAction(
   taskId: string,
   completionNote: string,
-  optionalLink?: string | null
+  optionalLink?: string | null,
+  actualCount?: number | null
 ) {
   const profile = await requireUserProfile();
   const supabase = createClient();
 
   const { data: task, error: fetchError } = await supabase
     .from("tasks")
-    .select("id, title, status, assigned_to")
+    .select("id, title, status, assigned_to, is_mandatory, mandatory_type")
     .eq("id", taskId)
     .single();
 
@@ -417,6 +418,22 @@ export async function submitTaskAction(
 
   const noteTrimmed = String(completionNote ?? "").trim();
   if (!noteTrimmed) return { error: "Completion note is required." };
+
+  if (task.is_mandatory) {
+    if (actualCount === undefined || actualCount === null || !Number.isFinite(actualCount) || actualCount < 0) {
+      return {
+        error:
+          task.mandatory_type === "cold_calls"
+            ? "Enter how many calls you made."
+            : "Enter the completed count for this task.",
+      };
+    }
+    const { error: countError } = await supabase
+      .from("tasks")
+      .update({ mandatory_actual_count: Math.floor(actualCount) })
+      .eq("id", taskId);
+    if (countError) return { error: countError.message };
+  }
 
   if (optionalLink && String(optionalLink).trim()) {
     const res = await setTaskProofUrlAction(taskId, String(optionalLink).trim());

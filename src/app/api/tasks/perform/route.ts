@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 export async function POST(req: Request) {
   await requireUserProfile();
   const body = await req.json();
-  const { action, taskId, note, optionalLink } = body ?? {};
+  const { action, taskId, note, optionalLink, actualCount } = body ?? {};
 
   if (!action || !taskId) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
@@ -88,7 +88,12 @@ export async function POST(req: Request) {
         })
         .eq("id", taskId);
 
-      const result = await submitTaskAction(taskId, String(note ?? "").trim(), optionalLink);
+      const result = await submitTaskAction(
+        taskId,
+        String(note ?? "").trim(),
+        optionalLink,
+        actualCount === undefined || actualCount === null || actualCount === "" ? null : Number(actualCount)
+      );
       return NextResponse.json(result);
     }
 

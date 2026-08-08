@@ -46,6 +46,7 @@ export default async function FounderDashboardPage() {
     orgFinesResult,
     fineAmount,
     offDayInfo,
+    coldCallTasksResult,
   ] = await Promise.all([
     getFounderCommitmentForWeek(weekStart),
     getAllGodModeOverrides(),
@@ -92,6 +93,12 @@ export default async function FounderDashboardPage() {
     admin.from("fines").select("id, status"),
     getFineAmount(),
     getGlobalOffDayInfo(today),
+    supabase
+      .from("tasks")
+      .select("assigned_to, status, mandatory_target_count, mandatory_actual_count")
+      .eq("is_mandatory", true)
+      .eq("mandatory_type", "cold_calls")
+      .eq("mandatory_date", today),
   ]);
 
   const userRow = userRowResult.data;
@@ -137,6 +144,15 @@ export default async function FounderDashboardPage() {
 
   const actorNames = new Map((actors ?? []).map((a) => [a.id, a.name]));
 
+  const coldCallTasks = coldCallTasksResult.data ?? [];
+  const memberNameMap = new Map((teamMembers ?? []).map((m) => [m.id, m.name]));
+  const coldCallSubmittedCount = coldCallTasks.filter(
+    (t) => !["pending", "in_progress", "paused", "revision_required"].includes(t.status)
+  ).length;
+  const coldCallPending = coldCallTasks.filter((t) =>
+    ["pending", "in_progress", "paused", "revision_required"].includes(t.status)
+  );
+
   return (
     <div className="space-y-8">
       <div>
@@ -146,7 +162,7 @@ export default async function FounderDashboardPage() {
         <p className="text-muted-foreground">Welcome, {profile.name}</p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-7">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <AttendanceCard
           isCheckedIn={isCheckedIn}
           offDayReason={offDayInfo.reason}
@@ -164,6 +180,22 @@ export default async function FounderDashboardPage() {
             <CardTitle className="text-sm font-medium">Pending Tasks</CardTitle>
           </CardHeader>
           <CardContent><div className="text-2xl font-bold">{pendingTasks ?? 0}</div></CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Cold Calls Today</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {coldCallSubmittedCount}
+              <span className="text-base text-muted-foreground"> / {coldCallTasks.length} submitted</span>
+            </div>
+            {coldCallPending.length > 0 && (
+              <p className="mt-1 text-xs text-muted-foreground truncate">
+                Pending: {coldCallPending.map((t) => memberNameMap.get(t.assigned_to) ?? "?").join(", ")}
+              </p>
+            )}
+          </CardContent>
         </Card>
         <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
