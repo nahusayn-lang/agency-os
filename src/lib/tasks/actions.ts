@@ -14,6 +14,20 @@ import type { TaskPriority, TaskStatus } from "@/lib/types/tasks";
 import { TASK_STATUS_LABELS } from "@/lib/types/tasks";
 import { evaluateCannotComplete } from "@/lib/services/strike-fine-engine";
 
+// Central place to invalidate every route that reads from the `tasks`
+// table. Any time a task is created, its status changes, or its data is
+// edited, call this instead of a one-off revalidatePath("/tasks") — that
+// was the root cause of approved/updated tasks appearing to "vanish" from
+// /my-tasks and the dashboards until a hard refresh.
+function revalidateTaskViews(taskId?: string) {
+  revalidatePath("/tasks");
+  revalidatePath("/my-tasks");
+  revalidatePath("/dashboard/employee");
+  revalidatePath("/dashboard/manager");
+  revalidatePath("/dashboard/founder");
+  if (taskId) revalidatePath(`/tasks/${taskId}`);
+}
+
 async function validateTaskAssignee(
   supabase: ReturnType<typeof createClient>,
   assignerRole: UserRole,
@@ -178,7 +192,7 @@ export async function createTaskAction(formData: FormData) {
     });
   }
 
-  revalidatePath("/tasks");
+  revalidateTaskViews();
   redirect(`/tasks`);
 }
 
@@ -314,8 +328,7 @@ export async function updateTaskStatusAction(
     }
   }
 
-  revalidatePath("/tasks");
-  revalidatePath(`/tasks/${taskId}`);
+  revalidateTaskViews(taskId);
   return { success: true };
 }
 
@@ -361,7 +374,7 @@ export async function addTaskCommentAction(taskId: string, message: string, opti
     }
   }
 
-  revalidatePath(`/tasks/${taskId}`);
+  revalidateTaskViews(taskId);
   return { success: true };
 }
 
@@ -394,7 +407,7 @@ export async function setTaskProofUrlAction(taskId: string, proofUrl: string) {
     new_status: task.status,
   });
 
-  revalidatePath(`/tasks/${taskId}`);
+  revalidateTaskViews(taskId);
   return { success: true };
 }
 
@@ -456,8 +469,7 @@ export async function submitTaskAction(
     taskId
   );
 
-  revalidatePath("/tasks");
-  revalidatePath(`/tasks/${taskId}`);
+  revalidateTaskViews(taskId);
   return { success: true };
 }
 
@@ -563,7 +575,6 @@ export async function cannotCompleteTaskAction(taskId: string, reason: string) {
     { founderOnly: usage.status === "pending_approval" }
   );
 
-  revalidatePath("/tasks");
-  revalidatePath(`/tasks/${taskId}`);
+  revalidateTaskViews(taskId);
   return { success: true, status: usage.status };
 }
