@@ -113,7 +113,7 @@ export function LeadEditForm({
         </select>
         {lead.stage !== "meeting" && (
           <p className="text-xs text-muted-foreground">
-            Use the Move button on the CRM board to set "Meeting" — date/time is required.
+            Use the Move button on the CRM board to set &quot;Meeting&quot; — date/time is required.
           </p>
         )}
       </div>

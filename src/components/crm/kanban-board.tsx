@@ -543,7 +543,7 @@ function MeetingModal({
             {mode === "schedule" ? "Schedule Meeting" : "Reschedule Meeting"}
           </h3>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Date and time are required — the move won't go through without them.
+            Date and time are required — the move won&apos;t go through without them.
           </p>
         </div>
 
