@@ -557,7 +557,7 @@ export async function sweepMissedCheckouts(): Promise<number> {
 
   const { data: checkedInUsers, error } = await admin
     .from("users")
-    .select("id, shift_end, is_checked_in")
+    .select("id, shift_start, shift_end, is_checked_in")
     .eq("is_checked_in", true)
     .eq("is_active", true);
 
@@ -565,24 +565,30 @@ export async function sweepMissedCheckouts(): Promise<number> {
   if (!checkedInUsers || checkedInUsers.length === 0) return 0;
 
   let processed = 0;
-  const today = getISTDateString(now);
 
   for (const user of checkedInUsers) {
-    const shiftEndToday = new Date(`${today}T${user.shift_end}+05:30`);
-    const cutoff = new Date(shiftEndToday.getTime() + 60 * 60 * 1000); // +1hr grace
-
-    if (now <= cutoff) continue;
+    if (!user.shift_end) continue;
 
     const { data: attendance } = await admin
       .from("attendance")
-      .select("id, checkout_time")
+      .select("id, checkin_time, checkout_time, date")
       .eq("user_id", user.id)
       .is("checkout_time", null)
       .order("checkin_time", { ascending: false })
       .limit(1)
       .maybeSingle();
 
-    if (!attendance) continue;
+    if (!attendance || !attendance.date) continue;
+
+    // Cutoff ab is record ki ASAL check-in date se nikalta hai (jo already
+    // "checkin ke din" ki date hoti hai), na ki "aaj ki date" se. Isliye
+    // overnight shift bhi sahi se agle din khatam hoti hai, isi shaam nahi.
+    const crossesMidnight = !!user.shift_start && user.shift_start > user.shift_end;
+    const shiftEndForRecord = new Date(`${attendance.date}T${user.shift_end}+05:30`);
+    if (crossesMidnight) shiftEndForRecord.setDate(shiftEndForRecord.getDate() + 1);
+    const cutoff = new Date(shiftEndForRecord.getTime() + 60 * 60 * 1000); // +1hr grace
+
+    if (now <= cutoff) continue;
 
     await admin
       .from("attendance")

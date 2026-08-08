@@ -83,8 +83,17 @@ export async function POST() {
       }
     }
 
+    // "Shift-end" ko hamesha "aaj ki date" se mat nikalo — agar shift raat
+    // cross karti hai (jaise 10PM-5AM), to shift asal mein AGLE din khatam
+    // hoti hai, aaj nahi. Warna shaam ka on-time check-in bhi "shift already
+    // khatam ho chuki" samajh liya jaata hai.
+    const crossesMidnight = !!shiftEnd && !!shiftStart && shiftStart > shiftEnd;
+    const shiftEndForToday = shiftEnd ? new Date(`${today}T${shiftEnd}+05:30`) : null;
+    if (crossesMidnight && shiftEndForToday) {
+      shiftEndForToday.setDate(shiftEndForToday.getDate() + 1);
+    }
     const isAfterShiftEnd =
-      !!shiftEnd && !linkToRecordId && now > new Date(`${today}T${shiftEnd}+05:30`);
+      !!shiftEndForToday && !linkToRecordId && now > shiftEndForToday;
 
     let evaluation = { status: "present" as "present" | "late", strikeTriggered: false, graceUsed: false };
     let status: string = "present";
