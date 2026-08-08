@@ -792,8 +792,12 @@ export function KanbanBoard({
 
   return (
     <div className="space-y-4">
-      {/* Global filters — apply across all 6 stages at once */}
-      <div className="flex flex-wrap items-center gap-2">
+      {/* Sticky filter bar + selection toolbar — pins just below the main
+          header (top-14 matches the header's h-14) so both stay visible
+          while scrolling through a long leads list. */}
+      <div className="sticky top-14 z-20 -mx-4 px-4 pb-3 pt-3 bg-background/95 backdrop-blur-sm supports-[backdrop-filter]:bg-background/80 border-b space-y-2">
+        {/* Global filters — apply across all 6 stages at once */}
+        <div className="flex flex-wrap items-center gap-2">
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
@@ -896,6 +900,7 @@ export function KanbanBoard({
           </div>
         </div>
       )}
+      </div>
 
       {/* Tabs */}
       <div className="flex gap-1 overflow-x-auto pb-1 scrollbar-none">
