@@ -571,7 +571,7 @@ export async function sweepMissedCheckouts(): Promise<number> {
 
     const { data: attendance } = await admin
       .from("attendance")
-      .select("id, checkin_time, checkout_time, date")
+      .select("id, checkin_time, checkout_time, date, late_checkin_after_absent")
       .eq("user_id", user.id)
       .is("checkout_time", null)
       .order("checkin_time", { ascending: false })
@@ -580,9 +580,12 @@ export async function sweepMissedCheckouts(): Promise<number> {
 
     if (!attendance || !attendance.date) continue;
 
-    // Cutoff ab is record ki ASAL check-in date se nikalta hai (jo already
-    // "checkin ke din" ki date hoti hai), na ki "aaj ki date" se. Isliye
-    // overnight shift bhi sahi se agle din khatam hoti hai, isi shaam nahi.
+    // Auto-checkout is ONLY for a normal shift that ran past shift-end +
+    // 1hr grace. A recovery / post-shift check-in (linked to an old
+    // absent row, whose "date" is stale) must NOT be auto-checked-out —
+    // that person checks themselves out manually, whenever they're done.
+    if (attendance.late_checkin_after_absent) continue;
+
     const crossesMidnight = !!user.shift_start && user.shift_start > user.shift_end;
     const shiftEndForRecord = new Date(`${attendance.date}T${user.shift_end}+05:30`);
     if (crossesMidnight) shiftEndForRecord.setDate(shiftEndForRecord.getDate() + 1);
