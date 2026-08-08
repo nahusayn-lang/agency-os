@@ -6,7 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { LEAD_STAGES, LEAD_STAGE_LABELS, type LeadStage } from "@/lib/types/crm";
+import {
+  ASSIGNEE_CHANGEABLE_STAGES,
+  LEAD_STAGES,
+  LEAD_STAGE_LABELS,
+  type LeadStage,
+} from "@/lib/types/crm";
 
 interface LeadEditFormProps {
   lead: {
@@ -98,12 +103,19 @@ export function LeadEditForm({
           defaultValue={lead.stage}
           className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
         >
-          {LEAD_STAGES.map((stage) => (
-            <option key={stage} value={stage}>
-              {LEAD_STAGE_LABELS[stage]}
-            </option>
-          ))}
+          {LEAD_STAGES.filter((stage) => stage !== "meeting" || lead.stage === "meeting").map(
+            (stage) => (
+              <option key={stage} value={stage}>
+                {LEAD_STAGE_LABELS[stage]}
+              </option>
+            )
+          )}
         </select>
+        {lead.stage !== "meeting" && (
+          <p className="text-xs text-muted-foreground">
+            Use the Move button on the CRM board to set "Meeting" — date/time is required.
+          </p>
+        )}
       </div>
       <div className="space-y-2">
         <Label htmlFor="deal_value">Deal value</Label>
@@ -118,18 +130,24 @@ export function LeadEditForm({
       {canAssign && (
         <div className="space-y-2 md:col-span-2">
           <Label htmlFor="assigned_to">Assigned to</Label>
-          <select
-            id="assigned_to"
-            name="assigned_to"
-            defaultValue={assignedTo}
-            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-          >
-            {assignees.map((user) => (
-              <option key={user.id} value={user.id}>
-                {user.name}
-              </option>
-            ))}
-          </select>
+          {ASSIGNEE_CHANGEABLE_STAGES.includes(lead.stage) ? (
+            <select
+              id="assigned_to"
+              name="assigned_to"
+              defaultValue={assignedTo}
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            >
+              {assignees.map((user) => (
+                <option key={user.id} value={user.id}>
+                  {user.name}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <p className="flex h-10 w-full items-center rounded-md border border-input bg-muted px-3 text-sm text-muted-foreground">
+              🔒 {assignees.find((u) => u.id === assignedTo)?.name ?? "Locked"} — locked past Call Pending
+            </p>
+          )}
         </div>
       )}
       <div className="space-y-2">

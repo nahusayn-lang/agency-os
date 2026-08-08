@@ -8,8 +8,14 @@ import {
   updateLeadAction,
   bulkUpdateLeadStageAction,
   bulkUpdateLeadAssigneeAction,
+  rescheduleMeetingAction,
 } from "@/lib/crm/actions";
-import { LEAD_STAGE_LABELS, type LeadStage } from "@/lib/types/crm";
+import {
+  ASSIGNEE_CHANGEABLE_STAGES,
+  LEAD_STAGE_LABELS,
+  type LeadStage,
+  type MeetingHistoryEntry,
+} from "@/lib/types/crm";
 
 export interface AssignableUser {
   id: string;
@@ -25,6 +31,9 @@ export interface KanbanLead {
   stage: LeadStage;
   last_contact: string | null;
   next_followup: string | null;
+  meeting_datetime: string | null;
+  meeting_note: string | null;
+  meeting_history: MeetingHistoryEntry[];
   assignee: { id: string; name: string };
 }
 
@@ -109,6 +118,11 @@ const STAGE_COLORS: Record<
     tab: "border-purple-500 text-purple-400",
     badge: "bg-purple-500/10 text-purple-400 border-purple-500/20",
     dot: "bg-purple-500",
+  },
+  meeting: {
+    tab: "border-cyan-500 text-cyan-400",
+    badge: "bg-cyan-500/10 text-cyan-400 border-cyan-500/20",
+    dot: "bg-cyan-500",
   },
   negotiation: {
     tab: "border-orange-500 text-orange-400",
@@ -284,6 +298,32 @@ function addDaysIso(days: number): string {
   return d.toISOString();
 }
 
+function formatMeetingDateTime(iso: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  return d.toLocaleString("en-IN", {
+    day: "numeric",
+    month: "short",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+}
+
+function toDateInputValue(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function toTimeInputValue(d: Date): string {
+  const h = String(d.getHours()).padStart(2, "0");
+  const m = String(d.getMinutes()).padStart(2, "0");
+  return `${h}:${m}`;
+}
+
 function useClickOutside(open: boolean, onClose: () => void) {
   const ref = useRef<HTMLDivElement>(null);
 
@@ -438,11 +478,197 @@ function NextFollowupChip({
   );
 }
 
+/**
+ * Gated stage-transition popup: mandatory date + time before a lead can
+ * move into "Meeting", and reused as-is for rescheduling an existing
+ * meeting. No skip option — a lead can't be in the Meeting stage
+ * without an actual scheduled time (that's the whole point).
+ */
+function MeetingModal({
+  open,
+  mode,
+  initialDatetime,
+  initialNote,
+  pending,
+  onClose,
+  onConfirm,
+}: {
+  open: boolean;
+  mode: "schedule" | "reschedule";
+  initialDatetime: string | null;
+  initialNote: string | null;
+  pending: boolean;
+  onClose: () => void;
+  onConfirm: (isoDatetime: string, note: string) => void;
+}) {
+  const [date, setDate] = useState("");
+  const [time, setTime] = useState("");
+  const [note, setNote] = useState("");
+
+  useEffect(() => {
+    if (!open) return;
+    const base = initialDatetime ? new Date(initialDatetime) : null;
+    setDate(base && !isNaN(base.getTime()) ? toDateInputValue(base) : "");
+    setTime(base && !isNaN(base.getTime()) ? toTimeInputValue(base) : "");
+    setNote(initialNote ?? "");
+  }, [open, initialDatetime, initialNote]);
+
+  if (!open) return null;
+
+  function pickQuickDate(days: number) {
+    const d = new Date();
+    d.setDate(d.getDate() + days);
+    setDate(toDateInputValue(d));
+  }
+
+  const canConfirm = Boolean(date && time);
+
+  function handleConfirm() {
+    if (!canConfirm) return;
+    const iso = new Date(`${date}T${time}`).toISOString();
+    onConfirm(iso, note);
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="w-full sm:max-w-sm rounded-xl border bg-card p-4 space-y-4 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div>
+          <h3 className="font-semibold text-sm">
+            {mode === "schedule" ? "Schedule Meeting" : "Reschedule Meeting"}
+          </h3>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Date and time are required — the move won't go through without them.
+          </p>
+        </div>
+
+        <div className="flex gap-1.5">
+          {[
+            ["Today", 0],
+            ["Tomorrow", 1],
+            ["Day after", 2],
+          ].map(([label, days]) => (
+            <button
+              key={label as string}
+              type="button"
+              onClick={() => pickQuickDate(days as number)}
+              className="flex-1 text-xs px-2 py-1.5 rounded-md border hover:bg-muted transition-colors"
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
+          <label className="space-y-1 block">
+            <span className="text-[11px] text-muted-foreground">Date</span>
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="w-full rounded-md border bg-background px-2 py-1.5 text-sm outline-none focus:ring-1 focus:ring-primary"
+            />
+          </label>
+          <label className="space-y-1 block">
+            <span className="text-[11px] text-muted-foreground">Time</span>
+            <input
+              type="time"
+              value={time}
+              step={900}
+              onChange={(e) => setTime(e.target.value)}
+              className="w-full rounded-md border bg-background px-2 py-1.5 text-sm outline-none focus:ring-1 focus:ring-primary"
+            />
+          </label>
+        </div>
+
+        <label className="block space-y-1">
+          <span className="text-[11px] text-muted-foreground">Note (optional)</span>
+          <textarea
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            rows={2}
+            placeholder="Agenda / what to discuss..."
+            className="w-full rounded-md border bg-background px-2 py-1.5 text-sm outline-none focus:ring-1 focus:ring-primary resize-none"
+          />
+        </label>
+
+        <div className="flex justify-end gap-2 pt-1">
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-xs px-3 py-1.5 rounded-md border hover:bg-muted transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            disabled={!canConfirm || pending}
+            onClick={handleConfirm}
+            className="text-xs px-3 py-1.5 rounded-md bg-primary text-primary-foreground disabled:opacity-50 transition-colors"
+          >
+            Confirm
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MeetingChip({
+  lead,
+  disabled,
+  onClick,
+}: {
+  lead: KanbanLead;
+  disabled: boolean;
+  onClick: () => void;
+}) {
+  if (!lead.meeting_datetime) return null;
+
+  const overdue = isOverdue(lead.meeting_datetime);
+  const meetingNo = lead.meeting_history.length + 1;
+
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
+      className={
+        "text-[11px] px-1.5 py-1 rounded-md border transition-colors disabled:opacity-50 text-left w-full " +
+        (overdue
+          ? "border-red-500/30 text-red-400 bg-red-500/10"
+          : "border-cyan-500/30 text-cyan-400 bg-cyan-500/10")
+      }
+    >
+      <span className="block">
+        📍 {meetingNo > 1 ? `#${meetingNo} ` : ""}
+        {formatMeetingDateTime(lead.meeting_datetime)}
+        {overdue ? " · Overdue ⚠️" : ""}
+      </span>
+      {lead.meeting_note && (
+        <span className="block text-muted-foreground truncate max-w-[180px] font-normal">
+          {lead.meeting_note}
+        </span>
+      )}
+    </button>
+  );
+}
+
 function LeadCard({
   lead,
   onStageChange,
   onAssigneeChange,
   onDateChange,
+  onRequestMeetingMove,
+  onRequestReschedule,
   stages,
   pending,
   assignableUsers,
@@ -460,6 +686,8 @@ function LeadCard({
     field: "last_contact" | "next_followup",
     iso: string
   ) => void;
+  onRequestMeetingMove: (leadId: string) => void;
+  onRequestReschedule: (leadId: string) => void;
   stages: LeadStage[];
   pending: boolean;
   assignableUsers: AssignableUser[];
@@ -469,6 +697,7 @@ function LeadCard({
   selectionActive: boolean;
   onToggleSelect: (id: string) => void;
 }) {
+  const assigneeLocked = !ASSIGNEE_CHANGEABLE_STAGES.includes(lead.stage);
   const [showMove, setShowMove] = useState(false);
   const longPress = useLongPress(() => {
     if (canSelect) onToggleSelect(lead.id);
@@ -572,6 +801,13 @@ function LeadCard({
             disabled={pending}
             onChange={(iso) => onDateChange(lead.id, "last_contact", iso)}
           />
+          {lead.stage === "meeting" && (
+            <MeetingChip
+              lead={lead}
+              disabled={pending}
+              onClick={() => onRequestReschedule(lead.id)}
+            />
+          )}
           <NextFollowupChip
             value={lead.next_followup}
             disabled={pending}
@@ -579,12 +815,21 @@ function LeadCard({
           />
         </div>
 
-        <AssigneeDropdown
-          currentAssignee={lead.assignee}
-          users={canReassign ? assignableUsers : []}
-          disabled={pending}
-          onSelect={(userId) => onAssigneeChange(lead.id, userId)}
-        />
+        {assigneeLocked ? (
+          <span
+            title="Assignee is locked once a lead leaves Call Pending"
+            className="flex items-center gap-1 text-xs text-muted-foreground max-w-[140px]"
+          >
+            <span className="truncate">🔒 {lead.assignee.name}</span>
+          </span>
+        ) : (
+          <AssigneeDropdown
+            currentAssignee={lead.assignee}
+            users={canReassign ? assignableUsers : []}
+            disabled={pending}
+            onSelect={(userId) => onAssigneeChange(lead.id, userId)}
+          />
+        )}
       </div>
 
       {/* Stage move dropdown */}
@@ -598,7 +843,11 @@ function LeadCard({
                 disabled={pending}
                 onClick={() => {
                   setShowMove(false);
-                  onStageChange(lead.id, s);
+                  if (s === "meeting") {
+                    onRequestMeetingMove(lead.id);
+                  } else {
+                    onStageChange(lead.id, s);
+                  }
                 }}
                 className={
                   "text-xs px-2 py-0.5 rounded-full border transition-opacity " +
@@ -645,6 +894,15 @@ export function KanbanBoard({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const selectionActive = selectedIds.size > 0;
 
+  // --- Meeting schedule / reschedule popup ---
+  const [meetingModal, setMeetingModal] = useState<{
+    leadId: string;
+    mode: "schedule" | "reschedule";
+  } | null>(null);
+  const meetingModalLead = meetingModal
+    ? items.find((l) => l.id === meetingModal.leadId) ?? null
+    : null;
+
   function toggleSelect(id: string) {
     setSelectedIds((cur) => {
       const next = new Set(cur);
@@ -670,6 +928,68 @@ export function KanbanBoard({
     startTransition(async () => {
       const result = await updateLeadStageAction(leadId, newStage);
 
+      if (result?.error) {
+        setItems(previous);
+      }
+    });
+  }
+
+  function handleScheduleMeeting(leadId: string, isoDatetime: string, note: string) {
+    const previous = items;
+
+    setItems((cur) =>
+      cur.map((l) =>
+        l.id === leadId
+          ? {
+              ...l,
+              stage: "meeting" as LeadStage,
+              meeting_datetime: isoDatetime,
+              meeting_note: note || null,
+            }
+          : l
+      )
+    );
+    setMeetingModal(null);
+
+    startTransition(async () => {
+      const result = await updateLeadStageAction(leadId, "meeting", {
+        datetime: isoDatetime,
+        note,
+      });
+      if (result?.error) {
+        setItems(previous);
+      }
+    });
+  }
+
+  function handleRescheduleMeeting(leadId: string, isoDatetime: string, note: string) {
+    const previous = items;
+
+    setItems((cur) =>
+      cur.map((l) => {
+        if (l.id !== leadId) return l;
+        const prevHistory = l.meeting_datetime
+          ? [
+              ...l.meeting_history,
+              {
+                datetime: l.meeting_datetime,
+                note: l.meeting_note,
+                logged_at: new Date().toISOString(),
+              },
+            ]
+          : l.meeting_history;
+        return {
+          ...l,
+          meeting_datetime: isoDatetime,
+          meeting_note: note || null,
+          meeting_history: prevHistory,
+        };
+      })
+    );
+    setMeetingModal(null);
+
+    startTransition(async () => {
+      const result = await rescheduleMeetingAction(leadId, isoDatetime, note);
       if (result?.error) {
         setItems(previous);
       }
@@ -972,6 +1292,12 @@ export function KanbanBoard({
               onStageChange={handleStageChange}
               onAssigneeChange={handleAssigneeChange}
               onDateChange={handleDateChange}
+              onRequestMeetingMove={(leadId) =>
+                setMeetingModal({ leadId, mode: "schedule" })
+              }
+              onRequestReschedule={(leadId) =>
+                setMeetingModal({ leadId, mode: "reschedule" })
+              }
               stages={stages}
               pending={pending}
               assignableUsers={assignableUsers}
@@ -984,6 +1310,23 @@ export function KanbanBoard({
           ))}
         </div>
       )}
+
+      <MeetingModal
+        open={meetingModal !== null}
+        mode={meetingModal?.mode ?? "schedule"}
+        initialDatetime={meetingModal?.mode === "reschedule" ? meetingModalLead?.meeting_datetime ?? null : null}
+        initialNote={meetingModal?.mode === "reschedule" ? meetingModalLead?.meeting_note ?? null : null}
+        pending={pending}
+        onClose={() => setMeetingModal(null)}
+        onConfirm={(isoDatetime, note) => {
+          if (!meetingModal) return;
+          if (meetingModal.mode === "schedule") {
+            handleScheduleMeeting(meetingModal.leadId, isoDatetime, note);
+          } else {
+            handleRescheduleMeeting(meetingModal.leadId, isoDatetime, note);
+          }
+        }}
+      />
     </div>
   );
 }

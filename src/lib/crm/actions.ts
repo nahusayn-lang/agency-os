@@ -8,10 +8,12 @@ import { requireUserProfile } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { notifyUser, notifyUsers } from "@/lib/notifications/notify";
 import {
+  ASSIGNEE_CHANGEABLE_STAGES,
   LEAD_STAGES,
   LEAD_STAGE_LABELS,
   type LeadEditableField,
   type LeadStage,
+  type MeetingHistoryEntry,
 } from "@/lib/types/crm";
 
 function serializeValue(value: unknown): string | null {
@@ -138,13 +140,17 @@ export async function createLeadAction(formData: FormData) {
   redirect(`/crm/${lead.id}`);
 }
 
-export async function updateLeadStageAction(leadId: string, newStage: LeadStage) {
+export async function updateLeadStageAction(
+  leadId: string,
+  newStage: LeadStage,
+  meetingInfo?: { datetime: string; note: string }
+) {
   const profile = await requireUserProfile();
   const supabase = createClient();
 
   const { data: lead, error: fetchError } = await supabase
     .from("leads")
-    .select("id, stage, assigned_to, business_name")
+    .select("id, stage, assigned_to, business_name, meeting_history")
     .eq("id", leadId)
     .single();
 
@@ -161,9 +167,27 @@ export async function updateLeadStageAction(leadId: string, newStage: LeadStage)
     return { success: true };
   }
 
+  // Moving a lead INTO Meeting is a gated transition: date + time are
+  // mandatory (checked here again, never trust the client-side popup
+  // alone). Moving OUT of Meeting to anything else needs no extra data.
+  const dbUpdates: Record<string, unknown> = { stage: newStage };
+
+  if (newStage === "meeting") {
+    if (!meetingInfo?.datetime) {
+      return { error: "Meeting date and time are required to move to this stage." };
+    }
+    const dt = new Date(meetingInfo.datetime);
+    if (isNaN(dt.getTime())) {
+      return { error: "Invalid meeting date/time." };
+    }
+    dbUpdates.meeting_datetime = dt.toISOString();
+    dbUpdates.meeting_note = meetingInfo.note?.trim() || null;
+    dbUpdates.meeting_reminder_sent = false;
+  }
+
   const { error: updateError } = await supabase
     .from("leads")
-    .update({ stage: newStage })
+    .update(dbUpdates)
     .eq("id", leadId);
 
   if (updateError) {
@@ -183,7 +207,12 @@ export async function updateLeadStageAction(leadId: string, newStage: LeadStage)
       ],
     });
   } catch (err) {
-    await supabase.from("leads").update({ stage: oldStage }).eq("id", leadId);
+    const rollback: Record<string, unknown> = { stage: oldStage };
+    if (newStage === "meeting") {
+      rollback.meeting_datetime = null;
+      rollback.meeting_note = null;
+    }
+    await supabase.from("leads").update(rollback).eq("id", leadId);
     return {
       error: err instanceof Error ? err.message : "Failed to write audit.",
     };
@@ -192,7 +221,10 @@ export async function updateLeadStageAction(leadId: string, newStage: LeadStage)
   revalidatePath("/crm");
   revalidatePath(`/crm/${leadId}`);
 
-  const stageChangeMessage = `${profile.name} updated the stage of lead "${lead.business_name}" from "${oldStage}" to "${newStage}".`;
+  const stageChangeMessage =
+    newStage === "meeting" && meetingInfo
+      ? `${profile.name} scheduled a meeting for lead "${lead.business_name}" on ${new Date(meetingInfo.datetime).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}.`
+      : `${profile.name} updated the stage of lead "${lead.business_name}" from "${oldStage}" to "${newStage}".`;
 
   // Whoever didn't make the change gets notified (the assignee, if someone
   // else moved their lead).
@@ -233,6 +265,105 @@ export async function updateLeadStageAction(leadId: string, newStage: LeadStage)
   return { success: true };
 }
 
+/**
+ * Reschedule the meeting for a lead that is already in the "meeting"
+ * stage (same popup, reused). The previous meeting_datetime/note gets
+ * pushed into meeting_history first, so multi-meeting leads keep a
+ * trail ("2nd meeting", "3rd meeting", ...).
+ */
+export async function rescheduleMeetingAction(
+  leadId: string,
+  datetime: string,
+  note: string
+) {
+  const profile = await requireUserProfile();
+  const supabase = createClient();
+
+  const { data: lead, error: fetchError } = await supabase
+    .from("leads")
+    .select("id, stage, assigned_to, business_name, meeting_datetime, meeting_note, meeting_history")
+    .eq("id", leadId)
+    .single();
+
+  if (fetchError || !lead) {
+    return { error: "Lead not found." };
+  }
+
+  if (lead.stage !== "meeting") {
+    return { error: "Lead is not in the Meeting stage." };
+  }
+
+  if (profile.role === "member" && lead.assigned_to !== profile.id) {
+    return { error: "You can only update your own leads." };
+  }
+
+  const dt = new Date(datetime);
+  if (isNaN(dt.getTime())) {
+    return { error: "Invalid meeting date/time." };
+  }
+
+  const history: MeetingHistoryEntry[] = Array.isArray(lead.meeting_history)
+    ? lead.meeting_history
+    : [];
+
+  // Only log the previous meeting into history if one actually existed.
+  const nextHistory = lead.meeting_datetime
+    ? [
+        ...history,
+        {
+          datetime: lead.meeting_datetime,
+          note: lead.meeting_note ?? null,
+          logged_at: new Date().toISOString(),
+        },
+      ]
+    : history;
+
+  const { error: updateError } = await supabase
+    .from("leads")
+    .update({
+      meeting_datetime: dt.toISOString(),
+      meeting_note: note?.trim() || null,
+      meeting_history: nextHistory,
+      meeting_reminder_sent: false,
+    })
+    .eq("id", leadId);
+
+  if (updateError) {
+    return { error: updateError.message };
+  }
+
+  await writeLeadAuditEntries(supabase, {
+    leadId,
+    userId: profile.id,
+    changes: [
+      {
+        field: "meeting_datetime",
+        oldValue: lead.meeting_datetime,
+        newValue: dt.toISOString(),
+      },
+    ],
+  });
+
+  revalidatePath("/crm");
+  revalidatePath(`/crm/${leadId}`);
+
+  const meetingNo = nextHistory.length + 1;
+  const message = `${profile.name} rescheduled the meeting (#${meetingNo}) for lead "${lead.business_name}" to ${dt.toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}.`;
+
+  if (lead.assigned_to !== profile.id) {
+    await notifyUser({
+      userId: lead.assigned_to,
+      title: "Meeting rescheduled",
+      message,
+      link: `/crm/${leadId}`,
+      type: "lead_stage_change",
+      referenceId: leadId,
+    });
+  }
+
+  return { success: true };
+}
+
 export async function updateLeadAssigneeAction(
   leadId: string,
   newAssigneeId: string
@@ -247,7 +378,7 @@ export async function updateLeadAssigneeAction(
 
   const { data: lead, error: fetchError } = await supabase
     .from("leads")
-    .select("id, assigned_to, business_name")
+    .select("id, assigned_to, business_name, stage")
     .eq("id", leadId)
     .single();
 
@@ -258,6 +389,12 @@ export async function updateLeadAssigneeAction(
   const oldAssigneeId = lead.assigned_to as string;
   if (oldAssigneeId === newAssigneeId) {
     return { success: true };
+  }
+
+  if (!ASSIGNEE_CHANGEABLE_STAGES.includes(lead.stage as LeadStage)) {
+    return {
+      error: `Assignee is locked once a lead leaves ${LEAD_STAGE_LABELS.call_pending}. This lead is in "${LEAD_STAGE_LABELS[lead.stage as LeadStage]}".`,
+    };
   }
 
   const assigneeError = await validateLeadAssignee(supabase, newAssigneeId);
@@ -355,6 +492,31 @@ export async function updateLeadAction(
 
   if (profile.role === "member" && lead.assigned_to !== profile.id) {
     return { error: "You can only edit your own leads." };
+  }
+
+  if (
+    "assigned_to" in updates &&
+    updates.assigned_to !== lead.assigned_to &&
+    !ASSIGNEE_CHANGEABLE_STAGES.includes(lead.stage as LeadStage)
+  ) {
+    return {
+      error: `Assignee is locked once a lead leaves ${LEAD_STAGE_LABELS.call_pending}.`,
+    };
+  }
+
+  // A lead can only carry stage="meeting" if it already has a meeting
+  // date/time (set via the kanban popup or reschedule action). This
+  // form has no date picker for it, so block the switch here — same
+  // mandatory rule, no bypass route.
+  if (
+    "stage" in updates &&
+    updates.stage === "meeting" &&
+    lead.stage !== "meeting" &&
+    !lead.meeting_datetime
+  ) {
+    return {
+      error: "Set a meeting date/time from the CRM board's Move button to use this stage.",
+    };
   }
 
   const dbUpdates: Record<string, unknown> = {};
@@ -573,16 +735,29 @@ export async function bulkUpdateLeadAssigneeAction(
 
   const { data: leads, error: fetchError } = await supabase
     .from("leads")
-    .select("id, assigned_to, business_name")
+    .select("id, assigned_to, business_name, stage")
     .in("id", leadIds);
 
   if (fetchError || !leads?.length) {
     return { error: "Leads not found." };
   }
 
-  const toUpdate = leads.filter((l) => l.assigned_to !== newAssigneeId);
+  const eligible = leads.filter((l) => l.assigned_to !== newAssigneeId);
+  const locked = eligible.filter(
+    (l) => !ASSIGNEE_CHANGEABLE_STAGES.includes(l.stage as LeadStage)
+  );
+  const toUpdate = eligible.filter(
+    (l) => ASSIGNEE_CHANGEABLE_STAGES.includes(l.stage as LeadStage)
+  );
+
   if (!toUpdate.length) {
-    return { success: true, reassigned: 0 };
+    return {
+      error: locked.length
+        ? `Assignee is locked for ${locked.length} of the selected lead${locked.length !== 1 ? "s" : ""} — they've moved past Call Pending.`
+        : undefined,
+      success: true,
+      reassigned: 0,
+    };
   }
 
   const { error: updateError } = await supabase
@@ -654,7 +829,11 @@ export async function bulkUpdateLeadAssigneeAction(
     }
   }
 
-  return { success: true, reassigned: toUpdate.length };
+  return {
+    success: true,
+    reassigned: toUpdate.length,
+    lockedSkipped: locked.length || undefined,
+  };
 }
 
 async function validateLeadAssignee(
