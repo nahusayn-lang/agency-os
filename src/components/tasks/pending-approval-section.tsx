@@ -127,7 +127,7 @@ export function PendingApprovalSection({
   const [error, setError] = useState<string | null>(null);
   const [removedIds, setRemovedIds] = useState<Set<string>>(new Set());
   const [proofModalUrl, setProofModalUrl] = useState<string | null>(null);
-  const [proofZoom, setProofZoom] = useState(1);
+  const [proofZoom, setProofZoom] = useState(FIT_ZOOM);
   const [pending, startTransition] = useTransition();
 
   const members = useMemo(
@@ -397,7 +397,7 @@ export function PendingApprovalSection({
                         <button
                           type="button"
                           onClick={() => {
-                            setProofZoom(1);
+                            setProofZoom(FIT_ZOOM);
                             setProofModalUrl(task.proofUrl);
                           }}
                           className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-lg bg-purple-100 text-purple-700 border border-purple-200 hover:bg-purple-200 dark:bg-purple-900/30 dark:text-purple-400 dark:border-purple-800 dark:hover:bg-purple-900/50 transition-colors"
@@ -487,7 +487,7 @@ export function PendingApprovalSection({
           >
             <div
               className="flex min-h-full items-center justify-center p-4"
-              style={{ cursor: proofZoom > 1 ? "grab" : "default" }}
+              style={{ cursor: proofZoom > FIT_ZOOM ? "grab" : "default" }}
             >
               <Image
                 src={proofModalUrl}
@@ -530,10 +530,10 @@ export function PendingApprovalSection({
             >
               <PlusIcon />
             </button>
-            {proofZoom !== 1 && (
+            {proofZoom !== FIT_ZOOM && (
               <button
                 type="button"
-                onClick={() => setProofZoom(1)}
+                onClick={() => setProofZoom(FIT_ZOOM)}
                 className="ml-2 rounded-full bg-white/10 px-3 py-1.5 text-xs font-medium text-white hover:bg-white/20 transition-colors"
               >
                 Reset
