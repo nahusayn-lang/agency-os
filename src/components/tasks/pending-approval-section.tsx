@@ -243,16 +243,16 @@ export function PendingApprovalSection({
         </div>
       )}
 
-      <div className="flex flex-wrap gap-1.5">
+      <div className="flex gap-1.5 overflow-x-auto scrollbar-hide -mx-3.5 px-3.5 sm:mx-0 sm:px-0 sm:flex-wrap">
         {FILTERS.map((f) => (
           <button
             key={f.key}
             type="button"
             onClick={() => setFilter(f.key)}
-            className={`text-xs px-3 py-1 rounded-full transition-colors ${
+            className={`shrink-0 whitespace-nowrap text-xs px-3 py-1.5 rounded-full transition-all duration-150 active:scale-95 ${
               filter === f.key
-                ? "bg-purple-600 text-white"
-                : "border text-foreground hover:bg-muted"
+                ? "bg-purple-600 text-white shadow-sm"
+                : "border text-foreground hover:bg-muted hover:border-purple-300 dark:hover:border-purple-700"
             }`}
           >
             {f.label}{" "}

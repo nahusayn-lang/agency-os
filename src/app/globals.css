@@ -185,3 +185,12 @@ html.splash-pending #app-content {
   transform-origin: 50% 50%;
   animation: cold-call-ring 3s ease-in-out infinite;
 }
+/* Hides the scrollbar on horizontally-scrollable rows (e.g. mobile filter
+   pills) while keeping the element scrollable via touch/drag. */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
