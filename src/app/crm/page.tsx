@@ -66,6 +66,7 @@ export default async function CrmPage() {
         stages={LEAD_STAGES}
         assignableUsers={assignableUsers}
         canReassign={profile.role !== "member"}
+        currentUserId={profile.id}
       />
     </div>
   );

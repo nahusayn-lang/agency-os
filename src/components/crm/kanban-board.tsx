@@ -6,6 +6,8 @@ import {
   updateLeadStageAction,
   updateLeadAssigneeAction,
   updateLeadAction,
+  bulkUpdateLeadStageAction,
+  bulkUpdateLeadAssigneeAction,
 } from "@/lib/crm/actions";
 import { LEAD_STAGE_LABELS, type LeadStage } from "@/lib/types/crm";
 
@@ -31,6 +33,62 @@ interface KanbanBoardProps {
   stages: LeadStage[];
   assignableUsers: AssignableUser[];
   canReassign: boolean;
+  currentUserId: string;
+}
+
+type FollowupFilter = "all" | "overdue" | "due_today" | "not_set";
+
+function getFollowupBucket(iso: string | null): "overdue" | "due_today" | "upcoming" | "not_set" {
+  if (!iso) return "not_set";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "not_set";
+
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const startOfTomorrow = new Date(startOfToday);
+  startOfTomorrow.setDate(startOfTomorrow.getDate() + 1);
+
+  if (d.getTime() < startOfToday.getTime()) return "overdue";
+  if (d.getTime() < startOfTomorrow.getTime()) return "due_today";
+  return "upcoming";
+}
+
+/**
+ * Long-press (mobile) selection trigger. Ignores presses that start on an
+ * interactive child (buttons, links, inputs) so it never hijacks the
+ * existing Move / assignee / date-chip taps, and cancels itself if the
+ * finger moves (i.e. the user was scrolling, not holding).
+ */
+function useLongPress(onLongPress: () => void, ms = 500) {
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const movedRef = useRef(false);
+
+  function clear() {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = null;
+  }
+
+  function onTouchStart(e: React.TouchEvent) {
+    const target = e.target as HTMLElement;
+    if (target.closest("button, a, input, label")) return;
+    movedRef.current = false;
+    clear();
+    timerRef.current = setTimeout(() => {
+      if (!movedRef.current) onLongPress();
+    }, ms);
+  }
+
+  function onTouchMove() {
+    movedRef.current = true;
+    clear();
+  }
+
+  return {
+    onTouchStart,
+    onTouchMove,
+    onTouchEnd: clear,
+    onTouchCancel: clear,
+  };
 }
 
 const STAGE_COLORS: Record<
@@ -389,6 +447,10 @@ function LeadCard({
   pending,
   assignableUsers,
   canReassign,
+  canSelect,
+  selected,
+  selectionActive,
+  onToggleSelect,
 }: {
   lead: KanbanLead;
   onStageChange: (id: string, stage: LeadStage) => void;
@@ -402,14 +464,57 @@ function LeadCard({
   pending: boolean;
   assignableUsers: AssignableUser[];
   canReassign: boolean;
+  canSelect: boolean;
+  selected: boolean;
+  selectionActive: boolean;
+  onToggleSelect: (id: string) => void;
 }) {
   const [showMove, setShowMove] = useState(false);
+  const longPress = useLongPress(() => {
+    if (canSelect) onToggleSelect(lead.id);
+  });
 
   return (
-    <div className="rounded-xl border bg-card p-4 space-y-3 hover:border-primary/40 transition-colors">
+    <div
+      {...(canSelect ? longPress : {})}
+      className={
+        "group relative rounded-xl border bg-card p-4 space-y-3 transition-colors " +
+        (selected
+          ? "border-primary bg-primary/[0.04]"
+          : "hover:border-primary/40")
+      }
+    >
+      {/* Selection checkbox — hidden by default, revealed on hover (desktop)
+          or once any card is selected (so multi-select stays one-tap after
+          the first long-press on mobile). Never shown at all if the current
+          user isn't allowed to bulk-act on this lead (members + others' leads). */}
+      {canSelect && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleSelect(lead.id);
+          }}
+          aria-label={selected ? "Deselect lead" : "Select lead"}
+          className={
+            "absolute left-2 top-2 z-10 flex h-5 w-5 items-center justify-center rounded-md border transition-opacity " +
+            (selected
+              ? "opacity-100 bg-primary border-primary text-primary-foreground"
+              : "opacity-0 group-hover:opacity-100 bg-background border-border " +
+                (selectionActive ? "opacity-100" : ""))
+          }
+        >
+          {selected && (
+            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="3">
+              <path d="M20 6 9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          )}
+        </button>
+      )}
+
       {/* Top row — name + move button */}
       <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
+        <div className={"min-w-0" + (canSelect ? " pl-6" : "")}>
           <p className="font-medium text-sm truncate">{lead.name}</p>
 
           {lead.business_name && (
@@ -525,10 +630,33 @@ export function KanbanBoard({
   stages,
   assignableUsers,
   canReassign,
+  currentUserId,
 }: KanbanBoardProps) {
   const [items, setItems] = useState(initialLeads);
   const [activeStage, setActiveStage] = useState<LeadStage>(stages[0]);
   const [pending, startTransition] = useTransition();
+
+  // --- Global filters (apply across all 6 stages, not per-stage) ---
+  const [assignedToFilter, setAssignedToFilter] = useState<string>("all");
+  const [followupFilter, setFollowupFilter] = useState<FollowupFilter>("all");
+  const [search, setSearch] = useState("");
+
+  // --- Bulk selection ---
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const selectionActive = selectedIds.size > 0;
+
+  function toggleSelect(id: string) {
+    setSelectedIds((cur) => {
+      const next = new Set(cur);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function clearSelection() {
+    setSelectedIds(new Set());
+  }
 
   function handleStageChange(leadId: string, newStage: LeadStage) {
     const previous = items;
@@ -588,18 +716,191 @@ export function KanbanBoard({
     });
   }
 
-  const visibleLeads = items.filter(
-    (l) => l.stage === activeStage
-  );
+  function handleBulkMove(newStage: LeadStage) {
+    const ids = Array.from(selectedIds);
+    if (!ids.length) return;
+    const previous = items;
+
+    setItems((cur) =>
+      cur.map((l) => (ids.includes(l.id) ? { ...l, stage: newStage } : l))
+    );
+    clearSelection();
+
+    startTransition(async () => {
+      const result = await bulkUpdateLeadStageAction(ids, newStage);
+      if (result?.error) {
+        setItems(previous);
+      }
+    });
+  }
+
+  function handleBulkAssign(userId: string) {
+    const ids = Array.from(selectedIds);
+    const newAssignee = assignableUsers.find((u) => u.id === userId);
+    if (!ids.length || !newAssignee) return;
+    const previous = items;
+
+    setItems((cur) =>
+      cur.map((l) => (ids.includes(l.id) ? { ...l, assignee: newAssignee } : l))
+    );
+    clearSelection();
+
+    startTransition(async () => {
+      const result = await bulkUpdateLeadAssigneeAction(ids, userId);
+      if (result?.error) {
+        setItems(previous);
+      }
+    });
+  }
+
+  // A member can only ever bulk-act on their own leads; admins/founders can
+  // select anything. This mirrors the server-side permission check exactly.
+  function canSelectLead(lead: KanbanLead) {
+    if (canReassign) return true; // not a member
+    return lead.assignee.id === currentUserId;
+  }
+
+  const filteredItems = items.filter((l) => {
+    if (assignedToFilter !== "all" && l.assignee.id !== assignedToFilter) {
+      return false;
+    }
+
+    if (followupFilter !== "all") {
+      const bucket = getFollowupBucket(l.next_followup);
+      if (followupFilter === "not_set" && bucket !== "not_set") return false;
+      if (followupFilter === "overdue" && bucket !== "overdue") return false;
+      if (followupFilter === "due_today" && bucket !== "due_today") return false;
+    }
+
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      const haystack = [l.name, l.business_name ?? "", l.phone ?? ""]
+        .join(" ")
+        .toLowerCase();
+      if (!haystack.includes(q)) return false;
+    }
+
+    return true;
+  });
+
+  const visibleLeads = filteredItems.filter((l) => l.stage === activeStage);
+
+  const filtersActive =
+    assignedToFilter !== "all" || followupFilter !== "all" || search.trim() !== "";
 
   const colors = STAGE_COLORS[activeStage];
 
   return (
     <div className="space-y-4">
+      {/* Global filters — apply across all 6 stages at once */}
+      <div className="flex flex-wrap items-center gap-2">
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search name, business, phone..."
+          className="w-full sm:w-56 rounded-lg border bg-background px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-primary"
+        />
+
+        <select
+          value={assignedToFilter}
+          onChange={(e) => setAssignedToFilter(e.target.value)}
+          className="rounded-lg border bg-background px-2.5 py-1.5 text-sm outline-none focus:ring-1 focus:ring-primary"
+        >
+          <option value="all">All assignees</option>
+          {assignableUsers.map((u) => (
+            <option key={u.id} value={u.id}>
+              {u.name}
+            </option>
+          ))}
+        </select>
+
+        <select
+          value={followupFilter}
+          onChange={(e) => setFollowupFilter(e.target.value as FollowupFilter)}
+          className="rounded-lg border bg-background px-2.5 py-1.5 text-sm outline-none focus:ring-1 focus:ring-primary"
+        >
+          <option value="all">All follow-ups</option>
+          <option value="overdue">Overdue</option>
+          <option value="due_today">Due today</option>
+          <option value="not_set">Not set</option>
+        </select>
+
+        {filtersActive && (
+          <button
+            type="button"
+            onClick={() => {
+              setSearch("");
+              setAssignedToFilter("all");
+              setFollowupFilter("all");
+            }}
+            className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
+          >
+            Clear filters
+          </button>
+        )}
+      </div>
+
+      {/* Bulk selection toolbar */}
+      {selectionActive && (
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2">
+          <span className="text-sm font-medium">
+            {selectedIds.size} lead{selectedIds.size !== 1 ? "s" : ""} selected
+          </span>
+
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <select
+              disabled={pending}
+              value=""
+              onChange={(e) => {
+                if (e.target.value) handleBulkMove(e.target.value as LeadStage);
+              }}
+              className="rounded-md border bg-background px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
+            >
+              <option value="" disabled>
+                Move to...
+              </option>
+              {stages.map((s) => (
+                <option key={s} value={s}>
+                  {LEAD_STAGE_LABELS[s]}
+                </option>
+              ))}
+            </select>
+
+            {canReassign && (
+              <select
+                disabled={pending}
+                value=""
+                onChange={(e) => {
+                  if (e.target.value) handleBulkAssign(e.target.value);
+                }}
+                className="rounded-md border bg-background px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
+              >
+                <option value="" disabled>
+                  Assign to...
+                </option>
+                {assignableUsers.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.name}
+                  </option>
+                ))}
+              </select>
+            )}
+
+            <button
+              type="button"
+              onClick={clearSelection}
+              className="text-xs text-muted-foreground hover:text-foreground border rounded-md px-2 py-1 transition-colors"
+            >
+              Clear
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Tabs */}
       <div className="flex gap-1 overflow-x-auto pb-1 scrollbar-none">
         {stages.map((stage) => {
-          const count = items.filter((l) => l.stage === stage).length;
+          const count = filteredItems.filter((l) => l.stage === stage).length;
           const isActive = stage === activeStage;
           const c = STAGE_COLORS[stage];
 
@@ -655,7 +956,7 @@ export function KanbanBoard({
       {/* Leads list */}
       {visibleLeads.length === 0 ? (
         <div className="rounded-xl border border-dashed p-10 text-center text-sm text-muted-foreground">
-          No leads in this stage.
+          {filtersActive ? "No leads match these filters." : "No leads in this stage."}
         </div>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -670,6 +971,10 @@ export function KanbanBoard({
               pending={pending}
               assignableUsers={assignableUsers}
               canReassign={canReassign}
+              canSelect={canSelectLead(lead)}
+              selected={selectedIds.has(lead.id)}
+              selectionActive={selectionActive}
+              onToggleSelect={toggleSelect}
             />
           ))}
         </div>

@@ -9,6 +9,7 @@ import { createClient } from "@/lib/supabase/server";
 import { notifyUser, notifyUsers } from "@/lib/notifications/notify";
 import {
   LEAD_STAGES,
+  LEAD_STAGE_LABELS,
   type LeadEditableField,
   type LeadStage,
 } from "@/lib/types/crm";
@@ -18,6 +19,29 @@ function serializeValue(value: unknown): string | null {
     return null;
   }
   return String(value);
+}
+
+type AuditRow = {
+  lead_id: string;
+  changed_by: string;
+  field_changed: string;
+  old_value: string | null;
+  new_value: string | null;
+};
+
+async function insertAuditRows(
+  supabase: ReturnType<typeof createClient>,
+  rows: AuditRow[]
+) {
+  if (rows.length === 0) {
+    return;
+  }
+
+  const { error } = await supabase.from("lead_audit").insert(rows);
+
+  if (error) {
+    throw new Error(error.message);
+  }
 }
 
 async function writeLeadAuditEntries(
@@ -32,11 +56,7 @@ async function writeLeadAuditEntries(
     }>;
   }
 ) {
-  if (params.changes.length === 0) {
-    return;
-  }
-
-  const rows = params.changes.map((change) => ({
+  const rows: AuditRow[] = params.changes.map((change) => ({
     lead_id: params.leadId,
     changed_by: params.userId,
     field_changed: change.field,
@@ -44,11 +64,7 @@ async function writeLeadAuditEntries(
     new_value: change.newValue,
   }));
 
-  const { error } = await supabase.from("lead_audit").insert(rows);
-
-  if (error) {
-    throw new Error(error.message);
-  }
+  await insertAuditRows(supabase, rows);
 }
 
 export async function createLeadFormAction(formData: FormData): Promise<void> {
@@ -404,6 +420,241 @@ export async function updateLeadAction(
   revalidatePath("/crm");
   revalidatePath(`/crm/${leadId}`);
   return { success: true };
+}
+
+/**
+ * Bulk move: same permission rule as the single-lead move (members can only
+ * move their own leads; admins/super_admins can move any). Every affected
+ * assignee gets exactly ONE notification summarising how many of their leads
+ * moved (never one notification per lead), and founders get one combined
+ * summary too, unless the founder is the one who made the change.
+ */
+export async function bulkUpdateLeadStageAction(
+  leadIds: string[],
+  newStage: LeadStage
+) {
+  const profile = await requireUserProfile();
+
+  if (!leadIds.length) {
+    return { error: "No leads selected." };
+  }
+  if (!LEAD_STAGES.includes(newStage)) {
+    return { error: "Invalid stage." };
+  }
+
+  const supabase = createClient();
+
+  const { data: leads, error: fetchError } = await supabase
+    .from("leads")
+    .select("id, stage, assigned_to, business_name")
+    .in("id", leadIds);
+
+  if (fetchError || !leads?.length) {
+    return { error: "Leads not found." };
+  }
+
+  if (profile.role === "member") {
+    const notOwned = leads.some((l) => l.assigned_to !== profile.id);
+    if (notOwned) {
+      return { error: "You can only move your own leads." };
+    }
+  }
+
+  const toUpdate = leads.filter((l) => l.stage !== newStage);
+  if (!toUpdate.length) {
+    return { success: true, moved: 0 };
+  }
+
+  const { error: updateError } = await supabase
+    .from("leads")
+    .update({ stage: newStage })
+    .in(
+      "id",
+      toUpdate.map((l) => l.id)
+    );
+
+  if (updateError) {
+    return { error: updateError.message };
+  }
+
+  try {
+    await insertAuditRows(
+      supabase,
+      toUpdate.map((l) => ({
+        lead_id: l.id,
+        changed_by: profile.id,
+        field_changed: "stage",
+        old_value: l.stage,
+        new_value: newStage,
+      }))
+    );
+  } catch (err) {
+    // best-effort rollback — each lead goes back to its own previous stage
+    await Promise.all(
+      toUpdate.map((l) =>
+        supabase.from("leads").update({ stage: l.stage }).eq("id", l.id)
+      )
+    );
+    return {
+      error: err instanceof Error ? err.message : "Failed to write audit.",
+    };
+  }
+
+  revalidatePath("/crm");
+
+  const stageLabel = LEAD_STAGE_LABELS[newStage];
+
+  // One combined notification per assignee (not one per lead).
+  const byAssignee = new Map<string, number>();
+  for (const l of toUpdate) {
+    if (l.assigned_to === profile.id) continue; // actor doesn't need a notification about their own action
+    byAssignee.set(l.assigned_to, (byAssignee.get(l.assigned_to) ?? 0) + 1);
+  }
+
+  await Promise.all(
+    Array.from(byAssignee.entries()).map(([userId, count]) =>
+      notifyUser({
+        userId,
+        title: "Leads moved",
+        message: `${profile.name} moved ${count} of your lead${count !== 1 ? "s" : ""} to "${stageLabel}".`,
+        link: "/crm",
+        type: "lead_stage_change",
+      })
+    )
+  );
+
+  if (profile.role !== "super_admin") {
+    const { data: founders } = await supabase
+      .from("users")
+      .select("id")
+      .eq("role", "super_admin")
+      .eq("is_active", true);
+
+    if (founders?.length) {
+      await notifyUsers(
+        founders.map((f) => f.id),
+        {
+          title: "Leads moved (bulk)",
+          message: `${profile.name} moved ${toUpdate.length} lead${toUpdate.length !== 1 ? "s" : ""} to "${stageLabel}".`,
+          link: "/crm",
+          type: "lead_stage_change",
+        }
+      );
+    }
+  }
+
+  return { success: true, moved: toUpdate.length };
+}
+
+/**
+ * Bulk reassign: admins/super_admins only, same as single-lead reassign.
+ * The new assignee gets ONE combined notification for the whole batch, and
+ * founders get one combined summary, unless the founder made the change.
+ */
+export async function bulkUpdateLeadAssigneeAction(
+  leadIds: string[],
+  newAssigneeId: string
+) {
+  const profile = await requireUserProfile();
+
+  if (profile.role === "member") {
+    return { error: "Only admins can reassign leads." };
+  }
+  if (!leadIds.length) {
+    return { error: "No leads selected." };
+  }
+
+  const supabase = createClient();
+
+  const assigneeError = await validateLeadAssignee(supabase, newAssigneeId);
+  if (assigneeError) {
+    return { error: assigneeError };
+  }
+
+  const { data: leads, error: fetchError } = await supabase
+    .from("leads")
+    .select("id, assigned_to, business_name")
+    .in("id", leadIds);
+
+  if (fetchError || !leads?.length) {
+    return { error: "Leads not found." };
+  }
+
+  const toUpdate = leads.filter((l) => l.assigned_to !== newAssigneeId);
+  if (!toUpdate.length) {
+    return { success: true, reassigned: 0 };
+  }
+
+  const { error: updateError } = await supabase
+    .from("leads")
+    .update({ assigned_to: newAssigneeId })
+    .in(
+      "id",
+      toUpdate.map((l) => l.id)
+    );
+
+  if (updateError) {
+    return { error: updateError.message };
+  }
+
+  try {
+    await insertAuditRows(
+      supabase,
+      toUpdate.map((l) => ({
+        lead_id: l.id,
+        changed_by: profile.id,
+        field_changed: "assigned_to",
+        old_value: l.assigned_to,
+        new_value: newAssigneeId,
+      }))
+    );
+  } catch (err) {
+    await Promise.all(
+      toUpdate.map((l) =>
+        supabase
+          .from("leads")
+          .update({ assigned_to: l.assigned_to })
+          .eq("id", l.id)
+      )
+    );
+    return {
+      error: err instanceof Error ? err.message : "Failed to write audit.",
+    };
+  }
+
+  revalidatePath("/crm");
+
+  if (newAssigneeId !== profile.id) {
+    await notifyUser({
+      userId: newAssigneeId,
+      title: "Leads assigned to you",
+      message: `${profile.name} assigned ${toUpdate.length} lead${toUpdate.length !== 1 ? "s" : ""} to you.`,
+      link: "/crm",
+      type: "lead_reassigned",
+    });
+  }
+
+  if (profile.role !== "super_admin") {
+    const { data: founders } = await supabase
+      .from("users")
+      .select("id")
+      .eq("role", "super_admin")
+      .eq("is_active", true);
+
+    if (founders?.length) {
+      await notifyUsers(
+        founders.map((f) => f.id),
+        {
+          title: "Leads reassigned (bulk)",
+          message: `${profile.name} reassigned ${toUpdate.length} lead${toUpdate.length !== 1 ? "s" : ""}.`,
+          link: "/crm",
+          type: "lead_reassigned",
+        }
+      );
+    }
+  }
+
+  return { success: true, reassigned: toUpdate.length };
 }
 
 async function validateLeadAssignee(
