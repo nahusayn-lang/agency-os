@@ -4,7 +4,6 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import {
   getLoginAttendanceStatus,
   getTodayDateString,
-  isEarlyExit,
 } from "@/lib/auth/attendance";
 import type { AttendanceStatus } from "@/lib/types/database";
 
@@ -73,14 +72,9 @@ export async function recordLogoutAttendance(
 
   const updates: {
     logout_time: string;
-    status?: AttendanceStatus;
   } = {
     logout_time: logoutTime.toISOString(),
   };
-
-  if (isEarlyExit(shiftEnd, logoutTime)) {
-    updates.status = "early_exit";
-  }
 
   const { error: updateError } = await admin
     .from("attendance")

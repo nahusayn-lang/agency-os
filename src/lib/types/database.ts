@@ -3,7 +3,6 @@ export type UserRole = "super_admin" | "admin" | "member";
 export type AttendanceStatus =
   | "present"
   | "late"
-  | "early_exit"
   | "absent";
 
 export type AuditAction = "login" | "logout";

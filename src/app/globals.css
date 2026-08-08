@@ -169,3 +169,19 @@ html.splash-pending #app-content {
   animation: cold-call-shine 2s linear infinite;
   pointer-events: none;
 }
+
+/* Phone icon rings every 3s, for exactly 1s, then rests */
+@keyframes cold-call-ring {
+  0%, 66.67% { transform: rotate(0deg); }
+  69% { transform: rotate(-15deg); }
+  71.5% { transform: rotate(13deg); }
+  74% { transform: rotate(-10deg); }
+  76.5% { transform: rotate(8deg); }
+  79% { transform: rotate(-5deg); }
+  81.5%, 100% { transform: rotate(0deg); }
+}
+.cold-call-ring {
+  display: inline-block;
+  transform-origin: 50% 50%;
+  animation: cold-call-ring 3s ease-in-out infinite;
+}

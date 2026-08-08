@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { requireUserProfile } from "@/lib/auth/session";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { isEarlyExit } from "@/lib/auth/attendance";
 import { hasPendingCannotCompleteApproval } from "@/lib/services/strike-fine-engine";
 import { notifyAdmins } from "@/lib/notifications/notify";
 
@@ -73,10 +72,6 @@ export async function POST(req: Request) {
     }
 
     // --- Asli checkout ---
-    const shiftEnd = userRow?.shift_end ?? "23:59:59";
-    const isEarly = isEarlyExit(shiftEnd, now);
-    const statusUpdate = isEarly ? "early_exit" : undefined;
-
     // Find the currently-open session (checked in, not yet checked out) —
     // not by "today's date", since an overnight shift's checkout can happen
     // on the next calendar day and would otherwise never be found.
@@ -95,7 +90,6 @@ export async function POST(req: Request) {
         checkout_time: now.toISOString(),
         logout_time: now.toISOString(),
       };
-      if (statusUpdate) updates.status = statusUpdate;
       await admin.from("attendance").update(updates).eq("id", attendance.id);
     }
 
@@ -116,16 +110,6 @@ export async function POST(req: Request) {
       entity_type: "attendance",
       entity_id: null,
     });
-
-    if (isEarly) {
-      const timeStr = now.toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit" });
-      await notifyAdmins({
-        title: "Early Checkout",
-        message: `${profile.name} checked out early — ${timeStr}`,
-        link: "/attendance",
-        type: "attendance",
-      });
-    }
 
     // --- Report insert (immediately after checkout, same request) ---
     const { data: report, error } = await supabase

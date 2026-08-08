@@ -65,13 +65,18 @@ export default async function Header() {
         </div>
       </header>
 
-      {coldCallTask && (
-        <div className="lg:ml-64 sticky top-14 z-20 relative overflow-hidden border-b border-red-500/20 bg-red-950/60 px-4 py-1">
-          {!coldCallSubmitted && <div className="cold-call-shine" />}
-          <p className="relative mx-auto max-w-7xl truncate text-xs font-medium text-red-200">
-            {coldCallSubmitted
-              ? `✅ Cold calls submitted`
-              : `📞 Cold Calls pending — ${coldCallTask.mandatory_target_count} calls`}
+      {coldCallTask && !coldCallSubmitted && (
+        <div className="lg:ml-64 sticky top-14 z-20 relative overflow-hidden border-b border-red-500/30 bg-red-950/60 px-3 py-1.5">
+          <div className="cold-call-shine" />
+          <p className="relative mx-auto flex max-w-7xl items-center justify-center gap-1.5 truncate text-center text-sm font-semibold tracking-wide text-red-300">
+            <svg
+              className="cold-call-ring h-4 w-4 shrink-0"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+            >
+              <path d="M6.62 10.79a15.05 15.05 0 0 0 6.59 6.59l2.2-2.2a1 1 0 0 1 1.02-.24c1.12.37 2.33.57 3.57.57a1 1 0 0 1 1 1V20a1 1 0 0 1-1 1C10.61 21 3 13.39 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.24.2 2.45.57 3.57a1 1 0 0 1-.25 1.02l-2.2 2.2Z" />
+            </svg>
+            {`${coldCallTask.mandatory_target_count} Cold Calls pending — submit now`}
           </p>
         </div>
       )}

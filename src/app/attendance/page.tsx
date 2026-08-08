@@ -3,26 +3,31 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const STATUS_CONFIG: Record<string, { label: string; dot: string; badge: string }> = {
-  present:    { label: "Present",    dot: "bg-emerald-500", badge: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" },
-  late:       { label: "Late",       dot: "bg-yellow-500",  badge: "bg-yellow-500/10 text-yellow-400 border-yellow-500/20" },
-  early_exit: { label: "Early Exit", dot: "bg-orange-500",  badge: "bg-orange-500/10 text-orange-400 border-orange-500/20" },
-  absent:     { label: "Absent",     dot: "bg-red-500",     badge: "bg-red-500/10 text-red-400 border-red-500/20" },
+  present: { label: "Present", dot: "bg-emerald-500", badge: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" },
+  late:    { label: "Late",    dot: "bg-yellow-500",  badge: "bg-yellow-500/10 text-yellow-400 border-yellow-500/20" },
+  absent:  { label: "Absent",  dot: "bg-red-500",     badge: "bg-red-500/10 text-red-400 border-red-500/20" },
 };
 
-const PAST_PRESENT_CONFIG = {
-  dot: "bg-[#d97757]",
-  badge: "bg-[#d97757]/10 text-[#d97757] border-[#d97757]/20",
+// A completed session (checked out already, live or past) is blue — the
+// label stays "Present", only the color signals it's done.
+const CHECKED_OUT_CONFIG = {
+  dot: "bg-sky-500",
+  badge: "bg-sky-500/10 text-sky-400 border-sky-500/20",
 };
 
-function getStatusConfig(status: string, isToday: boolean, hasCheckin: boolean = false) {
-  const s = STATUS_CONFIG[status] ?? { label: status, dot: "bg-muted", badge: "bg-muted text-muted-foreground border-border" };
-  if (status === "present" && !isToday) {
-    return { ...s, dot: PAST_PRESENT_CONFIG.dot, badge: PAST_PRESENT_CONFIG.badge };
+function getStatusConfig(status: string, isToday: boolean, hasCheckin: boolean = false, hasCheckout: boolean = false) {
+  // Old rows may still have the removed "early_exit" value saved from
+  // before — treat it the same as "present", never show it raw.
+  const normalized = status === "early_exit" ? "present" : status;
+  const s = STATUS_CONFIG[normalized] ?? { label: normalized, dot: "bg-muted", badge: "bg-muted text-muted-foreground border-border" };
+
+  if (normalized === "present" && hasCheckout) {
+    return { ...s, dot: CHECKED_OUT_CONFIG.dot, badge: CHECKED_OUT_CONFIG.badge };
   }
   // Checked in after shift-end (recovery check-in) — still counts as
   // "absent" for fines/strikes, but the label shouldn't say "Absent"
   // since the person did show up, just late.
-  if (status === "absent" && hasCheckin) {
+  if (normalized === "absent" && hasCheckin) {
     return { ...s, label: "Post-Shift" };
   }
   return s;
@@ -98,7 +103,7 @@ export default async function AttendancePage() {
               const checkin = r.checkin_time ?? r.login_time;
               const checkout = r.checkout_time ?? r.logout_time;
              const today = isToday(r.date);
-              const s = getStatusConfig(r.status, today, !!checkin);
+              const s = getStatusConfig(r.status, today, !!checkin, !!checkout);
 
               return (
                 <li key={r.id} className={`rounded-xl border p-4 ${today ? "border-emerald-500/30 bg-emerald-950/10" : ""}`}>
@@ -164,8 +169,6 @@ export default async function AttendancePage() {
     byDate.get(e.date)!.push(e);
   }
 
-  const statusOrder = ["present", "late", "early_exit", "absent"];
-
   return (
     <div className="space-y-8">
       <div>
@@ -175,10 +178,16 @@ export default async function AttendancePage() {
 
       {[...byDate.entries()].map(([date, dayEntries]) => {
         const today = isToday(date);
-        const sorted = [...dayEntries].sort(
-          (a, b) => statusOrder.indexOf(a.status) - statusOrder.indexOf(b.status)
-        );
-
+        // Order by actual check-in time — most recent arrival first.
+        // Anyone with no check-in (absent) sinks to the bottom.
+        const sorted = [...dayEntries].sort((a, b) => {
+          const aTime = a.checkin_time ?? a.login_time;
+          const bTime = b.checkin_time ?? b.login_time;
+          if (!aTime && !bTime) return 0;
+          if (!aTime) return 1;
+          if (!bTime) return -1;
+          return new Date(bTime).getTime() - new Date(aTime).getTime();
+        });
         const presentCount = dayEntries.filter((e) => e.status !== "absent").length;
         const lateCount = dayEntries.filter((e) => e.status === "late").length;
         const absentCount = dayEntries.filter((e) => e.status === "absent").length;
@@ -205,7 +214,7 @@ export default async function AttendancePage() {
               {sorted.map((r) => {
            const checkin = r.checkin_time ?? r.login_time;
                 const checkout = r.checkout_time ?? r.logout_time;
-                const s = getStatusConfig(r.status, today, !!checkin);
+                const s = getStatusConfig(r.status, today, !!checkin, !!checkout);
 
                 return (
                   <li key={r.id} className="px-4 py-3">
