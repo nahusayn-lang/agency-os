@@ -5,6 +5,7 @@ import { getTodayDateString } from "@/lib/auth/attendance";
 import { createClient } from "@/lib/supabase/server";
 import { evaluateCheckin, addStrike } from "@/lib/services/strike-fine-engine";
 import { notifyAdmins } from "@/lib/notifications/notify";
+import { ensureColdCallTaskForCheckin } from "@/lib/services/cold-call-tasks";
 
 export async function POST() {
   const profile = await requireUserProfile();
@@ -165,6 +166,8 @@ if (!lockedUsers || lockedUsers.length === 0) {
     if (evaluation.strikeTriggered) {
       await addStrike(profile.id, "late_checkin", attendanceId);
     }
+
+    await ensureColdCallTaskForCheckin(profile.id, profile.name);
 
     if (isRecovery) {
       const timeStr = now.toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit" });

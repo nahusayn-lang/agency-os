@@ -5,6 +5,8 @@ import { NotificationBell } from "@/components/notification-bell";
 import Sidebar from "@/components/sidebar";
 import SidebarClient from "@/components/sidebar-client";
 import BottomNav from "@/components/bottom-nav";
+import { createClient } from "@/lib/supabase/server";
+import { getTodayDateString } from "@/lib/auth/attendance";
 
 function formatDisplayName(name?: string | null, email?: string | null) {
   if (name && name.trim() !== "") return name;
@@ -24,6 +26,21 @@ export default async function Header() {
   const displayName = formatDisplayName(profile.name, profile.email || null);
 
   const showTasksLink = ["admin", "super_admin"].includes(profile.role || "");
+
+  const supabase = createClient();
+  const today = getTodayDateString();
+  const { data: coldCallTask } = await supabase
+    .from("tasks")
+    .select("status, mandatory_target_count")
+    .eq("assigned_to", profile.id)
+    .eq("is_mandatory", true)
+    .eq("mandatory_type", "cold_calls")
+    .eq("mandatory_date", today)
+    .maybeSingle();
+
+  const coldCallSubmitted = coldCallTask
+    ? !["pending", "in_progress", "paused", "revision_required"].includes(coldCallTask.status)
+    : false;
 
   return (
     <>
@@ -47,6 +64,17 @@ export default async function Header() {
           </div>
         </div>
       </header>
+
+      {coldCallTask && (
+        <div className="lg:ml-64 sticky top-14 z-20 border-b border-red-500/20 bg-red-950/40 px-4 py-2">
+          <p className="mx-auto max-w-7xl text-sm font-medium cold-call-shimmer-text">
+            {coldCallSubmitted
+              ? "✅ Cold calls done for today — great work!"
+              : `📞 Cold Calls task pending — submit ${coldCallTask.mandatory_target_count} calls before checkout.`}
+          </p>
+        </div>
+      )}
+
       <BottomNav dashboardPath={dashboardPath} showTasksLink={showTasksLink} />
     </>
   );
