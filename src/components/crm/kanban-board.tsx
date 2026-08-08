@@ -916,6 +916,33 @@ export function KanbanBoard({
     setSelectedIds(new Set());
   }
 
+  // --- Prevent back-button from leaving the CRM while mark-mode is active ---
+  // When selection starts, push a dummy history entry. Pressing back then
+  // just consumes that entry (popstate fires) and we clear selection instead
+  // of letting the browser navigate away from the CRM page.
+  const pushedHistoryRef = useRef(false);
+
+  useEffect(() => {
+    function handlePopState() {
+      if (pushedHistoryRef.current) {
+        pushedHistoryRef.current = false;
+        setSelectedIds(new Set());
+      }
+    }
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
+  useEffect(() => {
+    if (selectionActive && !pushedHistoryRef.current) {
+      window.history.pushState({ crmSelectionMode: true }, "");
+      pushedHistoryRef.current = true;
+    } else if (!selectionActive && pushedHistoryRef.current) {
+      pushedHistoryRef.current = false;
+      window.history.back();
+    }
+  }, [selectionActive]);
+
   function handleStageChange(leadId: string, newStage: LeadStage) {
     const previous = items;
 

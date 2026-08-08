@@ -137,7 +137,6 @@ export async function createLeadAction(formData: FormData) {
   });
 
   revalidatePath("/crm");
-  redirect(`/crm/${lead.id}`);
 }
 
 export async function updateLeadStageAction(
