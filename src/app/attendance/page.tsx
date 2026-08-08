@@ -14,10 +14,16 @@ const PAST_PRESENT_CONFIG = {
   badge: "bg-[#d97757]/10 text-[#d97757] border-[#d97757]/20",
 };
 
-function getStatusConfig(status: string, isToday: boolean) {
+function getStatusConfig(status: string, isToday: boolean, hasCheckin: boolean = false) {
   const s = STATUS_CONFIG[status] ?? { label: status, dot: "bg-muted", badge: "bg-muted text-muted-foreground border-border" };
   if (status === "present" && !isToday) {
     return { ...s, dot: PAST_PRESENT_CONFIG.dot, badge: PAST_PRESENT_CONFIG.badge };
+  }
+  // Checked in after shift-end (recovery check-in) — still counts as
+  // "absent" for fines/strikes, but the label shouldn't say "Absent"
+  // since the person did show up, just late.
+  if (status === "absent" && hasCheckin) {
+    return { ...s, label: "Post-Shift" };
   }
   return s;
 }
@@ -91,8 +97,8 @@ export default async function AttendancePage() {
             {entries.map((r) => {
               const checkin = r.checkin_time ?? r.login_time;
               const checkout = r.checkout_time ?? r.logout_time;
-              const today = isToday(r.date);
-              const s = getStatusConfig(r.status, today);
+             const today = isToday(r.date);
+              const s = getStatusConfig(r.status, today, !!checkin);
 
               return (
                 <li key={r.id} className={`rounded-xl border p-4 ${today ? "border-emerald-500/30 bg-emerald-950/10" : ""}`}>
@@ -197,9 +203,9 @@ export default async function AttendancePage() {
 
             <ul className="divide-y divide-border rounded-xl border overflow-hidden">
               {sorted.map((r) => {
-                const checkin = r.checkin_time ?? r.login_time;
+           const checkin = r.checkin_time ?? r.login_time;
                 const checkout = r.checkout_time ?? r.logout_time;
-                const s = getStatusConfig(r.status, today);
+                const s = getStatusConfig(r.status, today, !!checkin);
 
                 return (
                   <li key={r.id} className="px-4 py-3">

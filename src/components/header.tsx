@@ -66,11 +66,12 @@ export default async function Header() {
       </header>
 
       {coldCallTask && (
-        <div className="lg:ml-64 sticky top-14 z-20 border-b border-red-500/20 bg-red-950/40 px-4 py-2">
-          <p className="mx-auto max-w-7xl text-sm font-medium cold-call-shimmer-text">
+        <div className="lg:ml-64 sticky top-14 z-20 relative overflow-hidden border-b border-red-500/20 bg-red-950/60 px-4 py-1">
+          {!coldCallSubmitted && <div className="cold-call-shine" />}
+          <p className="relative mx-auto max-w-7xl truncate text-xs font-medium text-red-200">
             {coldCallSubmitted
-              ? "✅ Cold calls done for today — great work!"
-              : `📞 Cold Calls task pending — submit ${coldCallTask.mandatory_target_count} calls before checkout.`}
+              ? `✅ Cold calls submitted`
+              : `📞 Cold Calls pending — ${coldCallTask.mandatory_target_count} calls`}
           </p>
         </div>
       )}
