@@ -156,69 +156,69 @@ export default async function ManagerDashboardPage() {
         />
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending Tasks</CardTitle>
+            <CardTitle className="relative z-10 text-sm font-medium">Pending Tasks</CardTitle>
           </CardHeader>
-          <CardContent className="relative">
-            <TasksIllustration className="absolute right-3 top-2 h-9 w-9 opacity-20" />
+          <CardContent>
+            <TasksIllustration className="absolute right-1 bottom-0 h-20 w-20 opacity-90 pointer-events-none" />
             <div className="relative z-10 text-2xl font-bold">{pendingTasks ?? 0}</div>
           </CardContent>
         </Card>
         <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Fines</CardTitle>
+              <CardTitle className="relative z-10 text-sm font-medium">Total Fines</CardTitle>
               {orgPendingFineCount > 0 && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 text-amber-400 text-[11px] font-medium px-2.5 py-0.5">
+                <span className="relative z-10 inline-flex items-center gap-1 rounded-full bg-amber-500/10 text-amber-400 text-[11px] font-medium px-2.5 py-0.5">
                   {orgPendingFineCount} pending
                 </span>
               )}
             </CardHeader>
-            <CardContent className="relative">
-              <FinesIllustration className="absolute right-3 top-2 h-9 w-9 opacity-20" />
+            <CardContent>
+              <FinesIllustration className="absolute right-1 bottom-0 h-20 w-20 opacity-90 pointer-events-none" />
               <div className="relative z-10 text-2xl font-bold">{orgFineCount}</div>
             </CardContent>
           </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Leads</CardTitle>
+            <CardTitle className="relative z-10 text-sm font-medium">Total Leads</CardTitle>
           </CardHeader>
-          <CardContent className="relative">
-            <FunnelIllustration className="absolute right-3 top-2 h-9 w-9 opacity-20" />
+          <CardContent>
+            <FunnelIllustration className="absolute right-1 bottom-0 h-20 w-20 opacity-90 pointer-events-none" />
             <div className="relative z-10 text-2xl font-bold">{totalLeads ?? 0}</div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Leads</CardTitle>
+            <CardTitle className="relative z-10 text-sm font-medium">Active Leads</CardTitle>
           </CardHeader>
-          <CardContent className="relative">
-            <TargetIllustration className="absolute right-3 top-2 h-9 w-9 opacity-20" />
+          <CardContent>
+            <TargetIllustration className="absolute right-1 bottom-0 h-20 w-20 opacity-90 pointer-events-none" />
             <div className="relative z-10 text-2xl font-bold">{activeLeads ?? 0}</div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Deals Closed</CardTitle>
+            <CardTitle className="relative z-10 text-sm font-medium">Deals Closed</CardTitle>
           </CardHeader>
-          <CardContent className="relative">
-            <HandshakeIllustration className="absolute right-3 top-2 h-9 w-9 opacity-20" />
+          <CardContent>
+            <HandshakeIllustration className="absolute right-1 bottom-0 h-20 w-20 opacity-90 pointer-events-none" />
             <div className="relative z-10 text-2xl font-bold">{dealsClosed ?? 0}</div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Revenue</CardTitle>
+            <CardTitle className="relative z-10 text-sm font-medium">Revenue</CardTitle>
           </CardHeader>
-          <CardContent className="relative">
-            <RevenueIllustration className="absolute right-3 top-2 h-9 w-9 opacity-20" />
+          <CardContent>
+            <RevenueIllustration className="absolute right-1 bottom-0 h-20 w-20 opacity-90 pointer-events-none" />
             <div className="relative z-10 text-2xl font-bold">${revenueGenerated.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Lost Deals</CardTitle>
+            <CardTitle className="relative z-10 text-sm font-medium">Lost Deals</CardTitle>
           </CardHeader>
-          <CardContent className="relative">
-            <LostDealsIllustration className="absolute right-3 top-2 h-9 w-9 opacity-20" />
+          <CardContent>
+            <LostDealsIllustration className="absolute right-1 bottom-0 h-20 w-20 opacity-90 pointer-events-none" />
             <div className="relative z-10 text-2xl font-bold">{lostDeals ?? 0}</div>
           </CardContent>
         </Card>
