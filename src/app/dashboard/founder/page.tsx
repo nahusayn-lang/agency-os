@@ -9,6 +9,16 @@ import { WeeklyCommitmentCard } from "@/components/dashboard/weekly-commitment-c
 import { OverrideHistoryTable } from "@/components/dashboard/override-history-table";
 import { TeamProfilesList } from "@/components/dashboard/team-profiles-list";
 import { AttendanceCard } from "@/components/dashboard/attendance-card";
+import {
+  TasksIllustration,
+  ColdCallsIllustration,
+  FinesIllustration,
+  FunnelIllustration,
+  TargetIllustration,
+  HandshakeIllustration,
+  RevenueIllustration,
+  LostDealsIllustration,
+} from "@/components/dashboard/stat-illustrations";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { getTodayDateString } from "@/lib/auth/attendance";
 import { getFineAmount, closeStaleShiftSession } from "@/lib/services/strike-fine-engine";
@@ -179,19 +189,23 @@ export default async function FounderDashboardPage() {
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Pending Tasks</CardTitle>
           </CardHeader>
-          <CardContent><div className="text-2xl font-bold">{pendingTasks ?? 0}</div></CardContent>
+          <CardContent className="relative">
+            <div className="relative z-10 text-2xl font-bold">{pendingTasks ?? 0}</div>
+            <TasksIllustration className="absolute right-3 top-2 h-9 w-9 opacity-20" />
+          </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Cold Calls Today</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
+          <CardContent className="relative">
+            <ColdCallsIllustration className="absolute right-3 top-2 h-9 w-9 opacity-20" />
+            <div className="relative z-10 text-2xl font-bold">
               {coldCallSubmittedCount}
               <span className="text-base text-muted-foreground"> / {coldCallTasks.length} submitted</span>
             </div>
             {coldCallPending.length > 0 && (
-              <p className="mt-1 text-xs text-muted-foreground truncate">
+              <p className="relative z-10 mt-1 text-xs text-muted-foreground truncate">
                 Pending: {coldCallPending.map((t) => memberNameMap.get(t.assigned_to) ?? "?").join(", ")}
               </p>
             )}
@@ -206,39 +220,55 @@ export default async function FounderDashboardPage() {
                 </span>
               )}
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{orgFineCount}</div>
+            <CardContent className="relative">
+              <FinesIllustration className="absolute right-3 top-2 h-9 w-9 opacity-20" />
+              <div className="relative z-10 text-2xl font-bold">{orgFineCount}</div>
             </CardContent>
           </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Leads</CardTitle>
           </CardHeader>
-          <CardContent><div className="text-2xl font-bold">{totalLeads ?? 0}</div></CardContent>
+          <CardContent className="relative">
+            <FunnelIllustration className="absolute right-3 top-2 h-9 w-9 opacity-20" />
+            <div className="relative z-10 text-2xl font-bold">{totalLeads ?? 0}</div>
+          </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Active Leads</CardTitle>
           </CardHeader>
-          <CardContent><div className="text-2xl font-bold">{activeLeads ?? 0}</div></CardContent>
+          <CardContent className="relative">
+            <TargetIllustration className="absolute right-3 top-2 h-9 w-9 opacity-20" />
+            <div className="relative z-10 text-2xl font-bold">{activeLeads ?? 0}</div>
+          </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Deals Closed</CardTitle>
           </CardHeader>
-          <CardContent><div className="text-2xl font-bold">{dealsClosed ?? 0}</div></CardContent>
+          <CardContent className="relative">
+            <HandshakeIllustration className="absolute right-3 top-2 h-9 w-9 opacity-20" />
+            <div className="relative z-10 text-2xl font-bold">{dealsClosed ?? 0}</div>
+          </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Revenue</CardTitle>
           </CardHeader>
-          <CardContent><div className="text-2xl font-bold">${revenueGenerated.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div></CardContent>
+          <CardContent className="relative">
+            <RevenueIllustration className="absolute right-3 top-2 h-9 w-9 opacity-20" />
+            <div className="relative z-10 text-2xl font-bold">${revenueGenerated.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+          </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Lost Deals</CardTitle>
           </CardHeader>
-          <CardContent><div className="text-2xl font-bold">{lostDeals ?? 0}</div></CardContent>
+          <CardContent className="relative">
+            <LostDealsIllustration className="absolute right-3 top-2 h-9 w-9 opacity-20" />
+            <div className="relative z-10 text-2xl font-bold">{lostDeals ?? 0}</div>
+          </CardContent>
         </Card>
       </div>
 

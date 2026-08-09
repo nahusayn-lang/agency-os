@@ -1161,7 +1161,7 @@ export function KanbanBoard({
 
         <Select
           value={assignedToFilter}
-          onValueChange={setAssignedToFilter}
+          onValueChange={(value) => setAssignedToFilter(value ?? "all")}
           items={[
             { value: "all", label: "All assignees" },
             ...assignableUsers.map((u) => ({ value: u.id, label: u.name })),

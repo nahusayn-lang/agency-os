@@ -7,6 +7,15 @@ import { getFounderCommitmentForWeek } from "@/lib/founder-commitment/actions";
 import { WeeklyCommitmentCard } from "@/components/dashboard/weekly-commitment-card";
 import { TeamProfilesList } from "@/components/dashboard/team-profiles-list";
 import { AttendanceCard } from "@/components/dashboard/attendance-card";
+import {
+  TasksIllustration,
+  FinesIllustration,
+  FunnelIllustration,
+  TargetIllustration,
+  HandshakeIllustration,
+  RevenueIllustration,
+  LostDealsIllustration,
+} from "@/components/dashboard/stat-illustrations";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { getTodayDateString } from "@/lib/auth/attendance";
 import { getFineAmount, closeStaleShiftSession } from "@/lib/services/strike-fine-engine";
@@ -149,7 +158,10 @@ export default async function ManagerDashboardPage() {
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Pending Tasks</CardTitle>
           </CardHeader>
-          <CardContent><div className="text-2xl font-bold">{pendingTasks ?? 0}</div></CardContent>
+          <CardContent className="relative">
+            <TasksIllustration className="absolute right-3 top-2 h-9 w-9 opacity-20" />
+            <div className="relative z-10 text-2xl font-bold">{pendingTasks ?? 0}</div>
+          </CardContent>
         </Card>
         <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -160,39 +172,55 @@ export default async function ManagerDashboardPage() {
                 </span>
               )}
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{orgFineCount}</div>
+            <CardContent className="relative">
+              <FinesIllustration className="absolute right-3 top-2 h-9 w-9 opacity-20" />
+              <div className="relative z-10 text-2xl font-bold">{orgFineCount}</div>
             </CardContent>
           </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Leads</CardTitle>
           </CardHeader>
-          <CardContent><div className="text-2xl font-bold">{totalLeads ?? 0}</div></CardContent>
+          <CardContent className="relative">
+            <FunnelIllustration className="absolute right-3 top-2 h-9 w-9 opacity-20" />
+            <div className="relative z-10 text-2xl font-bold">{totalLeads ?? 0}</div>
+          </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Active Leads</CardTitle>
           </CardHeader>
-          <CardContent><div className="text-2xl font-bold">{activeLeads ?? 0}</div></CardContent>
+          <CardContent className="relative">
+            <TargetIllustration className="absolute right-3 top-2 h-9 w-9 opacity-20" />
+            <div className="relative z-10 text-2xl font-bold">{activeLeads ?? 0}</div>
+          </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Deals Closed</CardTitle>
           </CardHeader>
-          <CardContent><div className="text-2xl font-bold">{dealsClosed ?? 0}</div></CardContent>
+          <CardContent className="relative">
+            <HandshakeIllustration className="absolute right-3 top-2 h-9 w-9 opacity-20" />
+            <div className="relative z-10 text-2xl font-bold">{dealsClosed ?? 0}</div>
+          </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Revenue</CardTitle>
           </CardHeader>
-          <CardContent><div className="text-2xl font-bold">${revenueGenerated.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div></CardContent>
+          <CardContent className="relative">
+            <RevenueIllustration className="absolute right-3 top-2 h-9 w-9 opacity-20" />
+            <div className="relative z-10 text-2xl font-bold">${revenueGenerated.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+          </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Lost Deals</CardTitle>
           </CardHeader>
-          <CardContent><div className="text-2xl font-bold">{lostDeals ?? 0}</div></CardContent>
+          <CardContent className="relative">
+            <LostDealsIllustration className="absolute right-3 top-2 h-9 w-9 opacity-20" />
+            <div className="relative z-10 text-2xl font-bold">{lostDeals ?? 0}</div>
+          </CardContent>
         </Card>
       </div>
 

@@ -272,7 +272,7 @@ export function PendingApprovalSection({
 
       {isFounder && tab === "team" && (
         <div className="flex items-center gap-2">
-          <Select value={memberFilter} onValueChange={setMemberFilter}>
+          <Select value={memberFilter} onValueChange={(value) => setMemberFilter(value ?? "all")}>
             <SelectTrigger className="text-xs flex-1 w-full">
               <SelectValue />
             </SelectTrigger>
