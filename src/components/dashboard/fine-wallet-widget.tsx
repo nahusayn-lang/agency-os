@@ -147,7 +147,7 @@ export function FineWalletWidget({ fines }: { fines: FineWalletItem[] }) {
                       <div>
                         <label className="text-xs font-medium text-muted-foreground">Comment (optional)</label>
                         <textarea
-                          className="mt-1 w-full rounded-lg border bg-background px-2 py-1.5 text-sm resize-none"
+                          className="mt-1 w-full rounded-lg glass-card px-2 py-1.5 text-sm resize-none"
                           rows={2}
                           value={comment}
                           onChange={(e) => setComment(e.target.value)}

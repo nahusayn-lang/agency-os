@@ -13,7 +13,7 @@ export default function AppBackground() {
   return (
     <div className="fixed inset-0 -z-10" aria-hidden="true">
       <ColorBends
-        colors={["#ff5c7a", "#8a5cff", "#00ffd1"]}
+        colors={["#1a0b2e", "#7f14e3", "#c084fc"]}
         rotation={90}
         speed={0.2}
         scale={1}

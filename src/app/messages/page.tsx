@@ -208,7 +208,7 @@ export default function MessagesPage() {
                       required
                       value={composeType}
                       onChange={(e) => setComposeType(e.target.value)}
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                      className="glass-card flex h-10 w-full rounded-md px-3 py-2 text-sm"
                     >
                       <option value="direct">Direct Message</option>
                       <option value="leave_request">Leave Request</option>
@@ -224,7 +224,7 @@ export default function MessagesPage() {
                         id="recipient_id"
                         name="recipient_id"
                         required
-                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                        className="glass-card flex h-10 w-full rounded-md px-3 py-2 text-sm"
                       >
                         <option value="">Select user</option>
                         {users
@@ -252,7 +252,7 @@ export default function MessagesPage() {
                         id="task_id"
                         name="task_id"
                         required
-                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                        className="glass-card flex h-10 w-full rounded-md px-3 py-2 text-sm"
                       >
                         <option value="">Select task</option>
                         {tasks.map((task) => (

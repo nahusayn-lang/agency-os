@@ -29,7 +29,7 @@ function DateField({
           WebkitTextFillColor: value ? "transparent" : "white",
           colorScheme: "dark",
         }}
-        className={`holiday-date-input w-full text-sm rounded border px-2 py-1.5 bg-background ${
+        className={`holiday-date-input w-full text-sm rounded glass-card px-2 py-1.5 ${
           value ? "text-transparent" : "text-white"
         }`}
       />
@@ -145,7 +145,7 @@ export function HolidaySettings({
         <div className="rounded-lg border p-3 space-y-3">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Add holiday</p>
           <input
-            className="w-full text-sm rounded border px-2 py-1.5 bg-background"
+            className="w-full text-sm rounded glass-card px-2 py-1.5"
             placeholder="Holiday name (e.g. Independence Day)"
             value={name}
             onChange={(e) => setName(e.target.value)}

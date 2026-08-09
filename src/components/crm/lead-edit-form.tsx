@@ -101,7 +101,7 @@ export function LeadEditForm({
           id="stage"
           name="stage"
           defaultValue={lead.stage}
-          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+          className="glass-card flex h-10 w-full rounded-md px-3 py-2 text-sm"
         >
           {LEAD_STAGES.filter((stage) => stage !== "meeting" || lead.stage === "meeting").map(
             (stage) => (
@@ -135,7 +135,7 @@ export function LeadEditForm({
               id="assigned_to"
               name="assigned_to"
               defaultValue={assignedTo}
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              className="glass-card flex h-10 w-full rounded-md px-3 py-2 text-sm"
             >
               {assignees.map((user) => (
                 <option key={user.id} value={user.id}>

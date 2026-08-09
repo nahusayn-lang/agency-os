@@ -253,7 +253,7 @@ export function NotificationBell({ userId }: { userId: string }) {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 z-50 w-80 rounded-md border border-border bg-popover p-2 shadow-md text-popover-foreground">
+        <div className="glass-card absolute right-0 mt-2 z-50 w-80 rounded-md p-2 shadow-md text-popover-foreground">
           <div className="flex items-center justify-between border-b border-border pb-2 mb-2 px-2">
             <span className="text-xs font-semibold">Notifications</span>
             <div className="flex items-center gap-2">

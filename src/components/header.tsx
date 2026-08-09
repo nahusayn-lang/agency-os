@@ -45,7 +45,7 @@ export default async function Header() {
   return (
     <>
       <Sidebar />
-      <header className="border-b border-violet-400/[0.12] bg-[#0e0526] lg:ml-64 sticky top-0 z-30">
+      <header className="glass-card rounded-none border-x-0 border-t-0 lg:ml-64 sticky top-0 z-30">
         <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4">
           <div className="flex items-center gap-3">
             <SidebarClient profile={{ id: profile.id, name: displayName, role: profile.role, email: profile.email, dashboardPath }} />

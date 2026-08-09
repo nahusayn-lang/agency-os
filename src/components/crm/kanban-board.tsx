@@ -222,14 +222,14 @@ function AssigneeDropdown({
       </button>
 
       {open && (
-        <div className="absolute right-0 z-20 mt-1.5 w-56 max-w-[80vw] rounded-lg border bg-popover shadow-lg overflow-hidden">
+        <div className="absolute right-0 z-20 mt-1.5 w-56 max-w-[80vw] glass-card rounded-lg shadow-lg overflow-hidden">
           <div className="p-1.5 border-b">
             <input
               ref={inputRef}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search name..."
-              className="w-full rounded-md border bg-background px-2 py-1.5 text-xs outline-none focus:ring-1 focus:ring-primary"
+              className="glass-card w-full rounded-md px-2 py-1.5 text-xs outline-none focus:ring-1 focus:ring-primary"
             />
           </div>
 
@@ -372,7 +372,7 @@ function LastContactChip({
       </button>
 
       {open && (
-        <div className="absolute left-0 z-20 mt-1.5 w-48 rounded-lg border bg-popover shadow-lg p-1.5 space-y-1">
+        <div className="absolute left-0 z-20 mt-1.5 w-48 glass-card rounded-lg shadow-lg p-1.5 space-y-1">
           <button
             type="button"
             onClick={() => {
@@ -438,7 +438,7 @@ function NextFollowupChip({
       </button>
 
       {open && (
-        <div className="absolute left-0 z-20 mt-1.5 w-48 rounded-lg border bg-popover shadow-lg p-1.5 space-y-1">
+        <div className="absolute left-0 z-20 mt-1.5 w-48 glass-card rounded-lg shadow-lg p-1.5 space-y-1">
           <div className="flex gap-1">
             {[
               { label: "Tomorrow", days: 1 },
@@ -535,7 +535,7 @@ function MeetingModal({
       onClick={onClose}
     >
       <div
-        className="w-full sm:max-w-sm rounded-xl border bg-card p-4 space-y-4 shadow-xl"
+        className="w-full sm:max-w-sm glass-card rounded-xl p-4 space-y-4 shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div>
@@ -571,7 +571,7 @@ function MeetingModal({
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="w-full rounded-md border bg-background px-2 py-1.5 text-sm outline-none focus:ring-1 focus:ring-primary"
+              className="glass-card w-full rounded-md px-2 py-1.5 text-sm outline-none focus:ring-1 focus:ring-primary"
             />
           </label>
           <label className="space-y-1 block">
@@ -581,7 +581,7 @@ function MeetingModal({
               value={time}
               step={900}
               onChange={(e) => setTime(e.target.value)}
-              className="w-full rounded-md border bg-background px-2 py-1.5 text-sm outline-none focus:ring-1 focus:ring-primary"
+              className="glass-card w-full rounded-md px-2 py-1.5 text-sm outline-none focus:ring-1 focus:ring-primary"
             />
           </label>
         </div>
@@ -593,7 +593,7 @@ function MeetingModal({
             onChange={(e) => setNote(e.target.value)}
             rows={2}
             placeholder="Agenda / what to discuss..."
-            className="w-full rounded-md border bg-background px-2 py-1.5 text-sm outline-none focus:ring-1 focus:ring-primary resize-none"
+            className="glass-card w-full rounded-md px-2 py-1.5 text-sm outline-none focus:ring-1 focus:ring-primary resize-none"
           />
         </label>
 
@@ -707,7 +707,7 @@ function LeadCard({
     <div
       {...(canSelect ? longPress : {})}
       className={
-        "group relative rounded-xl border bg-card p-4 space-y-3 transition-colors " +
+        "group relative glass-card rounded-xl p-4 space-y-3 transition-colors " +
         (selected
           ? "border-primary bg-primary/[0.04]"
           : "hover:border-primary/40")
@@ -1149,13 +1149,13 @@ export function KanbanBoard({
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search name, business, phone..."
-          className="w-full sm:w-56 rounded-lg border bg-background px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-primary"
+          className="glass-card w-full sm:w-56 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-primary"
         />
 
         <select
           value={assignedToFilter}
           onChange={(e) => setAssignedToFilter(e.target.value)}
-          className="rounded-lg border bg-background px-2.5 py-1.5 text-sm outline-none focus:ring-1 focus:ring-primary"
+          className="glass-card rounded-lg px-2.5 py-1.5 text-sm outline-none focus:ring-1 focus:ring-primary"
         >
           <option value="all">All assignees</option>
           {assignableUsers.map((u) => (
@@ -1168,7 +1168,7 @@ export function KanbanBoard({
         <select
           value={followupFilter}
           onChange={(e) => setFollowupFilter(e.target.value as FollowupFilter)}
-          className="rounded-lg border bg-background px-2.5 py-1.5 text-sm outline-none focus:ring-1 focus:ring-primary"
+          className="glass-card rounded-lg px-2.5 py-1.5 text-sm outline-none focus:ring-1 focus:ring-primary"
         >
           <option value="all">All follow-ups</option>
           <option value="overdue">Overdue</option>
@@ -1205,7 +1205,7 @@ export function KanbanBoard({
               onChange={(e) => {
                 if (e.target.value) handleBulkMove(e.target.value as LeadStage);
               }}
-              className="rounded-md border bg-background px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
+              className="glass-card rounded-md px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
             >
               <option value="" disabled>
                 Move to...
@@ -1224,7 +1224,7 @@ export function KanbanBoard({
                 onChange={(e) => {
                   if (e.target.value) handleBulkAssign(e.target.value);
                 }}
-                className="rounded-md border bg-background px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
+                className="glass-card rounded-md px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
               >
                 <option value="" disabled>
                   Assign to...
@@ -1263,7 +1263,7 @@ export function KanbanBoard({
               className={
                 "flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-all border " +
                 (isActive
-                  ? c.tab + " bg-card border-current"
+                  ? c.tab + " glass-card border-current"
                   : "border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/50")
               }
             >

@@ -54,7 +54,7 @@ export function TaskActions({ taskId, status, role }: TaskActionsProps) {
       {showRevisionInput ? (
         <div className="space-y-2">
           <textarea
-            className="w-full text-sm rounded border px-2 py-1 bg-background"
+            className="w-full text-sm rounded glass-card px-2 py-1"
             placeholder="Revision ka reason likho"
             value={revisionReason}
             onChange={(e) => setRevisionReason(e.target.value)}

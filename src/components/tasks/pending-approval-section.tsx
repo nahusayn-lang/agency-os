@@ -266,7 +266,7 @@ export function PendingApprovalSection({
       {isFounder && tab === "team" && (
         <div className="flex items-center gap-2">
           <select
-            className="text-xs rounded border px-2 py-1.5 bg-background flex-1"
+            className="text-xs rounded glass-card px-2 py-1.5 flex-1"
             value={memberFilter}
             onChange={(e) => setMemberFilter(e.target.value)}
           >
@@ -278,7 +278,7 @@ export function PendingApprovalSection({
             ))}
           </select>
           <select
-            className="text-xs rounded border px-2 py-1.5 bg-background flex-1"
+            className="text-xs rounded glass-card px-2 py-1.5 flex-1"
             value={dateFilter}
             onChange={(e) => setDateFilter(e.target.value as typeof dateFilter)}
           >
@@ -305,7 +305,7 @@ export function PendingApprovalSection({
             return (
               <div
                 key={task.id}
-                className={`rounded-xl border border-l-4 ${BORDER_COLOR[task.status]} bg-card overflow-hidden transition-shadow hover:shadow-sm`}
+                className={`glass-card rounded-xl border-l-4 ${BORDER_COLOR[task.status]} overflow-hidden transition-shadow hover:shadow-sm`}
               >
                 {/* Collapsed content — always visible, no click required */}
                 <div className="flex items-start justify-between gap-2 px-3.5 py-3 sm:px-4">
@@ -425,7 +425,7 @@ export function PendingApprovalSection({
                       <div className="space-y-2 rounded-lg border border-destructive/30 bg-destructive/5 p-3">
                         <textarea
                           autoFocus
-                          className="w-full text-sm rounded-md border px-2.5 py-2 bg-background focus:outline-none focus:ring-2 focus:ring-destructive/40"
+                          className="w-full text-sm rounded-md glass-card px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-destructive/40"
                           placeholder="Revision ka reason likho (optional)"
                           value={reason}
                           onChange={(e) => setReason(e.target.value)}

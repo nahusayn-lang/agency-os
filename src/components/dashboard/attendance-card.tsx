@@ -292,7 +292,7 @@ export function AttendanceCard({
       {/* Daily Report Modal — checkout ke baad mandatory */}
       {showReportModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="w-full max-w-lg rounded-xl border border-border bg-background shadow-2xl">
+          <div className="glass-card w-full max-w-lg rounded-xl shadow-2xl">
             <div className="p-6 space-y-4">
               <div>
                 <h2 className="text-lg font-semibold">Daily Report</h2>

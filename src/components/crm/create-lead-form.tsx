@@ -38,7 +38,7 @@ export async function CreateLeadForm() {
               name="stage"
               required
               defaultValue="new_lead"
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              className="glass-card flex h-10 w-full rounded-md px-3 py-2 text-sm"
             >
               {LEAD_STAGES.map((stage) => (
                 <option key={stage} value={stage}>
@@ -53,7 +53,7 @@ export async function CreateLeadForm() {
               id="assigned_to"
               name="assigned_to"
               required
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              className="glass-card flex h-10 w-full rounded-md px-3 py-2 text-sm"
             >
               <option value="">Select user</option>
               {users.map((user) => (

@@ -69,6 +69,16 @@
   accent-color: #7f14e3;
 }
 
+/* Shared glass surface — used by every card, modal, and dropdown panel
+   across the app so the glassmorphic look stays consistent everywhere,
+   not just on the shared <Card> component. */
+.glass-card {
+  background-color: hsl(var(--card) / 0.4);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

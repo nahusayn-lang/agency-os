@@ -202,7 +202,7 @@ export function TaskCard({ task, assignerName, assignerRole }: TaskCardProps) {
 
   return (
     <div
-      className={`rounded-xl border border-l-4 ${borderColor} bg-card shadow-sm transition-all duration-200`}
+      className={`glass-card rounded-xl border-l-4 ${borderColor} shadow-sm transition-all duration-200`}
     >
       {/* ── COLLAPSED HEADER ── */}
       <button

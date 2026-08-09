@@ -35,7 +35,7 @@ function NameForm({ userId, name }: { userId: string; name: string }) {
           setSaved(false);
         }}
         placeholder="Name"
-        className="flex-1 min-w-0 border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground"
+        className="glass-card flex-1 min-w-0 rounded-lg px-3 py-2 text-sm text-foreground"
       />
       <button
         type="button"
@@ -84,7 +84,7 @@ function ShiftForm({ userId, shiftStart, shiftEnd }: { userId: string; shiftStar
           setStart(e.target.value);
           setSaved(false);
         }}
-        className="flex-1 border border-border rounded-lg px-2 py-2 text-sm bg-background text-foreground"
+        className="glass-card flex-1 rounded-lg px-2 py-2 text-sm text-foreground"
       />
       <span className="text-xs text-muted-foreground shrink-0">to</span>
       <input
@@ -94,7 +94,7 @@ function ShiftForm({ userId, shiftStart, shiftEnd }: { userId: string; shiftStar
           setEnd(e.target.value);
           setSaved(false);
         }}
-        className="flex-1 border border-border rounded-lg px-2 py-2 text-sm bg-background text-foreground"
+        className="glass-card flex-1 rounded-lg px-2 py-2 text-sm text-foreground"
       />
       <button
         type="button"
@@ -128,7 +128,7 @@ export function UsersList({ rows, isSuperAdmin }: { rows: AdminUserRow[]; isSupe
       {rows.map((u) => {
         const isOpen = openId === u.id;
         return (
-          <div key={u.id} className="rounded-xl border border-border bg-card overflow-hidden">
+          <div key={u.id} className="glass-card rounded-xl overflow-hidden">
             <button
               type="button"
               onClick={() => setOpenId(isOpen ? null : u.id)}
@@ -175,7 +175,7 @@ export function UsersList({ rows, isSuperAdmin }: { rows: AdminUserRow[]; isSupe
                   <select
                     name="role"
                     defaultValue={u.role}
-                    className="flex-1 border border-border rounded-lg px-3 py-2 bg-background text-sm text-foreground"
+                    className="glass-card flex-1 rounded-lg px-3 py-2 text-sm text-foreground"
                   >
                     <option value="member">member</option>
                     <option value="admin">admin</option>

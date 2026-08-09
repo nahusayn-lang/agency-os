@@ -45,7 +45,7 @@ export function FineAmountSetting({ fineAmount }: { fineAmount: number }) {
           <input
             type="number"
             min={1}
-            className="w-24 rounded border px-2 py-1 text-sm bg-background"
+            className="w-24 rounded glass-card px-2 py-1 text-sm"
             value={amountInput}
             onChange={(e) => {
               setAmountInput(e.target.value);

@@ -201,7 +201,7 @@ export function FineStatusTabs({
                       <Input type="file" accept="image/*" className="mt-1" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
                     </div>
                     <textarea
-                      className="w-full rounded-lg border bg-background px-2 py-1.5 text-sm resize-none"
+                      className="w-full rounded-lg glass-card px-2 py-1.5 text-sm resize-none"
                       rows={2}
                       placeholder="Comment (optional)"
                       value={comment}

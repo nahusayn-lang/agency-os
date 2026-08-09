@@ -90,7 +90,7 @@ export function StrikeControlPanel({ strikes, fineAmount }: { strikes: StrikeRow
             <input
               type="number"
               min={1}
-              className="w-24 rounded border px-2 py-1 text-sm bg-background"
+              className="w-24 rounded glass-card px-2 py-1 text-sm"
               value={amountInput}
               onChange={(e) => {
                 setAmountInput(e.target.value);
@@ -118,7 +118,7 @@ export function StrikeControlPanel({ strikes, fineAmount }: { strikes: StrikeRow
             {openId === strike.id ? (
               <div className="flex items-center gap-2">
                 <input
-                  className="text-xs rounded border px-2 py-1 bg-background"
+                  className="text-xs rounded glass-card px-2 py-1"
                   placeholder="Reason"
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}

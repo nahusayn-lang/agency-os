@@ -14,9 +14,9 @@ export default async function Sidebar() {
   const linkClass = "flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-white/40 hover:text-white/80 hover:bg-violet-500/10 transition-colors";
 
   return (
-    <aside className="hidden lg:flex lg:flex-col lg:fixed lg:inset-y-0 lg:w-64 lg:z-40 bg-[#0e0526] border-r border-violet-400/[0.12]">
+    <aside className="glass-card hidden lg:flex lg:flex-col lg:fixed lg:inset-y-0 lg:w-64 lg:z-40 lg:rounded-none lg:border-y-0 lg:border-l-0">
       <div className="flex flex-col h-full">
-        <div className="flex items-center gap-3 px-4 py-5 border-b border-violet-400/[0.12]">
+        <div className="flex items-center gap-3 px-4 py-5 border-b border-white/10">
           <div className="w-7 h-7 rounded-lg bg-violet-500/20 flex items-center justify-center">
             <span className="text-violet-300 text-xs font-bold">A</span>
           </div>
@@ -48,7 +48,7 @@ export default async function Sidebar() {
             <FileText size={15} /> Reports
           </Link>
 
-          <div className="border-t border-violet-400/[0.12] my-3" />
+          <div className="border-t border-white/10 my-3" />
 
           <p className="text-[10px] text-white/25 uppercase tracking-widest px-3 pb-1">Tracking</p>
           <Link href="/attendance" className={linkClass}>
@@ -66,7 +66,7 @@ export default async function Sidebar() {
 
           {isFounder && (
             <>
-              <div className="border-t border-violet-400/[0.12] my-3" />
+              <div className="border-t border-white/10 my-3" />
               <p className="text-[10px] text-white/25 uppercase tracking-widest px-3 pb-1">Admin</p>
               <Link href="/admin/users" className={linkClass}>
                 <Users size={15} /> Users
@@ -75,7 +75,7 @@ export default async function Sidebar() {
           )}
         </nav>
 
-        <div className="px-3 py-4 border-t border-violet-400/[0.12]">
+        <div className="px-3 py-4 border-t border-white/10">
           <LogoutButton />
         </div>
       </div>

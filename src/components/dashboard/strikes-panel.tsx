@@ -200,7 +200,7 @@ export function StrikesPanel({ strikes }: { strikes: StrikeRow[] }) {
                         {removeReasonFor === current.id ? (
                           <div className="flex items-center gap-1.5">
                             <input
-                              className="text-xs rounded border px-2 py-1 bg-background flex-1"
+                              className="text-xs rounded glass-card px-2 py-1 flex-1"
                               placeholder="Reason"
                               value={reasonText}
                               onChange={(e) => setReasonText(e.target.value)}
@@ -290,7 +290,7 @@ export function StrikesPanel({ strikes }: { strikes: StrikeRow[] }) {
                             removeReasonFor === s.id ? (
                               <div className="flex items-center gap-1">
                                 <input
-                                  className="text-[11px] rounded border px-1.5 py-0.5 bg-background w-20"
+                                  className="text-[11px] rounded glass-card px-1.5 py-0.5 w-20"
                                   placeholder="Reason"
                                   value={reasonText}
                                   onChange={(e) => setReasonText(e.target.value)}

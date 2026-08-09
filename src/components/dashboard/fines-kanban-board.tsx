@@ -71,7 +71,7 @@ export function FinesKanbanBoard({
       <div className="flex items-center justify-between gap-2">
         <h3 className="text-sm font-medium text-white/70">Fines</h3>
         <select
-          className="text-xs rounded border px-2 py-1 bg-background"
+          className="text-xs rounded glass-card px-2 py-1"
           value={employeeFilter}
           onChange={(e) => setEmployeeFilter(e.target.value)}
         >
