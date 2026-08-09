@@ -3,6 +3,7 @@ import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import { cn } from "@/lib/utils";
 import { AppSplash } from "@/components/app-splash";
+import AppBackground from "@/components/app-background";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -43,6 +44,7 @@ export default function RootLayout({
         />
       </head>
       <body className={cn("min-h-screen bg-background font-sans antialiased", GeistSans.className)}>
+        <AppBackground />
         <AppSplash />
         <div id="app-content">{children}</div>
       </body>
