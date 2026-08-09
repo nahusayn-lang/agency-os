@@ -14,7 +14,7 @@ export default async function Sidebar() {
   const linkClass = "flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-white/40 hover:text-white/80 hover:bg-violet-500/10 transition-colors";
 
   return (
-    <aside className="glass-card hidden lg:flex lg:flex-col lg:fixed lg:inset-y-0 lg:w-64 lg:z-40 lg:rounded-none lg:border-y-0 lg:border-l-0">
+    <aside className="sidebar-glass hidden lg:flex lg:flex-col lg:fixed lg:inset-y-0 lg:w-64 lg:z-40 lg:rounded-none lg:border-y-0 lg:border-l-0">
       <div className="flex flex-col h-full">
         <div className="flex items-center gap-3 px-4 py-5 border-b border-white/10">
           <div className="w-7 h-7 rounded-lg bg-violet-500/20 flex items-center justify-center">

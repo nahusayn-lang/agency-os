@@ -5,6 +5,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Card,
   CardContent,
   CardHeader,
@@ -16,7 +23,7 @@ function formatAssigneeLabel(
   currentUserId: string,
   userId: string
 ): string {
-  const base = `${user.name} (${user.email})`;
+  const base = user.name;
   if (userId === currentUserId) {
     return `${base} — You`;
   }
@@ -47,17 +54,17 @@ export async function CreateTaskForm() {
           </div>
           <div className="space-y-2">
             <Label htmlFor="priority">Priority</Label>
-            <select
-              id="priority"
-              name="priority"
-              className="glass-card flex h-10 w-full rounded-md px-3 py-2 text-sm"
-              defaultValue="medium"
-            >
-              <option value="low">Low</option>
-              <option value="medium">Medium</option>
-              <option value="high">High</option>
-              <option value="urgent">Urgent</option>
-            </select>
+            <Select name="priority" defaultValue="medium">
+              <SelectTrigger id="priority" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="low">Low</SelectItem>
+                <SelectItem value="medium">Medium</SelectItem>
+                <SelectItem value="high">High</SelectItem>
+                <SelectItem value="urgent">Urgent</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div className="space-y-2">
             <Label htmlFor="deadline">Deadline</Label>
@@ -65,19 +72,18 @@ export async function CreateTaskForm() {
           </div>
           <div className="space-y-2 md:col-span-2">
             <Label htmlFor="assigned_to">Assign to</Label>
-            <select
-              id="assigned_to"
-              name="assigned_to"
-              required
-              className="glass-card flex h-10 w-full rounded-md px-3 py-2 text-sm"
-            >
-              <option value="">Select user</option>
-              {members.map((member) => (
-                <option key={member.id} value={member.id}>
-                  {formatAssigneeLabel(member, profile.id, member.id)}
-                </option>
-              ))}
-            </select>
+            <Select name="assigned_to" required>
+              <SelectTrigger id="assigned_to" className="w-full">
+                <SelectValue placeholder="Select user" />
+              </SelectTrigger>
+              <SelectContent>
+                {members.map((member) => (
+                  <SelectItem key={member.id} value={member.id}>
+                    {formatAssigneeLabel(member, profile.id, member.id)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="md:col-span-2">
             <SubmitButton loadingText="Creating task...">Create task</SubmitButton>

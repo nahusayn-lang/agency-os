@@ -1,5 +1,6 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { LogoutButton } from "@/components/logout-button";
 import { LayoutDashboard, ClipboardList, CheckSquare, BookUser, Mail, FileText, CalendarCheck, BarChart2, Target, Users, Wallet, X, Menu } from "lucide-react";
@@ -8,6 +9,11 @@ export default function SidebarClient({ profile }: {
   profile: { id: string; name: string; role: string; email?: string; dashboardPath: string } 
 }) {
   const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const isFounder = profile.role === "super_admin";
   const showTasksLink = ["admin", "super_admin"].includes(profile.role || "");
@@ -24,10 +30,10 @@ export default function SidebarClient({ profile }: {
         <Menu size={20} />
       </button>
 
-      {open && (
+      {open && mounted && createPortal(
         <div className="fixed inset-0 z-50 lg:hidden">
           <div className="absolute inset-0 bg-black/60" onClick={() => setOpen(false)} />
-          <aside className="glass-card absolute left-0 top-0 bottom-0 w-72 rounded-none border-y-0 border-l-0 flex flex-col">
+          <aside className="sidebar-glass fixed left-0 top-0 bottom-0 w-72 rounded-none border-y-0 border-l-0 flex flex-col">
             <div className="flex items-center justify-between px-4 py-5 border-b border-white/10">
               <div className="flex items-center gap-3">
                 <div className="w-7 h-7 rounded-lg bg-violet-500/20 flex items-center justify-center">
@@ -94,7 +100,8 @@ export default function SidebarClient({ profile }: {
               <LogoutButton />
             </div>
           </aside>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );

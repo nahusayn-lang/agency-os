@@ -7,6 +7,13 @@ import Link from "next/link";
 import { updateTaskStatusAction, addTaskCommentAction } from "@/lib/tasks/actions";
 import { formatDate, formatDateTime } from "@/lib/utils";
 import type { TaskStatus } from "@/lib/types/tasks";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export interface PendingApprovalTask {
   id: string;
@@ -265,28 +272,30 @@ export function PendingApprovalSection({
 
       {isFounder && tab === "team" && (
         <div className="flex items-center gap-2">
-          <select
-            className="text-xs rounded glass-card px-2 py-1.5 flex-1"
-            value={memberFilter}
-            onChange={(e) => setMemberFilter(e.target.value)}
-          >
-            <option value="all">All members</option>
-            {members.map((name) => (
-              <option key={name} value={name}>
-                {name}
-              </option>
-            ))}
-          </select>
-          <select
-            className="text-xs rounded glass-card px-2 py-1.5 flex-1"
-            value={dateFilter}
-            onChange={(e) => setDateFilter(e.target.value as typeof dateFilter)}
-          >
-            <option value="all">Any date</option>
-            <option value="today">Today</option>
-            <option value="week">This week</option>
-            <option value="month">This month</option>
-          </select>
+          <Select value={memberFilter} onValueChange={setMemberFilter}>
+            <SelectTrigger className="text-xs flex-1 w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All members</SelectItem>
+              {members.map((name) => (
+                <SelectItem key={name} value={name}>
+                  {name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={dateFilter} onValueChange={(v) => setDateFilter(v as typeof dateFilter)}>
+            <SelectTrigger className="text-xs flex-1 w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Any date</SelectItem>
+              <SelectItem value="today">Today</SelectItem>
+              <SelectItem value="week">This week</SelectItem>
+              <SelectItem value="month">This month</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       )}
 
