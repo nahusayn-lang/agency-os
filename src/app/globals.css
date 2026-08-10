@@ -26,6 +26,8 @@
     --violet: 266 80% 58%;
     --violet-dim: 266 80% 58% / 0.15;
     --accent-lime: 96 62% 68%;
+    /* Synced live by the collapsible desktop sidebar so header/main offsets (lg:ml-[var(--sidebar-w)]) shrink/grow along with it. */
+    --sidebar-w: 16rem;
   }
 
   .dark {
@@ -76,6 +78,14 @@
   background-color: hsl(var(--card) / 0.4);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+/* Sidebar surface — same glass look but with a heavier blur so the
+   sidebar stays fixed in place and reads clearly frosted over content. */
+.sidebar-glass {
+  background-color: hsl(var(--card) / 0.35);
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
@@ -202,5 +212,15 @@ html.splash-pending #app-content {
   scrollbar-width: none;
 }
 .scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Hide the browser's page-level scrollbar app-wide while keeping the
+   page scrollable (mouse wheel / touch / keyboard still work). */
+html {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+html::-webkit-scrollbar {
   display: none;
 }

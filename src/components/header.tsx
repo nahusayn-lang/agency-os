@@ -2,6 +2,8 @@ import Link from "next/link";
 import { requireUserProfile } from "@/lib/auth/session";
 import { getDashboardPathForRole } from "@/lib/auth/roles";
 import { NotificationBell } from "@/components/notification-bell";
+import { MessageDropdown } from "@/components/message-dropdown";
+import { GlobalSearch, MobileGlobalSearch } from "@/components/global-search";
 import Sidebar from "@/components/sidebar";
 import SidebarClient from "@/components/sidebar-client";
 import BottomNav from "@/components/bottom-nav";
@@ -29,7 +31,7 @@ export default async function Header() {
 
   const supabase = createClient();
   const today = getTodayDateString();
-  const { data: coldCallTask } = await supabase
+  const { data: coldCallTask, error: coldCallError } = await supabase
     .from("tasks")
     .select("status, mandatory_target_count")
     .eq("assigned_to", profile.id)
@@ -38,6 +40,10 @@ export default async function Header() {
     .eq("mandatory_date", today)
     .maybeSingle();
 
+  if (coldCallError) {
+    console.error("Cold call task fetch failed:", coldCallError.message);
+  }
+
   const coldCallSubmitted = coldCallTask
     ? !["pending", "in_progress", "paused", "revision_required"].includes(coldCallTask.status)
     : false;
@@ -45,7 +51,7 @@ export default async function Header() {
   return (
     <>
       <Sidebar />
-      <header className="glass-card rounded-none border-x-0 border-t-0 lg:ml-64 sticky top-0 z-30">
+      <header className="glass-card rounded-none border-x-0 border-t-0 lg:ml-[var(--sidebar-w)] transition-[margin-left] duration-300 ease-in-out sticky top-0 z-30">
         <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4">
           <div className="flex items-center gap-3">
             <SidebarClient profile={{ id: profile.id, name: displayName, role: profile.role, email: profile.email, dashboardPath }} />
@@ -53,7 +59,12 @@ export default async function Header() {
               Agency OS
             </Link>
           </div>
+          <div className="hidden sm:flex flex-1 justify-center px-4">
+            <GlobalSearch />
+          </div>
           <div className="flex items-center gap-3">
+            <MobileGlobalSearch />
+            <MessageDropdown />
             <NotificationBell userId={profile.id} />
             <div className="w-7 h-7 rounded-full bg-violet-500/20 flex items-center justify-center">
               <span className="text-violet-300 text-xs font-semibold">
@@ -66,7 +77,7 @@ export default async function Header() {
       </header>
 
       {coldCallTask && !coldCallSubmitted && (
-        <div className="lg:ml-64 sticky top-14 z-20 relative overflow-hidden border-b border-red-500/30 bg-red-950/60 px-3 py-1.5">
+        <div className="lg:ml-[var(--sidebar-w)] transition-[margin-left] duration-300 ease-in-out sticky top-14 z-20 relative overflow-hidden border-b border-red-500/30 bg-red-950/60 px-3 py-1.5">
           <div className="cold-call-shine" />
           <p className="relative mx-auto flex max-w-7xl items-center justify-center gap-1.5 truncate text-center text-sm font-semibold tracking-wide text-red-300">
             <svg

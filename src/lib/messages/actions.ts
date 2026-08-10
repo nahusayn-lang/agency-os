@@ -242,6 +242,38 @@ export async function getLatestNotifications() {
   return data ?? [];
 }
 
+// Latest messages sent TO the current user (inbox), for the header
+// message dropdown — mirrors getLatestNotifications above.
+export async function getLatestInboxMessages() {
+  const profile = await requireUserProfile();
+  const supabase = createClient();
+
+  const { data, error } = await supabase
+    .from("messages")
+    .select(
+      "id, sender_id, title, content, type, is_emergency_checkout, created_at, sender:users!messages_sender_id_fkey(name, email)"
+    )
+    .eq("recipient_id", profile.id)
+    .order("created_at", { ascending: false })
+    .limit(10);
+
+  if (error) {
+    console.error("Failed to load inbox messages:", error.message);
+    return [];
+  }
+
+  return (data ?? []) as unknown as {
+    id: string;
+    sender_id: string;
+    title: string;
+    content: string;
+    type: string;
+    is_emergency_checkout: boolean;
+    created_at: string;
+    sender: { name: string; email: string } | null;
+  }[];
+}
+
 export async function markAllNotificationsAsRead() {
   const profile = await requireUserProfile();
   const supabase = createClient();
