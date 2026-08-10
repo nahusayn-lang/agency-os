@@ -4,7 +4,6 @@ import { useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { AttendanceIllustration } from "@/components/dashboard/stat-illustrations";
 
 interface BlockedTask {
   id: string;
@@ -224,7 +223,6 @@ export function AttendanceCard({
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          <AttendanceIllustration className="absolute right-1 bottom-0 h-20 w-20 opacity-90 pointer-events-none" />
 
           {(shiftStart || shiftEnd) && (
             <p className="text-xs text-muted-foreground">

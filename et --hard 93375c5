@@ -1,0 +1,138 @@
+[33me66d475[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m HEAD@{0}: reset: moving to HEAD~7
+[33m9f1d803[m HEAD@{1}: reset: moving to HEAD~6
+[33m64678fa[m HEAD@{2}: reset: moving to HEAD~5
+[33m071d82d[m HEAD@{3}: reset: moving to HEAD~4
+[33m761b02a[m HEAD@{4}: reset: moving to HEAD~3
+[33md3e3f81[m HEAD@{5}: reset: moving to HEAD~2
+[33m4c4c1b1[m HEAD@{6}: reset: moving to HEAD~1
+[33m93375c5[m HEAD@{7}: commit: Fix: remove leftover merge conflict markers
+[33m4c4c1b1[m HEAD@{8}: commit: Fix: remove leftover merge conflict markers
+[33m3f7aebd[m HEAD@{9}: commit (merge): Merge: resolve sidebar conflicts, keep portal fix
+[33md3e3f81[m HEAD@{10}: commit: Updated project
+[33m7fd748e[m HEAD@{11}: reset: moving to HEAD~2
+[33me818468[m HEAD@{12}: reset: moving to HEAD~1
+[33m77d0bae[m HEAD@{13}: commit: Updated project
+[33me818468[m HEAD@{14}: commit: Updated project
+[33m5dfb87b[m HEAD@{15}: commit: Updated project
+[33m7fd748e[m HEAD@{16}: commit: Updated project
+[33m71fb2e7[m HEAD@{17}: commit: Updated project
+[33m761b02a[m HEAD@{18}: commit: Updated project
+[33mcff20db[m HEAD@{19}: commit: Updated project
+[33m37b8fbf[m HEAD@{20}: commit: Updated project
+[33mab401c2[m HEAD@{21}: commit: Updated project
+[33m071d82d[m HEAD@{22}: commit: Updated project
+[33m6561447[m HEAD@{23}: commit: Updated project
+[33m427b662[m HEAD@{24}: commit: update
+[33m0f1266a[m HEAD@{25}: commit: update
+[33mb0f8539[m HEAD@{26}: commit: Updated project
+[33m64678fa[m HEAD@{27}: commit: Updated project
+[33mfad1395[m HEAD@{28}: commit: Updated project
+[33mfb275e4[m HEAD@{29}: commit: Updated project
+[33m81be0fa[m HEAD@{30}: commit: Updated project
+[33m6ed81b8[m HEAD@{31}: commit: Updated project
+[33m326222a[m HEAD@{32}: commit: Updated project
+[33m9f1d803[m HEAD@{33}: commit: Updated project
+[33m7e41fdb[m HEAD@{34}: commit: Updated project
+[33mfeaf416[m HEAD@{35}: commit: Updated project
+[33m63eb1e5[m HEAD@{36}: commit: Updated project
+[33m385069e[m HEAD@{37}: commit: Updated project
+[33m698659b[m HEAD@{38}: commit: Updated project
+[33m41947c5[m HEAD@{39}: commit: Updated project
+[33me66d475[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m HEAD@{40}: commit: Updated project
+[33m5e4fa6d[m HEAD@{41}: commit: Updated project
+[33m39dd90b[m HEAD@{42}: commit: Updated project
+[33maed7982[m HEAD@{43}: commit: Updated project
+[33md4f2d6f[m HEAD@{44}: commit: Updated project
+[33m42c9b2d[m HEAD@{45}: commit: Updated project
+[33mdb9ccfc[m HEAD@{46}: commit: Updated project
+[33mefc2c02[m HEAD@{47}: commit: Updated project
+[33m0d11c53[m HEAD@{48}: commit: Updated project
+[33ma844690[m HEAD@{49}: commit: Updated project
+[33m1b4f5f4[m HEAD@{50}: commit: Updated project
+[33mf2db467[m HEAD@{51}: commit: Updated project
+[33m22099cf[m HEAD@{52}: commit: Updated project
+[33m5adf501[m HEAD@{53}: commit: Updated project
+[33m23a7a77[m HEAD@{54}: commit: Updated project
+[33m57d135a[m HEAD@{55}: commit: Updated project
+[33m4d76d14[m HEAD@{56}: commit: Updated project
+[33me739fab[m HEAD@{57}: commit: Updated project
+[33m5153e1a[m HEAD@{58}: commit: Updated project
+[33m5de00b3[m HEAD@{59}: commit: Updated project
+[33mf062f5b[m HEAD@{60}: commit: Updated project
+[33mac2131e[m HEAD@{61}: commit: Updated project
+[33m1da5acb[m HEAD@{62}: commit: Updated project
+[33m1358403[m HEAD@{63}: commit: Updated project
+[33mb986c53[m HEAD@{64}: commit: Updated project
+[33m14ea4e3[m HEAD@{65}: commit: Updated project
+[33mdaf1fff[m HEAD@{66}: commit: Updated project
+[33md7c9b2d[m HEAD@{67}: commit: Updated project
+[33mf145982[m HEAD@{68}: commit: Updated project
+[33m276a850[m HEAD@{69}: commit: Updated project
+[33m8abd80b[m HEAD@{70}: commit: Updated project
+[33m7e08d7e[m HEAD@{71}: commit: Updated project
+[33mf11d813[m HEAD@{72}: commit: Updated project
+[33m82e3f27[m HEAD@{73}: commit: Updated project
+[33m486769b[m HEAD@{74}: commit: Updated project
+[33m7fb87e1[m HEAD@{75}: commit: Updated project
+[33mc8dd2f2[m HEAD@{76}: commit: Updated project
+[33medb517a[m HEAD@{77}: commit: Updated project
+[33m8bd6ffe[m HEAD@{78}: commit: Updated project
+[33m0986bae[m HEAD@{79}: commit: Updated project
+[33md116d79[m HEAD@{80}: commit: Updated project
+[33mdb66195[m HEAD@{81}: commit: Updated project
+[33mabdc9d3[m HEAD@{82}: commit: Updated project
+[33m00dfe42[m HEAD@{83}: commit: Updated project
+[33m9803432[m HEAD@{84}: commit: Updated project
+[33mb3c5974[m HEAD@{85}: commit: Updated project
+[33m0c830ee[m HEAD@{86}: commit: Updated project
+[33m1b0e50a[m HEAD@{87}: commit: Updated project
+[33m241ad44[m HEAD@{88}: commit: Updated project
+[33mb812313[m HEAD@{89}: commit: Updated project
+[33m48c9056[m HEAD@{90}: commit: Updated project
+[33mbe4c602[m HEAD@{91}: commit: Updated project
+[33m5116437[m HEAD@{92}: commit: Updated project
+[33mb2601f1[m HEAD@{93}: commit: Updated project
+[33m1c614fe[m HEAD@{94}: commit: Updated project
+[33m4b7c2a1[m HEAD@{95}: commit: Updated project
+[33m239aaae[m HEAD@{96}: commit: Updated project
+[33m0aac7ac[m HEAD@{97}: commit: Updated project
+[33m041ca1f[m HEAD@{98}: commit: trigger deploy
+[33ma06b08f[m HEAD@{99}: commit: trigger deploy
+[33m63111b0[m HEAD@{100}: commit: Updated project
+[33m61c2207[m HEAD@{101}: commit: Updated project
+[33mc9ca014[m HEAD@{102}: commit: Updated project
+[33m76aba64[m HEAD@{103}: commit: Updated project
+[33m6d5b33e[m HEAD@{104}: commit: Updated project
+[33md3f3201[m HEAD@{105}: commit: Updated project
+[33m868026b[m HEAD@{106}: reset: moving to origin/main
+[33m868026b[m HEAD@{107}: reset: moving to HEAD
+[33m868026b[m HEAD@{108}: commit: indigo sidebar, mobile drawer, header update
+[33m4d0a6f7[m HEAD@{109}: commit: UI redesign: indigo theme, sidebar icons, mobile drawer, Hindi text fix
+[33m3ee792b[m HEAD@{110}: commit: Updated project
+[33m04498ca[m HEAD@{111}: commit: Updated project
+[33m5690add[m HEAD@{112}: commit: Updated project
+[33mc75f2e7[m HEAD@{113}: commit: Updated project
+[33m88b8561[m HEAD@{114}: commit: Updated project
+[33m6240e30[m HEAD@{115}: Branch: renamed refs/heads/main to refs/heads/main
+[33m6240e30[m HEAD@{117}: commit: Initial commit
+[33m6077a79[m HEAD@{118}: commit: task accountability implementation
+[33mf18e97b[m HEAD@{119}: commit: checkpoint before task accountability review
+[33m3a1c60a[m HEAD@{120}: reset: moving to HEAD
+[33m3a1c60a[m HEAD@{121}: commit: backup: before mytask
+[33m8273a7c[m HEAD@{122}: commit: sidebar-refactor-complete
+[33m5abe91e[m HEAD@{123}: commit: Fix password reset flow and auth recovery
+[33me1629da[m[33m ([m[1;33mtag: [m[1;33mstable-after-recovery[m[33m)[m HEAD@{124}: commit: Remove incomplete password reset feature
+[33m9f03209[m HEAD@{125}: commit: Safety checkpoint after recovery
+[33m5ddba08[m HEAD@{126}: reset: moving to 5ddba08
+[33m4c4e9ae[m[33m ([m[1;33mtag: [m[1;33msafety-backup[m[33m, [m[1;32mbackup-final[m[33m)[m HEAD@{127}: checkout: moving from 5ddba0870d370e2c27de26acd17cecf289029456 to main
+[33m5ddba08[m HEAD@{128}: checkout: moving from main to 5ddba08
+[33m4c4e9ae[m[33m ([m[1;33mtag: [m[1;33msafety-backup[m[33m, [m[1;32mbackup-final[m[33m)[m HEAD@{129}: reset: moving to 4c4e9ae
+[33m5ddba08[m HEAD@{130}: commit: Agency OS stable before forgot-password
+[33m2e17565[m HEAD@{131}: commit: Phase C and D1 stable checkpoint
+[33m734bc7f[m HEAD@{132}: commit: Phase B reports and weekly targets completed
+[33m78f8f4b[m HEAD@{133}: commit: Phase B checkpoint
+[33m11ccc35[m HEAD@{134}: commit: phase b reports and weekly targets
+[33mbeb080a[m HEAD@{135}: commit: fix duplicate task and lead submissions
+[33mce38396[m HEAD@{136}: Branch: renamed refs/heads/clean-main to refs/heads/main
+[33mce38396[m HEAD@{138}: commit (initial): Agency OS clean history
+[33m4c4e9ae[m[33m ([m[1;33mtag: [m[1;33msafety-backup[m[33m, [m[1;32mbackup-final[m[33m)[m HEAD@{139}: checkout: moving from ma

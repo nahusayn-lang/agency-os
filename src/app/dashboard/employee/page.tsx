@@ -10,12 +10,6 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { AttendanceCard } from "@/components/dashboard/attendance-card";
-import {
-  ColdCallsIllustration,
-  TasksIllustration,
-  WeeklyTargetIllustration,
-  PerformanceIllustration,
-} from "@/components/dashboard/stat-illustrations";
 import { getTodayDateString } from "@/lib/auth/attendance";
 import { getFineAmount, closeStaleShiftSession } from "@/lib/services/strike-fine-engine";
 import { getGlobalOffDayInfo } from "@/lib/services/attendance-settings";
@@ -167,7 +161,6 @@ export default async function EmployeeDashboardPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <ColdCallsIllustration className="absolute right-1 bottom-0 h-20 w-20 opacity-90 pointer-events-none" />
                 <div className="relative z-10 text-2xl font-bold">
                   {coldCallTask.mandatory_actual_count ?? 0}
                   <span className="text-base text-muted-foreground">
@@ -190,7 +183,6 @@ export default async function EmployeeDashboardPage() {
             <CardTitle className="relative z-10 text-sm font-medium">Active Tasks</CardTitle>
           </CardHeader>
           <CardContent>
-            <TasksIllustration className="absolute right-1 bottom-0 h-20 w-20 opacity-90 pointer-events-none" />
             <div className="relative z-10 text-2xl font-bold">{todaysTasks ?? 0}</div>
           </CardContent>
         </Card>
@@ -200,7 +192,6 @@ export default async function EmployeeDashboardPage() {
             <CardTitle className="relative z-10 text-sm font-medium">Weekly Target %</CardTitle>
           </CardHeader>
           <CardContent>
-            <WeeklyTargetIllustration className="absolute right-3 top-2 h-9 w-9 opacity-20" />
             <div className="relative z-10 text-2xl font-bold">{weeklyTargetPercent}%</div>
           </CardContent>
         </Card>
@@ -210,7 +201,6 @@ export default async function EmployeeDashboardPage() {
             <CardTitle className="relative z-10 text-sm font-medium">Performance Score</CardTitle>
           </CardHeader>
           <CardContent>
-            <PerformanceIllustration className="absolute right-3 top-2 h-9 w-9 opacity-20" />
             <div className="relative z-10 text-2xl font-bold">{ownScore?.total_score ?? "—"}</div>
           </CardContent>
         </Card>

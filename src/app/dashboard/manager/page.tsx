@@ -7,15 +7,6 @@ import { getFounderCommitmentForWeek } from "@/lib/founder-commitment/actions";
 import { WeeklyCommitmentCard } from "@/components/dashboard/weekly-commitment-card";
 import { TeamProfilesList } from "@/components/dashboard/team-profiles-list";
 import { AttendanceCard } from "@/components/dashboard/attendance-card";
-import {
-  TasksIllustration,
-  FinesIllustration,
-  FunnelIllustration,
-  TargetIllustration,
-  HandshakeIllustration,
-  RevenueIllustration,
-  LostDealsIllustration,
-} from "@/components/dashboard/stat-illustrations";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { getTodayDateString } from "@/lib/auth/attendance";
 import { getFineAmount, closeStaleShiftSession } from "@/lib/services/strike-fine-engine";
@@ -159,7 +150,6 @@ export default async function ManagerDashboardPage() {
             <CardTitle className="relative z-10 text-sm font-medium">Pending Tasks</CardTitle>
           </CardHeader>
           <CardContent>
-            <TasksIllustration className="absolute right-1 bottom-0 h-20 w-20 opacity-90 pointer-events-none" />
             <div className="relative z-10 text-2xl font-bold">{pendingTasks ?? 0}</div>
           </CardContent>
         </Card>
@@ -173,7 +163,6 @@ export default async function ManagerDashboardPage() {
               )}
             </CardHeader>
             <CardContent>
-              <FinesIllustration className="absolute right-1 bottom-0 h-20 w-20 opacity-90 pointer-events-none" />
               <div className="relative z-10 text-2xl font-bold">{orgFineCount}</div>
             </CardContent>
           </Card>
@@ -182,7 +171,6 @@ export default async function ManagerDashboardPage() {
             <CardTitle className="relative z-10 text-sm font-medium">Total Leads</CardTitle>
           </CardHeader>
           <CardContent>
-            <FunnelIllustration className="absolute right-1 bottom-0 h-20 w-20 opacity-90 pointer-events-none" />
             <div className="relative z-10 text-2xl font-bold">{totalLeads ?? 0}</div>
           </CardContent>
         </Card>
@@ -191,7 +179,6 @@ export default async function ManagerDashboardPage() {
             <CardTitle className="relative z-10 text-sm font-medium">Active Leads</CardTitle>
           </CardHeader>
           <CardContent>
-            <TargetIllustration className="absolute right-1 bottom-0 h-20 w-20 opacity-90 pointer-events-none" />
             <div className="relative z-10 text-2xl font-bold">{activeLeads ?? 0}</div>
           </CardContent>
         </Card>
@@ -200,7 +187,6 @@ export default async function ManagerDashboardPage() {
             <CardTitle className="relative z-10 text-sm font-medium">Deals Closed</CardTitle>
           </CardHeader>
           <CardContent>
-            <HandshakeIllustration className="absolute right-1 bottom-0 h-20 w-20 opacity-90 pointer-events-none" />
             <div className="relative z-10 text-2xl font-bold">{dealsClosed ?? 0}</div>
           </CardContent>
         </Card>
@@ -209,7 +195,6 @@ export default async function ManagerDashboardPage() {
             <CardTitle className="relative z-10 text-sm font-medium">Revenue</CardTitle>
           </CardHeader>
           <CardContent>
-            <RevenueIllustration className="absolute right-1 bottom-0 h-20 w-20 opacity-90 pointer-events-none" />
             <div className="relative z-10 text-2xl font-bold">${revenueGenerated.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
           </CardContent>
         </Card>
@@ -218,7 +203,6 @@ export default async function ManagerDashboardPage() {
             <CardTitle className="relative z-10 text-sm font-medium">Lost Deals</CardTitle>
           </CardHeader>
           <CardContent>
-            <LostDealsIllustration className="absolute right-1 bottom-0 h-20 w-20 opacity-90 pointer-events-none" />
             <div className="relative z-10 text-2xl font-bold">{lostDeals ?? 0}</div>
           </CardContent>
         </Card>
