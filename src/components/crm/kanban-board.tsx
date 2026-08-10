@@ -16,6 +16,13 @@ import {
   type LeadStage,
   type MeetingHistoryEntry,
 } from "@/lib/types/crm";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export interface AssignableUser {
   id: string;
@@ -1152,29 +1159,47 @@ export function KanbanBoard({
           className="glass-card w-full sm:w-56 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-primary"
         />
 
-        <select
+        <Select
           value={assignedToFilter}
-          onChange={(e) => setAssignedToFilter(e.target.value)}
-          className="glass-card rounded-lg px-2.5 py-1.5 text-sm outline-none focus:ring-1 focus:ring-primary"
+          onValueChange={(value) => setAssignedToFilter(value ?? "all")}
+          items={[
+            { value: "all", label: "All assignees" },
+            ...assignableUsers.map((u) => ({ value: u.id, label: u.name })),
+          ]}
         >
-          <option value="all">All assignees</option>
-          {assignableUsers.map((u) => (
-            <option key={u.id} value={u.id}>
-              {u.name}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger className="text-sm">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All assignees</SelectItem>
+            {assignableUsers.map((u) => (
+              <SelectItem key={u.id} value={u.id}>
+                {u.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
-        <select
+        <Select
           value={followupFilter}
-          onChange={(e) => setFollowupFilter(e.target.value as FollowupFilter)}
-          className="glass-card rounded-lg px-2.5 py-1.5 text-sm outline-none focus:ring-1 focus:ring-primary"
+          onValueChange={(v) => setFollowupFilter(v as FollowupFilter)}
+          items={[
+            { value: "all", label: "All follow-ups" },
+            { value: "overdue", label: "Overdue" },
+            { value: "due_today", label: "Due today" },
+            { value: "not_set", label: "Not set" },
+          ]}
         >
-          <option value="all">All follow-ups</option>
-          <option value="overdue">Overdue</option>
-          <option value="due_today">Due today</option>
-          <option value="not_set">Not set</option>
-        </select>
+          <SelectTrigger className="text-sm">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All follow-ups</SelectItem>
+            <SelectItem value="overdue">Overdue</SelectItem>
+            <SelectItem value="due_today">Due today</SelectItem>
+            <SelectItem value="not_set">Not set</SelectItem>
+          </SelectContent>
+        </Select>
 
         {filtersActive && (
           <button
@@ -1199,42 +1224,44 @@ export function KanbanBoard({
           </span>
 
           <div className="flex items-center gap-1.5 flex-wrap">
-            <select
+            <Select
               disabled={pending}
               value=""
-              onChange={(e) => {
-                if (e.target.value) handleBulkMove(e.target.value as LeadStage);
+              onValueChange={(v) => {
+                if (v) handleBulkMove(v as LeadStage);
               }}
-              className="glass-card rounded-md px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
             >
-              <option value="" disabled>
-                Move to...
-              </option>
-              {stages.map((s) => (
-                <option key={s} value={s}>
-                  {LEAD_STAGE_LABELS[s]}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger className="text-xs h-auto py-1">
+                <SelectValue placeholder="Move to..." />
+              </SelectTrigger>
+              <SelectContent>
+                {stages.map((s) => (
+                  <SelectItem key={s} value={s}>
+                    {LEAD_STAGE_LABELS[s]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
             {canReassign && (
-              <select
+              <Select
                 disabled={pending}
                 value=""
-                onChange={(e) => {
-                  if (e.target.value) handleBulkAssign(e.target.value);
+                onValueChange={(v) => {
+                  if (v) handleBulkAssign(v);
                 }}
-                className="glass-card rounded-md px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
               >
-                <option value="" disabled>
-                  Assign to...
-                </option>
-                {assignableUsers.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.name}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger className="text-xs h-auto py-1">
+                  <SelectValue placeholder="Assign to..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {assignableUsers.map((u) => (
+                    <SelectItem key={u.id} value={u.id}>
+                      {u.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             )}
 
             <button

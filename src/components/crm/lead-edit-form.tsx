@@ -12,6 +12,13 @@ import {
   LEAD_STAGE_LABELS,
   type LeadStage,
 } from "@/lib/types/crm";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface LeadEditFormProps {
   lead: {
@@ -97,20 +104,20 @@ export function LeadEditForm({
       </div>
       <div className="space-y-2">
         <Label htmlFor="stage">Stage</Label>
-        <select
-          id="stage"
-          name="stage"
-          defaultValue={lead.stage}
-          className="glass-card flex h-10 w-full rounded-md px-3 py-2 text-sm"
-        >
-          {LEAD_STAGES.filter((stage) => stage !== "meeting" || lead.stage === "meeting").map(
-            (stage) => (
-              <option key={stage} value={stage}>
-                {LEAD_STAGE_LABELS[stage]}
-              </option>
-            )
-          )}
-        </select>
+        <Select name="stage" defaultValue={lead.stage}>
+          <SelectTrigger id="stage" className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {LEAD_STAGES.filter((stage) => stage !== "meeting" || lead.stage === "meeting").map(
+              (stage) => (
+                <SelectItem key={stage} value={stage}>
+                  {LEAD_STAGE_LABELS[stage]}
+                </SelectItem>
+              )
+            )}
+          </SelectContent>
+        </Select>
         {lead.stage !== "meeting" && (
           <p className="text-xs text-muted-foreground">
             Use the Move button on the CRM board to set &quot;Meeting&quot; — date/time is required.
@@ -131,18 +138,18 @@ export function LeadEditForm({
         <div className="space-y-2 md:col-span-2">
           <Label htmlFor="assigned_to">Assigned to</Label>
           {ASSIGNEE_CHANGEABLE_STAGES.includes(lead.stage) ? (
-            <select
-              id="assigned_to"
-              name="assigned_to"
-              defaultValue={assignedTo}
-              className="glass-card flex h-10 w-full rounded-md px-3 py-2 text-sm"
-            >
-              {assignees.map((user) => (
-                <option key={user.id} value={user.id}>
-                  {user.name}
-                </option>
-              ))}
-            </select>
+            <Select name="assigned_to" defaultValue={assignedTo}>
+              <SelectTrigger id="assigned_to" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {assignees.map((user) => (
+                  <SelectItem key={user.id} value={user.id}>
+                    {user.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           ) : (
             <p className="flex h-10 w-full items-center rounded-md border border-input bg-muted px-3 text-sm text-muted-foreground">
               🔒 {assignees.find((u) => u.id === assignedTo)?.name ?? "Locked"} — locked past Call Pending

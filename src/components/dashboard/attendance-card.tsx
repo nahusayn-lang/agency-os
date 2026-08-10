@@ -4,6 +4,7 @@ import { useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { AttendanceIllustration } from "@/components/dashboard/stat-illustrations";
 
 interface BlockedTask {
   id: string;
@@ -204,8 +205,8 @@ export function AttendanceCard({
     <>
       <Card className={`border-2 ${isCheckedIn ? "border-emerald-500/40 bg-emerald-950/20" : checkedOutToday ? "border-emerald-500/20" : "border-border"}`}>
         <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Attendance</CardTitle>
-          <div className="flex flex-col items-end gap-1.5">
+          <CardTitle className="relative z-10 text-sm font-medium">Attendance</CardTitle>
+          <div className="relative z-10 flex flex-col items-end gap-1.5">
             {isCheckedIn && (
               <span className="flex items-center gap-1.5 text-xs font-medium text-emerald-400">
                 <span className="relative flex h-2 w-2">
@@ -223,6 +224,7 @@ export function AttendanceCard({
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
+          <AttendanceIllustration className="absolute right-1 bottom-0 h-20 w-20 opacity-90 pointer-events-none" />
 
           {(shiftStart || shiftEnd) && (
             <p className="text-xs text-muted-foreground">

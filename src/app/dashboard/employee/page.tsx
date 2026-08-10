@@ -10,6 +10,12 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { AttendanceCard } from "@/components/dashboard/attendance-card";
+import {
+  ColdCallsIllustration,
+  TasksIllustration,
+  WeeklyTargetIllustration,
+  PerformanceIllustration,
+} from "@/components/dashboard/stat-illustrations";
 import { getTodayDateString } from "@/lib/auth/attendance";
 import { getFineAmount, closeStaleShiftSession } from "@/lib/services/strike-fine-engine";
 import { getGlobalOffDayInfo } from "@/lib/services/attendance-settings";
@@ -156,12 +162,13 @@ export default async function EmployeeDashboardPage() {
               }`}
             >
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
+                <CardTitle className="relative z-10 text-sm font-medium">
                   Cold Calls {coldCallSubmitted ? "· Submitted" : "· Mandatory"}
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">
+                <ColdCallsIllustration className="absolute right-1 bottom-0 h-20 w-20 opacity-90 pointer-events-none" />
+                <div className="relative z-10 text-2xl font-bold">
                   {coldCallTask.mandatory_actual_count ?? 0}
                   <span className="text-base text-muted-foreground">
                     {" "}
@@ -169,7 +176,7 @@ export default async function EmployeeDashboardPage() {
                   </span>
                 </div>
                 {!coldCallSubmitted && (
-                  <p className="mt-1 text-xs text-muted-foreground">
+                  <p className="relative z-10 mt-1 text-xs text-muted-foreground">
                     Submit before checkout — screenshot required.
                   </p>
                 )}
@@ -180,28 +187,31 @@ export default async function EmployeeDashboardPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Tasks</CardTitle>
+            <CardTitle className="relative z-10 text-sm font-medium">Active Tasks</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{todaysTasks ?? 0}</div>
+            <TasksIllustration className="absolute right-1 bottom-0 h-20 w-20 opacity-90 pointer-events-none" />
+            <div className="relative z-10 text-2xl font-bold">{todaysTasks ?? 0}</div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Weekly Target %</CardTitle>
+            <CardTitle className="relative z-10 text-sm font-medium">Weekly Target %</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{weeklyTargetPercent}%</div>
+            <WeeklyTargetIllustration className="absolute right-3 top-2 h-9 w-9 opacity-20" />
+            <div className="relative z-10 text-2xl font-bold">{weeklyTargetPercent}%</div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Performance Score</CardTitle>
+            <CardTitle className="relative z-10 text-sm font-medium">Performance Score</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{ownScore?.total_score ?? "—"}</div>
+            <PerformanceIllustration className="absolute right-3 top-2 h-9 w-9 opacity-20" />
+            <div className="relative z-10 text-2xl font-bold">{ownScore?.total_score ?? "—"}</div>
           </CardContent>
         </Card>
       </div>

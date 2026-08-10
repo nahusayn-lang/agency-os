@@ -106,7 +106,7 @@ export default async function AttendancePage() {
               const s = getStatusConfig(r.status, today, !!checkin, !!checkout);
 
               return (
-                <li key={r.id} className={`rounded-xl border p-4 ${today ? "border-emerald-500/30 bg-emerald-950/10" : ""}`}>
+                <li key={r.id} className={`glass-card rounded-xl p-4 ${today ? "border-emerald-500/30 bg-emerald-950/10" : ""}`}>
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
@@ -210,7 +210,7 @@ export default async function AttendancePage() {
               </div>
             </div>
 
-            <ul className="divide-y divide-border rounded-xl border overflow-hidden">
+            <ul className="glass-card divide-y divide-border rounded-xl overflow-hidden">
               {sorted.map((r) => {
            const checkin = r.checkin_time ?? r.login_time;
                 const checkout = r.checkout_time ?? r.logout_time;

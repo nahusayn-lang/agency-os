@@ -6,6 +6,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Card,
   CardContent,
   CardHeader,
@@ -33,36 +40,34 @@ export async function CreateLeadForm() {
           </div>
           <div className="space-y-2">
             <Label htmlFor="stage">Stage</Label>
-            <select
-              id="stage"
-              name="stage"
-              required
-              defaultValue="new_lead"
-              className="glass-card flex h-10 w-full rounded-md px-3 py-2 text-sm"
-            >
-              {LEAD_STAGES.map((stage) => (
-                <option key={stage} value={stage}>
-                  {LEAD_STAGE_LABELS[stage]}
-                </option>
-              ))}
-            </select>
+            <Select name="stage" defaultValue="new_lead" required>
+              <SelectTrigger id="stage" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {LEAD_STAGES.map((stage) => (
+                  <SelectItem key={stage} value={stage}>
+                    {LEAD_STAGE_LABELS[stage]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="space-y-2">
             <Label htmlFor="assigned_to">Assign to</Label>
-            <select
-              id="assigned_to"
-              name="assigned_to"
-              required
-              className="glass-card flex h-10 w-full rounded-md px-3 py-2 text-sm"
-            >
-              <option value="">Select user</option>
-              {users.map((user) => (
-                <option key={user.id} value={user.id}>
-                  {user.name} ({user.email})
-                  {user.id === profile.id ? " — You" : ""}
-                </option>
-              ))}
-            </select>
+            <Select name="assigned_to" required>
+              <SelectTrigger id="assigned_to" className="w-full">
+                <SelectValue placeholder="Select user" />
+              </SelectTrigger>
+              <SelectContent>
+                {users.map((user) => (
+                  <SelectItem key={user.id} value={user.id}>
+                    {user.name}
+                    {user.id === profile.id ? " — You" : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="space-y-2">
             <Label htmlFor="name">Contact name (optional)</Label>
