@@ -138,7 +138,7 @@ function SearchResultsList({
 // Desktop: always-visible search bar in the header, dropdown results below.
 export function GlobalSearch() {
   const [isOpen, setIsOpen] = useState(false);
-  const { query, setQuery, results, loading, reset, openResult } = useGlobalSearch();
+  const { query, setQuery, results, loading, openResult } = useGlobalSearch();
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
