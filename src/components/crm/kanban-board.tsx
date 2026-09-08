@@ -744,7 +744,7 @@ function LeadCard({
     <div
       {...(canSelect ? longPress : {})}
       className={
-        "group relative glass-card rounded-xl p-4 space-y-3 transition-colors " +
+        "group relative glass-card rounded-xl p-4 space-y-3 min-w-0 transition-colors " +
         (selected
           ? "border-primary bg-primary/[0.04]"
           : lead.is_hot_lead
