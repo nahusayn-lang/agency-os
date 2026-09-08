@@ -265,6 +265,59 @@ export async function updateLeadStageAction(
 }
 
 /**
+ * Toggle the "hot lead" star — a flag independent of pipeline stage, for
+ * leads the team judges as high-potential and wants to prioritize.
+ */
+export async function toggleLeadHotAction(leadId: string, hot: boolean) {
+  const profile = await requireUserProfile();
+  const supabase = createClient();
+
+  const { data: lead, error: fetchError } = await supabase
+    .from("leads")
+    .select("id, assigned_to, business_name, is_hot_lead")
+    .eq("id", leadId)
+    .single();
+
+  if (fetchError || !lead) {
+    return { error: "Lead not found." };
+  }
+
+  if (profile.role === "member" && lead.assigned_to !== profile.id) {
+    return { error: "You can only update your own leads." };
+  }
+
+  if (lead.is_hot_lead === hot) {
+    return { success: true };
+  }
+
+  const { error: updateError } = await supabase
+    .from("leads")
+    .update({ is_hot_lead: hot })
+    .eq("id", leadId);
+
+  if (updateError) {
+    return { error: updateError.message };
+  }
+
+  await writeLeadAuditEntries(supabase, {
+    leadId,
+    userId: profile.id,
+    changes: [
+      {
+        field: "is_hot_lead",
+        oldValue: lead.is_hot_lead ? "true" : "false",
+        newValue: hot ? "true" : "false",
+      },
+    ],
+  });
+
+  revalidatePath("/crm");
+  revalidatePath(`/crm/${leadId}`);
+
+  return { success: true };
+}
+
+/**
  * Reschedule the meeting for a lead that is already in the "meeting"
  * stage (same popup, reused). The previous meeting_datetime/note gets
  * pushed into meeting_history first, so multi-meeting leads keep a

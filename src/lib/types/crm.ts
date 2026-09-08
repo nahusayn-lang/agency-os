@@ -1,5 +1,6 @@
 export type LeadStage =
   | "new_lead"
+  | "hot_lead"
   | "call_pending"
   | "interested"
   | "meeting"
@@ -33,6 +34,7 @@ export interface Lead {
   meeting_datetime: string | null;
   meeting_note: string | null;
   meeting_history: MeetingHistoryEntry[];
+  is_hot_lead: boolean;
   created_at: string;
 }
 
@@ -52,6 +54,7 @@ export interface LeadWithAssignee extends Lead {
 
 export const LEAD_STAGES: LeadStage[] = [
   "new_lead",
+  "hot_lead",
   "call_pending",
   "interested",
   "meeting",
@@ -64,6 +67,7 @@ export const LEAD_STAGE_LABELS: Record<LeadStage, string> = {
   new_lead: "New Lead",
   call_pending: "Call Pending",
   interested: "Interested",
+  hot_lead: "Hot Lead",
   meeting: "Meeting",
   negotiation: "Negotiation",
   deal_won: "Deal Won",

@@ -9,6 +9,7 @@ import {
   bulkUpdateLeadStageAction,
   bulkUpdateLeadAssigneeAction,
   rescheduleMeetingAction,
+  toggleLeadHotAction,
 } from "@/lib/crm/actions";
 import {
   ASSIGNEE_CHANGEABLE_STAGES,
@@ -42,6 +43,7 @@ export interface KanbanLead {
   meeting_note: string | null;
   meeting_history: MeetingHistoryEntry[];
   notes: string | null;
+  is_hot_lead: boolean;
   assignee: { id: string; name: string };
 }
 
@@ -126,6 +128,11 @@ const STAGE_COLORS: Record<
     tab: "border-purple-500 text-purple-400",
     badge: "bg-purple-500/10 text-purple-400 border-purple-500/20",
     dot: "bg-purple-500",
+  },
+  hot_lead: {
+    tab: "border-amber-500 text-amber-400",
+    badge: "bg-amber-500/10 text-amber-400 border-amber-500/20",
+    dot: "bg-amber-500",
   },
   meeting: {
     tab: "border-cyan-500 text-cyan-400",
@@ -695,6 +702,7 @@ function LeadCard({
   onStageChange,
   onAssigneeChange,
   onDateChange,
+  onToggleHot,
   onRequestMeetingMove,
   onRequestReschedule,
   stages,
@@ -714,6 +722,7 @@ function LeadCard({
     field: "last_contact" | "next_followup",
     iso: string
   ) => void;
+  onToggleHot: (id: string, hot: boolean) => void;
   onRequestMeetingMove: (leadId: string) => void;
   onRequestReschedule: (leadId: string) => void;
   stages: LeadStage[];
@@ -738,6 +747,8 @@ function LeadCard({
         "group relative glass-card rounded-xl p-4 space-y-3 transition-colors " +
         (selected
           ? "border-primary bg-primary/[0.04]"
+          : lead.is_hot_lead
+          ? "border-amber-400/60 bg-amber-400/[0.04] hover:border-amber-400"
           : "hover:border-primary/40")
       }
     >
@@ -808,12 +819,30 @@ function LeadCard({
           )}
         </div>
 
-        <button
-          onClick={() => setShowMove((v) => !v)}
-          className="text-xs text-muted-foreground hover:text-foreground shrink-0 border rounded px-2 py-0.5 transition-colors"
-        >
-          Move
-        </button>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleHot(lead.id, !lead.is_hot_lead);
+            }}
+            disabled={pending}
+            title={lead.is_hot_lead ? "Unmark as hot lead" : "Mark as hot lead"}
+            aria-label={lead.is_hot_lead ? "Unmark as hot lead" : "Mark as hot lead"}
+            className={
+              "text-base leading-none transition-colors " +
+              (lead.is_hot_lead ? "text-amber-400" : "text-muted-foreground/40 hover:text-amber-300")
+            }
+          >
+            {lead.is_hot_lead ? "★" : "☆"}
+          </button>
+          <button
+            onClick={() => setShowMove((v) => !v)}
+            className="text-xs text-muted-foreground hover:text-foreground shrink-0 border rounded px-2 py-0.5 transition-colors"
+          >
+            Move
+          </button>
+        </div>
       </div>
 
       {/* Deal value + quick dates (left, stacked) / assignee (right) */}
@@ -919,6 +948,7 @@ export function KanbanBoard({
   const [assignedToFilter, setAssignedToFilter] = useState<string>("all");
   const [followupFilter, setFollowupFilter] = useState<FollowupFilter>("all");
   const [search, setSearch] = useState("");
+  const [hotOnly, setHotOnly] = useState(false);
 
   // --- Bulk selection ---
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -1053,6 +1083,21 @@ export function KanbanBoard({
     });
   }
 
+  function handleToggleHot(leadId: string, hot: boolean) {
+    const previous = items;
+
+    setItems((cur) =>
+      cur.map((l) => (l.id === leadId ? { ...l, is_hot_lead: hot } : l))
+    );
+
+    startTransition(async () => {
+      const result = await toggleLeadHotAction(leadId, hot);
+      if (result?.error) {
+        setItems(previous);
+      }
+    });
+  }
+
   function handleAssigneeChange(leadId: string, userId: string) {
     const previous = items;
     const newAssignee = assignableUsers.find((u) => u.id === userId);
@@ -1142,6 +1187,10 @@ export function KanbanBoard({
       return false;
     }
 
+    if (hotOnly && !l.is_hot_lead) {
+      return false;
+    }
+
     if (followupFilter !== "all") {
       const bucket = getFollowupBucket(l.next_followup);
       if (followupFilter === "not_set" && bucket !== "not_set") return false;
@@ -1163,7 +1212,7 @@ export function KanbanBoard({
   const visibleLeads = filteredItems.filter((l) => l.stage === activeStage);
 
   const filtersActive =
-    assignedToFilter !== "all" || followupFilter !== "all" || search.trim() !== "";
+    assignedToFilter !== "all" || followupFilter !== "all" || search.trim() !== "" || hotOnly;
 
   const colors = STAGE_COLORS[activeStage];
 
@@ -1224,6 +1273,20 @@ export function KanbanBoard({
           </SelectContent>
         </Select>
 
+        <button
+          type="button"
+          onClick={() => setHotOnly((v) => !v)}
+          className={
+            "flex items-center gap-1 rounded-lg border px-3 py-1.5 text-sm transition-colors " +
+            (hotOnly
+              ? "border-amber-400 bg-amber-400/10 text-amber-400"
+              : "text-muted-foreground hover:text-foreground")
+          }
+        >
+          <span>{hotOnly ? "★" : "☆"}</span>
+          Hot leads
+        </button>
+
         {filtersActive && (
           <button
             type="button"
@@ -1231,6 +1294,7 @@ export function KanbanBoard({
               setSearch("");
               setAssignedToFilter("all");
               setFollowupFilter("all");
+              setHotOnly(false);
             }}
             className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
           >
@@ -1369,6 +1433,7 @@ export function KanbanBoard({
               onStageChange={handleStageChange}
               onAssigneeChange={handleAssigneeChange}
               onDateChange={handleDateChange}
+              onToggleHot={handleToggleHot}
               onRequestMeetingMove={(leadId) =>
                 setMeetingModal({ leadId, mode: "schedule" })
               }
