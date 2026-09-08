@@ -10,6 +10,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { AttendanceCard } from "@/components/dashboard/attendance-card";
+import { FlashTaskCard } from "@/components/dashboard/flash-task-card";
 import { getTodayDateString } from "@/lib/auth/attendance";
 import { getFineAmount, closeStaleShiftSession } from "@/lib/services/strike-fine-engine";
 import { getGlobalOffDayInfo } from "@/lib/services/attendance-settings";
@@ -46,8 +47,8 @@ export default async function EmployeeDashboardPage() {
     fineAmount,
     offDayInfo,
     coldCallTaskResult,
-  ] = await Promise.all([
-    getFounderCommitmentForWeek(weekStart),
+    myFlashTaskResult,
+  ] = await Promise.all([    getFounderCommitmentForWeek(weekStart),
     getLatestPerformanceScoreForUser(profile.id),
     admin
       .from("users")
@@ -94,6 +95,15 @@ export default async function EmployeeDashboardPage() {
       .eq("is_mandatory", true)
       .eq("mandatory_date", today)
       .maybeSingle(),
+    supabase
+      .from("tasks")
+      .select("id, title, description, status, flash_duration_hours, deadline")
+      .eq("assigned_to", profile.id)
+      .eq("is_flash_task", true)
+      .in("status", ["pending", "in_progress"])
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ]);
 
   const userRow = userRowResult.data;
@@ -118,6 +128,7 @@ export default async function EmployeeDashboardPage() {
     (f) => f.status === "pending" || f.status === "submitted"
   ).length;
 
+   const myFlashTask = myFlashTaskResult.data;
   const coldCallTask = coldCallTaskResult.data;
   const coldCallSubmitted = coldCallTask
     ? !["pending", "in_progress", "paused", "revision_required"].includes(coldCallTask.status)
@@ -145,6 +156,8 @@ export default async function EmployeeDashboardPage() {
           pendingFineCount={pendingFineCount}
           fineAmount={fineAmount}
         />
+
+        {myFlashTask && <FlashTaskCard task={myFlashTask} />}
 
         {coldCallTask && (
           <Link href="/my-tasks">

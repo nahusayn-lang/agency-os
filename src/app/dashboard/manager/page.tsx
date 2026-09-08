@@ -7,6 +7,7 @@ import { getFounderCommitmentForWeek } from "@/lib/founder-commitment/actions";
 import { WeeklyCommitmentCard } from "@/components/dashboard/weekly-commitment-card";
 import { TeamProfilesList } from "@/components/dashboard/team-profiles-list";
 import { AttendanceCard } from "@/components/dashboard/attendance-card";
+import { FlashTaskCard } from "@/components/dashboard/flash-task-card";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { getTodayDateString } from "@/lib/auth/attendance";
 import { getFineAmount, closeStaleShiftSession } from "@/lib/services/strike-fine-engine";
@@ -40,9 +41,10 @@ export default async function ManagerDashboardPage() {
     lostDealsResult,
     myFinesResult,
     activeStrikeCountResult,
-    orgFinesResult,
+   orgFinesResult,
     fineAmount,
     offDayInfo,
+    myFlashTaskResult,
   ] = await Promise.all([
     getFounderCommitmentForWeek(weekStart),
     admin
@@ -88,6 +90,15 @@ export default async function ManagerDashboardPage() {
     admin.from("fines").select("id, status"),
     getFineAmount(),
     getGlobalOffDayInfo(today),
+    supabase
+      .from("tasks")
+      .select("id, title, description, status, flash_duration_hours, deadline")
+      .eq("assigned_to", profile.id)
+      .eq("is_flash_task", true)
+      .in("status", ["pending", "in_progress"])
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ]);
 
   const userRow = userRowResult.data;
@@ -116,6 +127,8 @@ export default async function ManagerDashboardPage() {
     (f) => f.status === "pending" || f.status === "submitted"
   ).length;
 
+  const myFlashTask = myFlashTaskResult.data;
+
   // For the Total Fines card — data for the whole team/org (not just your own).
   const orgFines = orgFinesResult.data;
   const orgFineCount = (orgFines ?? []).length;
@@ -143,12 +156,12 @@ export default async function ManagerDashboardPage() {
           reportPending={reportPending}
           activeStrikeCount={activeStrikeCount ?? 0}
           pendingFineCount={pendingFineCount}
-          fineAmount={fineAmount}
+           fineAmount={fineAmount}
         />
+        {myFlashTask && <FlashTaskCard task={myFlashTask} />}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="relative z-10 text-sm font-medium">Pending Tasks</CardTitle>
-          </CardHeader>
+            <CardTitle className="relative z-10 text-sm font-medium">Pending Tasks</CardTitle>          </CardHeader>
           <CardContent>
             <div className="relative z-10 text-2xl font-bold">{pendingTasks ?? 0}</div>
           </CardContent>

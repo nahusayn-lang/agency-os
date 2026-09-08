@@ -41,6 +41,7 @@ export interface KanbanLead {
   meeting_datetime: string | null;
   meeting_note: string | null;
   meeting_history: MeetingHistoryEntry[];
+  notes: string | null;
   assignee: { id: string; name: string };
 }
 
@@ -669,6 +670,26 @@ function MeetingChip({
   );
 }
 
+function NotePreview({ note }: { note: string | null }) {
+  const [expanded, setExpanded] = useState(false);
+  if (!note) return null;
+
+  return (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        setExpanded((v) => !v);
+      }}
+      className="text-[11px] text-muted-foreground text-left w-full rounded-md border border-border/50 bg-muted/30 px-1.5 py-1 hover:bg-muted/50 transition-colors"
+    >
+      <span className={expanded ? "block whitespace-pre-wrap break-words" : "block truncate"}>
+        📝 {note}
+      </span>
+    </button>
+  );
+}
+
 function LeadCard({
   lead,
   onStageChange,
@@ -837,7 +858,9 @@ function LeadCard({
             onSelect={(userId) => onAssigneeChange(lead.id, userId)}
           />
         )}
-      </div>
+       </div>
+
+      <NotePreview note={lead.notes} />
 
       {/* Stage move dropdown */}
       {showMove && (

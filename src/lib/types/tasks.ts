@@ -19,8 +19,12 @@ export interface Task {
   assigned_to: string;
   status: TaskStatus;
   proof_url: string | null;
-  estimated_hours?: number | null;
+   estimated_hours?: number | null;
   total_time_spent_seconds?: number | null;
+  is_flash_task?: boolean;
+  flash_duration_hours?: number | null;
+  flash_strike_issued?: boolean;
+  session_start_time?: string | null;
   created_at: string;
   updated_at: string;
 }

@@ -130,7 +130,7 @@ export async function resetGraceUsage(userId: string, date: Date = new Date()): 
 // STRIKES
 // ============================================================
 
-export type StrikeReason = "late_checkin" | "missed_checkout" | "fine_deadline_missed" | "no_checkin";
+export type StrikeReason = "late_checkin" | "missed_checkout" | "fine_deadline_missed" | "no_checkin" | "flash_task_overdue";
 
 /** Adds a strike, resets grace-usage counter, and checks whether a new fine should be raised. */
 export async function addStrike(
@@ -176,7 +176,8 @@ export async function addStrike(
       late_checkin: "Due to late check-in,",
       missed_checkout: "Due to a missed checkout,",
       fine_deadline_missed: "Due to missing the fine deadline,",
-      no_checkin: "Due to no check-in for the full day,",
+       no_checkin: "Due to no check-in for the full day,",
+      flash_task_overdue: "Due to a Flash Task not finished in time,",
     };
     await notifyUser({
       userId,
@@ -849,4 +850,35 @@ export async function sweepDeadlineReminders(): Promise<{ taskReminders: number;
   }
 
   return { taskReminders: dueTasks?.length ?? 0, fineReminders: dueFines?.length ?? 0 };
+}
+
+export async function sweepOverdueFlashTasks(): Promise<number> {
+  const admin = createAdminClient();
+  const now = new Date().toISOString();
+
+  const { data: overdueTasks, error } = await admin
+    .from("tasks")
+    .select("id, assigned_to, title")
+    .eq("is_flash_task", true)
+    .eq("flash_strike_issued", false)
+    .in("status", ["pending", "in_progress"])
+    .lt("deadline", now);
+
+  if (error) throw new Error(`Failed to sweep flash tasks: ${error.message}`);
+  if (!overdueTasks || overdueTasks.length === 0) return 0;
+
+  let processed = 0;
+
+  for (const task of overdueTasks) {
+    await addStrike(task.assigned_to, "flash_task_overdue", task.id);
+
+    await admin
+      .from("tasks")
+      .update({ flash_strike_issued: true })
+      .eq("id", task.id);
+
+    processed += 1;
+  }
+
+  return processed;
 }

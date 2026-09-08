@@ -9,6 +9,7 @@ import { WeeklyCommitmentCard } from "@/components/dashboard/weekly-commitment-c
 import { OverrideHistoryTable } from "@/components/dashboard/override-history-table";
 import { TeamProfilesList } from "@/components/dashboard/team-profiles-list";
 import { AttendanceCard } from "@/components/dashboard/attendance-card";
+import { FlashTaskCard } from "@/components/dashboard/flash-task-card";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { getTodayDateString } from "@/lib/auth/attendance";
 import { getFineAmount, closeStaleShiftSession } from "@/lib/services/strike-fine-engine";
@@ -47,8 +48,8 @@ export default async function FounderDashboardPage() {
     fineAmount,
     offDayInfo,
     coldCallTasksResult,
-  ] = await Promise.all([
-    getFounderCommitmentForWeek(weekStart),
+    myFlashTaskResult,
+  ] = await Promise.all([    getFounderCommitmentForWeek(weekStart),
     getAllGodModeOverrides(),
     admin
       .from("users")
@@ -99,8 +100,16 @@ export default async function FounderDashboardPage() {
       .eq("is_mandatory", true)
       .eq("mandatory_type", "cold_calls")
       .eq("mandatory_date", today),
+    supabase
+      .from("tasks")
+      .select("id, title, description, status, flash_duration_hours, deadline")
+      .eq("assigned_to", profile.id)
+      .eq("is_flash_task", true)
+      .in("status", ["pending", "in_progress"])
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ]);
-
   const userRow = userRowResult.data;
   const isCheckedIn = userRow?.is_checked_in ?? false;
   const reportPending = userRow?.checkout_report_pending ?? false;
@@ -126,6 +135,8 @@ export default async function FounderDashboardPage() {
   const pendingFineCount = (myFines ?? []).filter(
     (f) => f.status === "pending" || f.status === "submitted"
   ).length;
+
+  const myFlashTask = myFlashTaskResult.data;
 
   // For the Total Fines card — data for the whole team/org (not just your own).
   const orgFines = orgFinesResult.data;
@@ -172,9 +183,10 @@ export default async function FounderDashboardPage() {
           checkedOutToday={checkedOutToday}
           reportPending={reportPending}
           activeStrikeCount={activeStrikeCount ?? 0}
-          pendingFineCount={pendingFineCount}
+         pendingFineCount={pendingFineCount}
           fineAmount={fineAmount}
         />
+        {myFlashTask && <FlashTaskCard task={myFlashTask} />}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="relative z-10 text-sm font-medium">Pending Tasks</CardTitle>

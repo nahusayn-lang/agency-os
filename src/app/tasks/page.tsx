@@ -3,8 +3,9 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { canManageTasks } from "@/lib/tasks/permissions";
 import { CreateTaskForm } from "@/components/tasks/create-task-form";
+import { CreateFlashTaskForm } from "@/components/tasks/create-flash-task-form";
+import { getAssignableMembers } from "@/lib/tasks/actions";
 import { PendingApprovalSection, type PendingApprovalTask } from "@/components/tasks/pending-approval-section";
-
 export default async function TasksPage() {
   const profile = await requireUserProfile();
   const supabase = createClient();
@@ -74,9 +75,15 @@ export default async function TasksPage() {
         </div>
       </div>
 
-      {canManageTasks(profile.role) && (
+       {canManageTasks(profile.role) && (
         <div>
           <CreateTaskForm />
+        </div>
+      )}
+
+      {canManageTasks(profile.role) && (
+        <div>
+          <CreateFlashTaskForm assignableUsers={await getAssignableMembers()} />
         </div>
       )}
 

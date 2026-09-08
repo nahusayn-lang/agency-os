@@ -4,8 +4,8 @@ import {
   sweepOverdueFines,
   sweepAbsentUsers,
   sweepStaleShiftSessions,
-} from "@/lib/services/strike-fine-engine";
-
+  sweepOverdueFlashTasks,
+} from 
 export async function GET(req: Request) {
   const authHeader = req.headers.get("authorization");
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
@@ -16,7 +16,8 @@ export async function GET(req: Request) {
     const staleShiftClosed = await sweepStaleShiftSessions();
     const missedCheckouts = await sweepMissedCheckouts();
     const overdueFineStrikes = await sweepOverdueFines();
-    const absentStrikes = await sweepAbsentUsers();
+   const absentStrikes = await sweepAbsentUsers();
+    const flashTaskStrikes = await sweepOverdueFlashTasks();
 
     return NextResponse.json({
       success: true,
@@ -24,6 +25,7 @@ export async function GET(req: Request) {
       missedCheckouts,
       overdueFineStrikes,
       absentStrikes,
+      flashTaskStrikes,
     });
   } catch (err) {
     return NextResponse.json(
