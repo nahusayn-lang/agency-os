@@ -10,6 +10,7 @@ export interface ColdCallTargetRow {
   name: string;
   override: number | null;
   effectiveTarget: number;
+  exempt: boolean;
 }
 
 export function ColdCallSettings({
@@ -30,6 +31,22 @@ export function ColdCallSettings({
   );
   const [overridePending, setOverridePending] = useState<string | null>(null);
   const [overrideError, setOverrideError] = useState<Record<string, string>>({});
+  const [exemptPending, setExemptPending] = useState<string | null>(null);
+
+  function handleToggleExempt(userId: string, nextExempt: boolean) {
+    setExemptPending(userId);
+    fetch("/api/admin/cold-call-settings/exempt", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, exempt: nextExempt }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.error) return;
+        setMembers((cur) => cur.map((m) => (m.id === userId ? { ...m, exempt: nextExempt } : m)));
+      })
+      .finally(() => setExemptPending(null));
+  }
 
   function handleSaveDefault() {
     const value = Number(defaultInput);
@@ -119,12 +136,16 @@ export function ColdCallSettings({
           <p className="text-sm font-medium">Per-member override</p>
           {members.map((m) => (
             <div key={m.id} className="flex items-center gap-2">
-              <span className="flex-1 text-sm truncate">{m.name}</span>
+              <span className="flex-1 text-sm truncate">
+                {m.name}
+                {m.exempt && <span className="ml-2 text-xs text-muted-foreground">(off)</span>}
+              </span>
               <Input
                 type="number"
                 min={1}
                 placeholder={String(defaultTarget)}
                 value={overrideInputs[m.id] ?? ""}
+                disabled={m.exempt}
                 onChange={(e) =>
                   setOverrideInputs((cur) => ({ ...cur, [m.id]: e.target.value }))
                 }
@@ -133,10 +154,18 @@ export function ColdCallSettings({
               <Button
                 size="sm"
                 variant="outline"
-                disabled={overridePending === m.id}
+                disabled={overridePending === m.id || m.exempt}
                 onClick={() => handleSaveOverride(m.id)}
               >
                 {overridePending === m.id ? "…" : "Save"}
+              </Button>
+              <Button
+                size="sm"
+                variant={m.exempt ? "default" : "destructive"}
+                disabled={exemptPending === m.id}
+                onClick={() => handleToggleExempt(m.id, !m.exempt)}
+              >
+                {exemptPending === m.id ? "…" : m.exempt ? "Turn on" : "Turn off"}
               </Button>
             </div>
           ))}

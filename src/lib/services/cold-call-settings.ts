@@ -71,11 +71,46 @@ export async function resolveColdCallTarget(userId: string): Promise<number> {
   return user?.cold_call_target_override ?? defaultTarget;
 }
 
+/** True if this user should never get the mandatory Cold Calls task. */
+export async function isColdCallExempt(userId: string): Promise<boolean> {
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from("users")
+    .select("cold_call_exempt")
+    .eq("id", userId)
+    .maybeSingle();
+  return data?.cold_call_exempt ?? false;
+}
+
+/** Super_admin-only: turns the mandatory Cold Calls task on/off for one member. */
+export async function setUserColdCallExempt(
+  userId: string,
+  exempt: boolean,
+  updatedBy: string
+): Promise<void> {
+  const admin = createAdminClient();
+  const { error } = await admin.from("users").update({ cold_call_exempt: exempt }).eq("id", userId);
+  if (error) throw new Error(`Failed to update exemption: ${error.message}`);
+
+  await notifyUser({
+    userId,
+    title: "Cold Calls status updated",
+    message: exempt
+      ? "Cold Calls is now off for you — you won't get a daily target."
+      : "Cold Calls is back on for you.",
+    link: "/tasks",
+    type: "cold_call_target_updated",
+  });
+
+  void updatedBy;
+}
+
 export interface ColdCallTargetRow {
   id: string;
   name: string;
   override: number | null;
   effectiveTarget: number;
+  exempt: boolean;
 }
 
 /** For the settings UI: every active member with their resolved target. */
@@ -84,7 +119,7 @@ export async function listColdCallTargets(): Promise<ColdCallTargetRow[]> {
   const [{ data: users }, defaultTarget] = await Promise.all([
     admin
       .from("users")
-      .select("id, name, cold_call_target_override")
+      .select("id, name, cold_call_target_override, cold_call_exempt")
       .eq("role", "member")
       .eq("is_active", true)
       .order("name"),
@@ -96,5 +131,6 @@ export async function listColdCallTargets(): Promise<ColdCallTargetRow[]> {
     name: u.name,
     override: u.cold_call_target_override,
     effectiveTarget: u.cold_call_target_override ?? defaultTarget,
+    exempt: u.cold_call_exempt ?? false,
   }));
 }

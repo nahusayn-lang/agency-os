@@ -2,7 +2,7 @@ import "server-only";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { notifyUser } from "@/lib/notifications/notify";
-import { resolveColdCallTarget } from "@/lib/services/cold-call-settings";
+import { resolveColdCallTarget, isColdCallExempt } from "@/lib/services/cold-call-settings";
 
 /**
  * Called from the check-in route, right after a successful check-in.
@@ -28,6 +28,8 @@ export async function ensureColdCallTaskForCheckin(userId: string, userName: str
       .maybeSingle();
 
     if (!founder) return;
+
+    if (await isColdCallExempt(userId)) return;
 
     const target = await resolveColdCallTarget(userId);
 
