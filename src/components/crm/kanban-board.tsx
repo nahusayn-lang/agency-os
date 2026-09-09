@@ -10,6 +10,7 @@ import {
   bulkUpdateLeadAssigneeAction,
   rescheduleMeetingAction,
   toggleLeadHotAction,
+  deleteLeadAction,
 } from "@/lib/crm/actions";
 import {
   ASSIGNEE_CHANGEABLE_STAGES,
@@ -73,28 +74,49 @@ function getFollowupBucket(iso: string | null): "overdue" | "due_today" | "upcom
 }
 
 /**
- * Long-press (mobile) selection trigger. Ignores presses that start on an
- * interactive child (buttons, links, inputs) so it never hijacks the
+ * Long-press selection trigger (mobile touch + desktop mouse click-and-hold).
+ * Two thresholds: `ms` (default 5s) toggles selection mode; if the hold
+ * continues to `extraMs` (default 9s), `onExtraLongPress` fires instead
+ * (used for the delete-confirmation prompt). Ignores presses that start on
+ * an interactive child (buttons, links, inputs) so it never hijacks the
  * existing Move / assignee / date-chip taps, and cancels itself if the
- * finger moves (i.e. the user was scrolling, not holding).
+ * finger/cursor moves (i.e. the user was scrolling/dragging, not holding)
+ * or the mouse button is released early. A light tap/click or plain mouse
+ * hover never triggers either.
  */
-function useLongPress(onLongPress: () => void, ms = 500) {
+function useLongPress(
+  onLongPress: () => void,
+  ms = 5000,
+  onExtraLongPress?: () => void,
+  extraMs = 9000
+) {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const extraTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const movedRef = useRef(false);
 
   function clear() {
     if (timerRef.current) clearTimeout(timerRef.current);
+    if (extraTimerRef.current) clearTimeout(extraTimerRef.current);
     timerRef.current = null;
+    extraTimerRef.current = null;
   }
 
-  function onTouchStart(e: React.TouchEvent) {
-    const target = e.target as HTMLElement;
+  function start(target: HTMLElement) {
     if (target.closest("button, a, input, label")) return;
     movedRef.current = false;
     clear();
     timerRef.current = setTimeout(() => {
       if (!movedRef.current) onLongPress();
     }, ms);
+    if (onExtraLongPress) {
+      extraTimerRef.current = setTimeout(() => {
+        if (!movedRef.current) onExtraLongPress();
+      }, extraMs);
+    }
+  }
+
+  function onTouchStart(e: React.TouchEvent) {
+    start(e.target as HTMLElement);
   }
 
   function onTouchMove() {
@@ -102,11 +124,28 @@ function useLongPress(onLongPress: () => void, ms = 500) {
     clear();
   }
 
+  function onMouseDown(e: React.MouseEvent) {
+    if (e.button !== 0) return; // left click only
+    start(e.target as HTMLElement);
+  }
+
+  function onMouseMove() {
+    // Only matters while a hold is in progress; harmless no-op otherwise.
+    if (timerRef.current || extraTimerRef.current) {
+      movedRef.current = true;
+      clear();
+    }
+  }
+
   return {
     onTouchStart,
     onTouchMove,
     onTouchEnd: clear,
     onTouchCancel: clear,
+    onMouseDown,
+    onMouseMove,
+    onMouseUp: clear,
+    onMouseLeave: clear,
   };
 }
 
@@ -499,6 +538,61 @@ function NextFollowupChip({
  * meeting. No skip option — a lead can't be in the Meeting stage
  * without an actual scheduled time (that's the whole point).
  */
+function DeleteConfirmModal({
+  open,
+  leadName,
+  pending,
+  onClose,
+  onConfirm,
+}: {
+  open: boolean;
+  leadName: string | null;
+  pending: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+}) {
+  if (!open) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="w-full sm:max-w-sm glass-card rounded-xl p-4 space-y-4 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div>
+          <h3 className="font-semibold text-sm">Delete this lead?</h3>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {leadName ? `"${leadName}"` : "This lead"} and all of its notes/history will be
+            permanently deleted. This can&apos;t be undone.
+          </p>
+        </div>
+
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={pending}
+            className="flex-1 text-sm px-3 py-2 rounded-md border hover:bg-muted transition-colors disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={pending}
+            className="flex-1 text-sm px-3 py-2 rounded-md bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-colors disabled:opacity-50"
+          >
+            {pending ? "Deleting…" : "Delete"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function MeetingModal({
   open,
   mode,
@@ -705,11 +799,13 @@ function LeadCard({
   onToggleHot,
   onRequestMeetingMove,
   onRequestReschedule,
+  onRequestDelete,
   stages,
   pending,
   assignableUsers,
   canReassign,
   canSelect,
+  canDelete,
   selected,
   selectionActive,
   onToggleSelect,
@@ -725,24 +821,39 @@ function LeadCard({
   onToggleHot: (id: string, hot: boolean) => void;
   onRequestMeetingMove: (leadId: string) => void;
   onRequestReschedule: (leadId: string) => void;
+  onRequestDelete: (leadId: string) => void;
   stages: LeadStage[];
   pending: boolean;
   assignableUsers: AssignableUser[];
   canReassign: boolean;
   canSelect: boolean;
+  canDelete: boolean;
   selected: boolean;
   selectionActive: boolean;
   onToggleSelect: (id: string) => void;
 }) {
   const assigneeLocked = !ASSIGNEE_CHANGEABLE_STAGES.includes(lead.stage);
   const [showMove, setShowMove] = useState(false);
-  const longPress = useLongPress(() => {
-    if (canSelect) onToggleSelect(lead.id);
-  });
+  const longPress = useLongPress(
+    () => {
+      if (canSelect) onToggleSelect(lead.id);
+    },
+    5000,
+    canDelete
+      ? () => {
+          // The 5s selection trigger already fired by this point — undo
+          // that side effect so cancelling the delete prompt doesn't leave
+          // the card sitting selected.
+          if (canSelect) onToggleSelect(lead.id);
+          onRequestDelete(lead.id);
+        }
+      : undefined,
+    9000
+  );
 
   return (
     <div
-      {...(canSelect ? longPress : {})}
+      {...(canSelect || canDelete ? longPress : {})}
       className={
         "group relative glass-card rounded-xl p-4 space-y-3 min-w-0 transition-colors " +
         (selected
@@ -752,10 +863,11 @@ function LeadCard({
           : "hover:border-primary/40")
       }
     >
-      {/* Selection checkbox — hidden by default, revealed on hover (desktop)
-          or once any card is selected (so multi-select stays one-tap after
-          the first long-press on mobile). Never shown at all if the current
-          user isn't allowed to bulk-act on this lead (members + others' leads). */}
+      {/* Selection checkbox — hidden until a long-press (5s) activates
+          selection mode, then visible on every card (so multi-select stays
+          one-tap after the first long-press). Never shown on light tap or
+          mouse hover. Never shown at all if the current user isn't allowed
+          to bulk-act on this lead (members + others' leads). */}
       {canSelect && (
         <button
           type="button"
@@ -768,8 +880,8 @@ function LeadCard({
             "absolute left-2 top-2 z-10 flex h-5 w-5 items-center justify-center rounded-md border transition-opacity " +
             (selected
               ? "opacity-100 bg-primary border-primary text-primary-foreground"
-              : "opacity-0 group-hover:opacity-100 bg-background border-border " +
-                (selectionActive ? "opacity-100" : ""))
+              : "bg-background border-border " +
+                (selectionActive ? "opacity-100" : "opacity-0 pointer-events-none"))
           }
         >
           {selected && (
@@ -948,7 +1060,6 @@ export function KanbanBoard({
   const [assignedToFilter, setAssignedToFilter] = useState<string>("all");
   const [followupFilter, setFollowupFilter] = useState<FollowupFilter>("all");
   const [search, setSearch] = useState("");
-  const [hotOnly, setHotOnly] = useState(false);
 
   // --- Bulk selection ---
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -1098,6 +1209,26 @@ export function KanbanBoard({
     });
   }
 
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [deletePending, setDeletePending] = useState(false);
+  const deleteTargetLead = deleteTarget
+    ? items.find((l) => l.id === deleteTarget) ?? null
+    : null;
+
+  function handleConfirmDelete() {
+    if (!deleteTarget) return;
+    const leadId = deleteTarget;
+    setDeletePending(true);
+    startTransition(async () => {
+      const result = await deleteLeadAction(leadId);
+      setDeletePending(false);
+      if (!result?.error) {
+        setItems((cur) => cur.filter((l) => l.id !== leadId));
+        setDeleteTarget(null);
+      }
+    });
+  }
+
   function handleAssigneeChange(leadId: string, userId: string) {
     const previous = items;
     const newAssignee = assignableUsers.find((u) => u.id === userId);
@@ -1187,10 +1318,6 @@ export function KanbanBoard({
       return false;
     }
 
-    if (hotOnly && !l.is_hot_lead) {
-      return false;
-    }
-
     if (followupFilter !== "all") {
       const bucket = getFollowupBucket(l.next_followup);
       if (followupFilter === "not_set" && bucket !== "not_set") return false;
@@ -1212,7 +1339,7 @@ export function KanbanBoard({
   const visibleLeads = filteredItems.filter((l) => l.stage === activeStage);
 
   const filtersActive =
-    assignedToFilter !== "all" || followupFilter !== "all" || search.trim() !== "" || hotOnly;
+    assignedToFilter !== "all" || followupFilter !== "all" || search.trim() !== "";
 
   const colors = STAGE_COLORS[activeStage];
 
@@ -1273,20 +1400,6 @@ export function KanbanBoard({
           </SelectContent>
         </Select>
 
-        <button
-          type="button"
-          onClick={() => setHotOnly((v) => !v)}
-          className={
-            "flex items-center gap-1 rounded-lg border px-3 py-1.5 text-sm transition-colors " +
-            (hotOnly
-              ? "border-amber-400 bg-amber-400/10 text-amber-400"
-              : "text-muted-foreground hover:text-foreground")
-          }
-        >
-          <span>{hotOnly ? "★" : "☆"}</span>
-          Hot leads
-        </button>
-
         {filtersActive && (
           <button
             type="button"
@@ -1294,7 +1407,6 @@ export function KanbanBoard({
               setSearch("");
               setAssignedToFilter("all");
               setFollowupFilter("all");
-              setHotOnly(false);
             }}
             className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
           >
@@ -1445,6 +1557,8 @@ export function KanbanBoard({
               assignableUsers={assignableUsers}
               canReassign={canReassign}
               canSelect={canSelectLead(lead)}
+              canDelete={canSelectLead(lead)}
+              onRequestDelete={(leadId) => setDeleteTarget(leadId)}
               selected={selectedIds.has(lead.id)}
               selectionActive={selectionActive}
               onToggleSelect={toggleSelect}
@@ -1468,6 +1582,14 @@ export function KanbanBoard({
             handleRescheduleMeeting(meetingModal.leadId, isoDatetime, note);
           }
         }}
+      />
+
+      <DeleteConfirmModal
+        open={deleteTarget !== null}
+        leadName={deleteTargetLead?.business_name || deleteTargetLead?.name || null}
+        pending={deletePending}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={handleConfirmDelete}
       />
     </div>
   );

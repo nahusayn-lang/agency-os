@@ -318,6 +318,50 @@ export async function toggleLeadHotAction(leadId: string, hot: boolean) {
 }
 
 /**
+ * Permanently delete a lead (and its audit trail). Members can delete only
+ * their own leads; admins/super_admins can delete any. Triggered from the
+ * card's 9-second long-press delete option, so this is a real, unrecoverable
+ * delete — no soft-delete/undo.
+ */
+export async function deleteLeadAction(leadId: string) {
+  const profile = await requireUserProfile();
+  const supabase = createClient();
+
+  const { data: lead, error: fetchError } = await supabase
+    .from("leads")
+    .select("id, assigned_to, business_name, name")
+    .eq("id", leadId)
+    .single();
+
+  if (fetchError || !lead) {
+    return { error: "Lead not found." };
+  }
+
+  if (profile.role === "member" && lead.assigned_to !== profile.id) {
+    return { error: "You can only delete your own leads." };
+  }
+
+  const { error: auditDeleteError } = await supabase
+    .from("lead_audit")
+    .delete()
+    .eq("lead_id", leadId);
+
+  if (auditDeleteError) {
+    return { error: auditDeleteError.message };
+  }
+
+  const { error: deleteError } = await supabase.from("leads").delete().eq("id", leadId);
+
+  if (deleteError) {
+    return { error: deleteError.message };
+  }
+
+  revalidatePath("/crm");
+
+  return { success: true };
+}
+
+/**
  * Reschedule the meeting for a lead that is already in the "meeting"
  * stage (same popup, reused). The previous meeting_datetime/note gets
  * pushed into meeting_history first, so multi-meeting leads keep a
