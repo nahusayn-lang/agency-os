@@ -30,8 +30,13 @@ export async function CreateLeadForm() {
       </CardHeader>
       <CardContent>
         <form action={createLeadFormAction} className="grid gap-4 md:grid-cols-2">
+          {/* Required fields first — same field set as the Edit Lead form */}
           <div className="space-y-2">
-            <Label htmlFor="business_name">Business name</Label>
+            <Label htmlFor="name">Name</Label>
+            <Input id="name" name="name" required />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="business_name">Address</Label>
             <Input id="business_name" name="business_name" required />
           </div>
           <div className="space-y-2">
@@ -54,7 +59,7 @@ export async function CreateLeadForm() {
             </Select>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="assigned_to">Assign to</Label>
+            <Label htmlFor="assigned_to">Assigned to</Label>
             <Select name="assigned_to" required>
               <SelectTrigger id="assigned_to" className="w-full">
                 <SelectValue placeholder="Select user" />
@@ -70,25 +75,28 @@ export async function CreateLeadForm() {
             </Select>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="name">Contact name (optional)</Label>
-            <Input id="name" name="name" />
+            <Label htmlFor="deal_value">Deal value</Label>
+            <Input id="deal_value" name="deal_value" type="number" step="0.01" required />
           </div>
+          <div className="space-y-2 md:col-span-2">
+            <Label htmlFor="notes">Notes</Label>
+            <Textarea id="notes" name="notes" rows={3} required />
+          </div>
+
+          {/* Optional fields below */}
           <div className="space-y-2">
             <Label htmlFor="email">Email (optional)</Label>
             <Input id="email" name="email" type="email" />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="deal_value">Deal value (optional)</Label>
-            <Input id="deal_value" name="deal_value" type="number" step="0.01" />
+            <Label htmlFor="last_contact">Last contact (optional)</Label>
+            <Input id="last_contact" name="last_contact" type="datetime-local" />
           </div>
           <div className="space-y-2">
             <Label htmlFor="next_followup">Next follow-up (optional)</Label>
             <Input id="next_followup" name="next_followup" type="datetime-local" />
           </div>
-          <div className="space-y-2 md:col-span-2">
-            <Label htmlFor="notes">Notes (optional)</Label>
-            <Textarea id="notes" name="notes" rows={3} />
-          </div>
+
           <div className="md:col-span-2">
             <SubmitButton loadingText="Creating lead...">Create lead</SubmitButton>
           </div>

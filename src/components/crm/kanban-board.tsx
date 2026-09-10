@@ -11,6 +11,7 @@ import {
   rescheduleMeetingAction,
   toggleLeadHotAction,
   deleteLeadAction,
+  bulkDeleteLeadsAction,
 } from "@/lib/crm/actions";
 import {
   ASSIGNEE_CHANGEABLE_STAGES,
@@ -74,15 +75,13 @@ function getFollowupBucket(iso: string | null): "overdue" | "due_today" | "upcom
 }
 
 /**
- * Long-press selection trigger (mobile touch + desktop mouse click-and-hold).
- * Two thresholds: `ms` (default 5s) toggles selection mode; if the hold
- * continues to `extraMs` (default 9s), `onExtraLongPress` fires instead
- * (used for the delete-confirmation prompt). Ignores presses that start on
- * an interactive child (buttons, links, inputs) so it never hijacks the
- * existing Move / assignee / date-chip taps, and cancels itself if the
- * finger/cursor moves (i.e. the user was scrolling/dragging, not holding)
- * or the mouse button is released early. A light tap/click or plain mouse
- * hover never triggers either.
+ * Long-press trigger (mobile touch + desktop mouse click-and-hold), used
+ * only for the delete-confirmation prompt (`onExtraLongPress`, default
+ * 9s). Ignores presses that start on an interactive child (buttons, links,
+ * inputs) so it never hijacks the existing Move / assignee / date-chip
+ * taps, and cancels itself if the finger/cursor moves (i.e. the user was
+ * scrolling/dragging, not holding) or the mouse button is released early.
+ * A light tap/click or plain mouse hover never triggers it.
  */
 function useLongPress(
   onLongPress: () => void,
@@ -541,17 +540,23 @@ function NextFollowupChip({
 function DeleteConfirmModal({
   open,
   leadName,
+  count,
   pending,
+  error,
   onClose,
   onConfirm,
 }: {
   open: boolean;
   leadName: string | null;
+  count?: number;
   pending: boolean;
+  error?: string | null;
   onClose: () => void;
   onConfirm: () => void;
 }) {
   if (!open) return null;
+
+  const isBulk = !!count && count > 1;
 
   return (
     <div
@@ -563,11 +568,19 @@ function DeleteConfirmModal({
         onClick={(e) => e.stopPropagation()}
       >
         <div>
-          <h3 className="font-semibold text-sm">Delete this lead?</h3>
+          <h3 className="font-semibold text-sm">
+            {isBulk ? `Delete ${count} leads?` : "Delete this lead?"}
+          </h3>
           <p className="text-xs text-muted-foreground mt-0.5">
-            {leadName ? `"${leadName}"` : "This lead"} and all of its notes/history will be
-            permanently deleted. This can&apos;t be undone.
+            {isBulk
+              ? `${count} leads will be removed from every CRM view (board, search, dashboards). Their history stays on record.`
+              : `${leadName ? `"${leadName}"` : "This lead"} will be removed from every CRM view (board, search, dashboards). Its history stays on record.`}
           </p>
+          {error && (
+            <p className="text-xs text-destructive mt-2 border border-destructive/30 rounded-md px-2 py-1.5 bg-destructive/5">
+              {error}
+            </p>
+          )}
         </div>
 
         <div className="flex gap-2">
@@ -771,23 +784,112 @@ function MeetingChip({
   );
 }
 
-function NotePreview({ note }: { note: string | null }) {
+function NotePreview({
+  leadId,
+  note,
+  pending,
+  onSave,
+}: {
+  leadId: string;
+  note: string | null;
+  pending: boolean;
+  onSave: (id: string, note: string) => void;
+}) {
   const [expanded, setExpanded] = useState(false);
-  if (!note) return null;
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(note ?? "");
+
+  function startEdit(e: React.MouseEvent) {
+    e.stopPropagation();
+    setDraft(note ?? "");
+    setEditing(true);
+  }
+
+  function cancelEdit(e: React.MouseEvent) {
+    e.stopPropagation();
+    setEditing(false);
+  }
+
+  function saveEdit(e: React.MouseEvent) {
+    e.stopPropagation();
+    const trimmed = draft.trim();
+    if (trimmed && trimmed !== (note ?? "")) {
+      onSave(leadId, trimmed);
+    }
+    setEditing(false);
+  }
+
+  if (editing) {
+    return (
+      <div className="space-y-1" onClick={(e) => e.stopPropagation()}>
+        <textarea
+          autoFocus
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          rows={3}
+          className="w-full text-[11px] rounded-md border border-border bg-background px-1.5 py-1 focus:outline-none focus:ring-1 focus:ring-primary"
+        />
+        <div className="flex justify-end gap-1.5">
+          <button
+            type="button"
+            onClick={cancelEdit}
+            disabled={pending}
+            className="text-[11px] text-muted-foreground hover:text-foreground border rounded px-1.5 py-0.5 transition-colors disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={saveEdit}
+            disabled={pending || !draft.trim()}
+            className="text-[11px] text-primary-foreground bg-primary hover:bg-primary/90 rounded px-1.5 py-0.5 transition-colors disabled:opacity-50"
+          >
+            Save
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!note) {
+    return (
+      <button
+        type="button"
+        onClick={startEdit}
+        className="text-[11px] text-muted-foreground hover:text-foreground text-left w-full rounded-md border border-dashed border-border/50 px-1.5 py-1 hover:bg-muted/30 transition-colors"
+      >
+        + Add note
+      </button>
+    );
+  }
 
   return (
-    <button
-      type="button"
-      onClick={(e) => {
-        e.stopPropagation();
-        setExpanded((v) => !v);
-      }}
-      className="text-[11px] text-muted-foreground text-left w-full rounded-md border border-border/50 bg-muted/30 px-1.5 py-1 hover:bg-muted/50 transition-colors"
-    >
-      <span className={expanded ? "block whitespace-pre-wrap break-words" : "block truncate"}>
-        📝 {note}
-      </span>
-    </button>
+    <div className="group/note flex items-start gap-1">
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          setExpanded((v) => !v);
+        }}
+        className="text-[11px] text-muted-foreground text-left flex-1 min-w-0 rounded-md border border-border/50 bg-muted/30 px-1.5 py-1 hover:bg-muted/50 transition-colors"
+      >
+        <span className={expanded ? "block whitespace-pre-wrap break-words" : "block truncate"}>
+          📝 {note}
+        </span>
+      </button>
+      <button
+        type="button"
+        onClick={startEdit}
+        title="Edit note"
+        aria-label="Edit note"
+        className="shrink-0 text-muted-foreground/50 hover:text-foreground transition-colors px-0.5"
+      >
+        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M12 20h9" strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5Z" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+    </div>
   );
 }
 
@@ -796,6 +898,7 @@ function LeadCard({
   onStageChange,
   onAssigneeChange,
   onDateChange,
+  onNoteChange,
   onToggleHot,
   onRequestMeetingMove,
   onRequestReschedule,
@@ -818,6 +921,7 @@ function LeadCard({
     field: "last_contact" | "next_followup",
     iso: string
   ) => void;
+  onNoteChange: (id: string, note: string) => void;
   onToggleHot: (id: string, hot: boolean) => void;
   onRequestMeetingMove: (leadId: string) => void;
   onRequestReschedule: (leadId: string) => void;
@@ -835,25 +939,15 @@ function LeadCard({
   const assigneeLocked = !ASSIGNEE_CHANGEABLE_STAGES.includes(lead.stage);
   const [showMove, setShowMove] = useState(false);
   const longPress = useLongPress(
-    () => {
-      if (canSelect) onToggleSelect(lead.id);
-    },
+    () => {},
     5000,
-    canDelete
-      ? () => {
-          // The 5s selection trigger already fired by this point — undo
-          // that side effect so cancelling the delete prompt doesn't leave
-          // the card sitting selected.
-          if (canSelect) onToggleSelect(lead.id);
-          onRequestDelete(lead.id);
-        }
-      : undefined,
+    canDelete ? () => onRequestDelete(lead.id) : undefined,
     9000
   );
 
   return (
     <div
-      {...(canSelect || canDelete ? longPress : {})}
+      {...(canDelete ? longPress : {})}
       className={
         "group relative glass-card rounded-xl p-4 space-y-3 min-w-0 transition-colors " +
         (selected
@@ -863,11 +957,10 @@ function LeadCard({
           : "hover:border-primary/40")
       }
     >
-      {/* Selection checkbox — hidden until a long-press (5s) activates
-          selection mode, then visible on every card (so multi-select stays
-          one-tap after the first long-press). Never shown on light tap or
-          mouse hover. Never shown at all if the current user isn't allowed
-          to bulk-act on this lead (members + others' leads). */}
+      {/* Selection checkbox — hidden until selection mode is turned on via
+          the "Select" button in the filter bar, then visible on every
+          card. Never shown at all if the current user isn't allowed to
+          bulk-act on this lead (members + others' leads). */}
       {canSelect && (
         <button
           type="button"
@@ -1001,7 +1094,12 @@ function LeadCard({
         )}
        </div>
 
-      <NotePreview note={lead.notes} />
+      <NotePreview
+        leadId={lead.id}
+        note={lead.notes}
+        pending={pending}
+        onSave={onNoteChange}
+      />
 
       {/* Stage move dropdown */}
       {showMove && (
@@ -1063,7 +1161,21 @@ export function KanbanBoard({
 
   // --- Bulk selection ---
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const selectionActive = selectedIds.size > 0;
+  // `selectionModeOn` is the explicit "Select" button toggle — it turns
+  // checkboxes on before anything is picked. `selectionActive` also stays
+  // true once a lead is selected via long-press, so either path keeps the
+  // toolbar/back-button interception working.
+  const [selectionModeOn, setSelectionModeOn] = useState(false);
+  const selectionActive = selectionModeOn || selectedIds.size > 0;
+
+  function enterSelectionMode() {
+    setSelectionModeOn(true);
+  }
+
+  function exitSelectionMode() {
+    setSelectionModeOn(false);
+    setSelectedIds(new Set());
+  }
 
   // --- Meeting schedule / reschedule popup ---
   const [meetingModal, setMeetingModal] = useState<{
@@ -1097,6 +1209,7 @@ export function KanbanBoard({
     function handlePopState() {
       if (pushedHistoryRef.current) {
         pushedHistoryRef.current = false;
+        setSelectionModeOn(false);
         setSelectedIds(new Set());
       }
     }
@@ -1211,6 +1324,7 @@ export function KanbanBoard({
 
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [deletePending, setDeletePending] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const deleteTargetLead = deleteTarget
     ? items.find((l) => l.id === deleteTarget) ?? null
     : null;
@@ -1219,10 +1333,13 @@ export function KanbanBoard({
     if (!deleteTarget) return;
     const leadId = deleteTarget;
     setDeletePending(true);
+    setDeleteError(null);
     startTransition(async () => {
       const result = await deleteLeadAction(leadId);
       setDeletePending(false);
-      if (!result?.error) {
+      if (result?.error) {
+        setDeleteError(result.error);
+      } else {
         setItems((cur) => cur.filter((l) => l.id !== leadId));
         setDeleteTarget(null);
       }
@@ -1269,6 +1386,22 @@ export function KanbanBoard({
     });
   }
 
+  function handleNoteChange(leadId: string, note: string) {
+    const previous = items;
+
+    setItems((cur) =>
+      cur.map((l) => (l.id === leadId ? { ...l, notes: note } : l))
+    );
+
+    startTransition(async () => {
+      const result = await updateLeadAction(leadId, { notes: note });
+
+      if (result?.error) {
+        setItems(previous);
+      }
+    });
+  }
+
   function handleBulkMove(newStage: LeadStage) {
     const ids = Array.from(selectedIds);
     if (!ids.length) return;
@@ -1302,6 +1435,29 @@ export function KanbanBoard({
       const result = await bulkUpdateLeadAssigneeAction(ids, userId);
       if (result?.error) {
         setItems(previous);
+      }
+    });
+  }
+
+  const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
+  const [bulkDeletePending, setBulkDeletePending] = useState(false);
+  const [bulkDeleteError, setBulkDeleteError] = useState<string | null>(null);
+
+  function handleBulkDelete() {
+    const ids = Array.from(selectedIds);
+    if (!ids.length) return;
+    setBulkDeletePending(true);
+    setBulkDeleteError(null);
+
+    startTransition(async () => {
+      const result = await bulkDeleteLeadsAction(ids);
+      setBulkDeletePending(false);
+      if (result?.error) {
+        setBulkDeleteError(result.error);
+      } else {
+        setItems((cur) => cur.filter((l) => !ids.includes(l.id)));
+        setConfirmBulkDelete(false);
+        exitSelectionMode();
       }
     });
   }
@@ -1413,6 +1569,20 @@ export function KanbanBoard({
             Clear filters
           </button>
         )}
+
+        {!selectionActive && (
+          <button
+            type="button"
+            onClick={enterSelectionMode}
+            className="ml-auto flex items-center gap-1.5 text-xs font-medium border rounded-md px-2.5 py-1.5 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+          >
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M9 11 12 14 20 6" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h10" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            Select
+          </button>
+        )}
       </div>
 
       {/* Bulk selection toolbar */}
@@ -1465,10 +1635,19 @@ export function KanbanBoard({
 
             <button
               type="button"
-              onClick={clearSelection}
+              onClick={() => setConfirmBulkDelete(true)}
+              disabled={pending}
+              className="text-xs text-destructive hover:text-destructive/80 border border-destructive/40 rounded-md px-2 py-1 transition-colors disabled:opacity-50"
+            >
+              Delete
+            </button>
+
+            <button
+              type="button"
+              onClick={exitSelectionMode}
               className="text-xs text-muted-foreground hover:text-foreground border rounded-md px-2 py-1 transition-colors"
             >
-              Clear
+              Cancel
             </button>
           </div>
         </div>
@@ -1545,6 +1724,7 @@ export function KanbanBoard({
               onStageChange={handleStageChange}
               onAssigneeChange={handleAssigneeChange}
               onDateChange={handleDateChange}
+              onNoteChange={handleNoteChange}
               onToggleHot={handleToggleHot}
               onRequestMeetingMove={(leadId) =>
                 setMeetingModal({ leadId, mode: "schedule" })
@@ -1588,8 +1768,25 @@ export function KanbanBoard({
         open={deleteTarget !== null}
         leadName={deleteTargetLead?.business_name || deleteTargetLead?.name || null}
         pending={deletePending}
-        onClose={() => setDeleteTarget(null)}
+        error={deleteError}
+        onClose={() => {
+          setDeleteTarget(null);
+          setDeleteError(null);
+        }}
         onConfirm={handleConfirmDelete}
+      />
+
+      <DeleteConfirmModal
+        open={confirmBulkDelete}
+        leadName={null}
+        count={selectedIds.size}
+        pending={bulkDeletePending}
+        error={bulkDeleteError}
+        onClose={() => {
+          setConfirmBulkDelete(false);
+          setBulkDeleteError(null);
+        }}
+        onConfirm={handleBulkDelete}
       />
     </div>
   );

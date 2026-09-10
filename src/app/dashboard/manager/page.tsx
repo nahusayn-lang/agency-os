@@ -68,14 +68,15 @@ export default async function ManagerDashboardPage() {
       .from("tasks")
       .select("*", { count: "exact", head: true })
       .not("status", "in", '("completed","approved")'),
-    supabase.from("leads").select("*", { count: "exact", head: true }),
+    supabase.from("leads").select("*", { count: "exact", head: true }).is("deleted_at", null),
     supabase
       .from("leads")
       .select("*", { count: "exact", head: true })
+      .is("deleted_at", null)
       .not("stage", "in", '("deal_won","deal_lost")'),
-    supabase.from("leads").select("*", { count: "exact", head: true }).eq("stage", "deal_won"),
-    supabase.from("leads").select("deal_value").eq("stage", "deal_won"),
-    supabase.from("leads").select("*", { count: "exact", head: true }).eq("stage", "deal_lost"),
+    supabase.from("leads").select("*", { count: "exact", head: true }).is("deleted_at", null).eq("stage", "deal_won"),
+    supabase.from("leads").select("deal_value").is("deleted_at", null).eq("stage", "deal_won"),
+    supabase.from("leads").select("*", { count: "exact", head: true }).is("deleted_at", null).eq("stage", "deal_lost"),
     admin
       .from("fines")
       .select("id, amount, status, deadline, proof_url, payment_comment")

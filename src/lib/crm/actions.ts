@@ -88,11 +88,17 @@ export async function createLeadAction(formData: FormData) {
   const assignedTo = String(formData.get("assigned_to") ?? "").trim();
   const stage = String(formData.get("stage") ?? "").trim() as LeadStage;
   const nameInput = String(formData.get("name") ?? "").trim();
+  const dealValueInput = String(formData.get("deal_value") ?? "").trim();
+  const notesInput = String(formData.get("notes") ?? "").trim();
 
-  if (!businessName || !phone || !assignedTo || !stage) {
+  if (!nameInput || !businessName || !phone || !assignedTo || !stage) {
     return {
-      error: "Business name, phone, assignee, and stage are required.",
+      error: "Name, address, phone, assignee, and stage are required.",
     };
+  }
+
+  if (!dealValueInput || !notesInput) {
+    return { error: "Deal value and notes are required." };
   }
 
   if (!LEAD_STAGES.includes(stage)) {
@@ -109,16 +115,17 @@ export async function createLeadAction(formData: FormData) {
   const { data: lead, error } = await supabase
     .from("leads")
     .insert({
-      name: nameInput || businessName,
+      name: nameInput,
       business_name: businessName,
       phone,
       email: String(formData.get("email") ?? "").trim() || null,
       stage,
-      deal_value: formData.get("deal_value")
-        ? Number(formData.get("deal_value"))
-        : null,
+      deal_value: Number(dealValueInput),
       assigned_to: assignedTo,
-      notes: String(formData.get("notes") ?? "").trim() || null,
+      notes: notesInput,
+      last_contact: formData.get("last_contact")
+        ? new Date(String(formData.get("last_contact"))).toISOString()
+        : null,
       next_followup: formData.get("next_followup")
         ? new Date(String(formData.get("next_followup"))).toISOString()
         : null,
@@ -318,10 +325,15 @@ export async function toggleLeadHotAction(leadId: string, hot: boolean) {
 }
 
 /**
- * Permanently delete a lead (and its audit trail). Members can delete only
- * their own leads; admins/super_admins can delete any. Triggered from the
- * card's 9-second long-press delete option, so this is a real, unrecoverable
- * delete — no soft-delete/undo.
+ * Soft-delete a lead: sets `deleted_at` so it disappears from every CRM
+ * view, instead of a real hard DELETE. A true hard delete can't work here
+ * — lead_audit rows are permanently immutable (see 005_crm.sql's
+ * lead_audit_prevent_delete trigger), and that trigger fires even on the
+ * CASCADE delete a parent-row delete would trigger, so it always blocks
+ * it. Soft-delete keeps the full audit trail intact and is reversible
+ * (clear deleted_at to restore). Members can only soft-delete their own
+ * leads; admins/super_admins can soft-delete any. Triggered from the
+ * card's 9-second long-press delete option.
  */
 export async function deleteLeadAction(leadId: string) {
   const profile = await requireUserProfile();
@@ -341,19 +353,13 @@ export async function deleteLeadAction(leadId: string) {
     return { error: "You can only delete your own leads." };
   }
 
-  const { error: auditDeleteError } = await supabase
-    .from("lead_audit")
-    .delete()
-    .eq("lead_id", leadId);
+  const { error: updateError } = await supabase
+    .from("leads")
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("id", leadId);
 
-  if (auditDeleteError) {
-    return { error: auditDeleteError.message };
-  }
-
-  const { error: deleteError } = await supabase.from("leads").delete().eq("id", leadId);
-
-  if (deleteError) {
-    return { error: deleteError.message };
+  if (updateError) {
+    return { error: updateError.message };
   }
 
   revalidatePath("/crm");
@@ -932,11 +938,58 @@ export async function bulkUpdateLeadAssigneeAction(
   };
 }
 
+/**
+ * Bulk soft-delete: same permission rule as the single-lead soft-delete
+ * (members can only soft-delete their own leads; admins/super_admins can
+ * soft-delete any). See deleteLeadAction's comment for why this can't be
+ * a real hard delete. Triggered from the CRM bulk-selection toolbar's
+ * "Delete" action.
+ */
+export async function bulkDeleteLeadsAction(leadIds: string[]) {
+  const profile = await requireUserProfile();
+
+  if (!leadIds.length) {
+    return { error: "No leads selected." };
+  }
+
+  const supabase = createClient();
+
+  const { data: leads, error: fetchError } = await supabase
+    .from("leads")
+    .select("id, assigned_to")
+    .in("id", leadIds);
+
+  if (fetchError || !leads?.length) {
+    return { error: "Leads not found." };
+  }
+
+  if (profile.role === "member") {
+    const notOwned = leads.some((l) => l.assigned_to !== profile.id);
+    if (notOwned) {
+      return { error: "You can only delete your own leads." };
+    }
+  }
+
+  const ids = leads.map((l) => l.id);
+
+  const { error: updateError } = await supabase
+    .from("leads")
+    .update({ deleted_at: new Date().toISOString() })
+    .in("id", ids);
+
+  if (updateError) {
+    return { error: updateError.message };
+  }
+
+  revalidatePath("/crm");
+
+  return { success: true, deleted: ids.length };
+}
+
 async function validateLeadAssignee(
   supabase: ReturnType<typeof createClient>,
   assignedTo: string
-): Promise<string | null> {
-  const { data: assignee, error } = await supabase
+): Promise<string | null> {  const { data: assignee, error } = await supabase
     .from("users")
     .select("id, is_active")
     .eq("id", assignedTo)

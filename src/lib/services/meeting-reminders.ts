@@ -29,6 +29,7 @@ export async function sweepMeetingReminders(): Promise<{
   const { data: upcoming, error: upcomingError } = await admin
     .from("leads")
     .select("id, business_name, assigned_to, meeting_datetime")
+    .is("deleted_at", null)
     .eq("stage", "meeting")
     .eq("meeting_reminder_sent", false)
     .not("meeting_datetime", "is", null)
@@ -62,6 +63,7 @@ export async function sweepMeetingReminders(): Promise<{
   const { data: overdue, error: overdueError } = await admin
     .from("leads")
     .select("id, business_name, assigned_to, meeting_datetime")
+    .is("deleted_at", null)
     .eq("stage", "meeting")
     .eq("meeting_reminder_sent", false)
     .not("meeting_datetime", "is", null)

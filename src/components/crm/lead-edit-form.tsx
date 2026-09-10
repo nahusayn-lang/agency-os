@@ -82,7 +82,7 @@ export function LeadEditForm({
         <Input id="name" name="name" defaultValue={lead.name} required />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="business_name">Business name</Label>
+        <Label htmlFor="business_name">Address</Label>
         <Input
           id="business_name"
           name="business_name"
@@ -132,6 +132,7 @@ export function LeadEditForm({
           type="number"
           step="0.01"
           defaultValue={lead.deal_value ?? ""}
+          required
         />
       </div>
       {canAssign && (
@@ -182,6 +183,7 @@ export function LeadEditForm({
           name="notes"
           rows={4}
           defaultValue={lead.notes ?? ""}
+          required
         />
       </div>
       <div className="md:col-span-2">

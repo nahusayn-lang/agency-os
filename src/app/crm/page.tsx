@@ -14,6 +14,7 @@ export default async function CrmPage() {
     .select(
      "id, name, business_name, phone, deal_value, stage, assigned_to, last_contact, next_followup, meeting_datetime, meeting_note, meeting_history, notes, is_hot_lead"
     )
+    .is("deleted_at", null)
     .order("created_at", { ascending: false });
 
   if (error) {

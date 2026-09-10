@@ -37,6 +37,7 @@ export async function globalSearchAction(rawQuery: string): Promise<SearchResult
   const leadsQuery = supabase
     .from("leads")
     .select("id, name, business_name, phone, stage")
+    .is("deleted_at", null)
     .or(
       `name.ilike.${like},business_name.ilike.${like},phone.ilike.${like},email.ilike.${like}`
     )

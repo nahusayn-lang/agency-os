@@ -21,7 +21,7 @@ export default async function LeadDetailPage({ params }: LeadDetailPageProps) {
     .eq("id", params.id)
     .single();
 
-  if (error || !lead) {
+  if (error || !lead || lead.deleted_at) {
     notFound();
   }
 
